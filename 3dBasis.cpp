@@ -80,7 +80,7 @@ std::vector<mono> mono::DerivPp(){
 
 basis::basis(const int numP, const int degree): degree(degree), numP(numP) {
 	std::vector<std::vector<int>> minus = GetStatesUpToDegree(numP, degree);
-	std::vector<mono> basisMonos = AddPlusUpToDegree(minus, degree);
+	basisMonos = AddPlusUpToDegree(minus, degree);
 }
 
 basis::basis(const int numP, const int degree, const int M): degree(degree),
@@ -93,7 +93,7 @@ basis::basis(const int numP, const int degree, const int M): degree(degree),
 		throw(std::runtime_error("basis constructor"));
 	}
 	std::vector<std::vector<int>> minus = GetStatesUpToDegree(numP, (degree+M)/2, M);
-	std::vector<mono> basisMonos = AddPlusUpToDegree(minus, degree, M);
+	basisMonos = AddPlusUpToDegree(minus, degree, M);
 }
 
 std::ostream& operator<<(std::ostream& os, const std::vector<int>& out){
@@ -133,7 +133,7 @@ std::vector<std::vector<int>> GetStatesByDegree(const int numP,
 	} else {
 		lowerBound = -1;
 	}
-	lowerBound = std::max(lowerBound, min/numP + (min%numP!=0) - 1);
+	lowerBound = std::max(lowerBound, min/numP + (min%numP!=0) - 1 - (min<0));
 	for(int i = deg; i > lowerBound; --i){
 		std::vector<std::vector<int>> candidates = GetStatesByDegree(numP-1,
 				deg-i, strict, min-i);
@@ -168,9 +168,9 @@ std::vector<std::vector<int>> GetStatesAtDegree(const int numP,
 }
 
 // we only put P_+ onto particles with 0 P_- in order to avoid overcounting
-std::vector<mono> basis::AddPlusUpToDegree(
+std::vector<std::shared_ptr<mono>> basis::AddPlusUpToDegree(
 		const std::vector<std::vector<int>>& minus, const int degree){
-	std::vector<mono> ret;
+	std::vector<std::shared_ptr<mono>> ret;
 	for(auto& entry : minus){
 		int startingDeg = 0;
 		int zeroCount = 0;
@@ -182,16 +182,16 @@ std::vector<mono> basis::AddPlusUpToDegree(
 					degree - startingDeg));
 		for(auto& entryPerp : perp){
 			entryPerp.insert(entryPerp.begin(), entry.size()-zeroCount, 0);
-			ret.emplace_back(entry, entryPerp);
+			ret.push_back(std::make_shared<mono>(entry, entryPerp));
 		}
 	}
-	mono::FinishPerpAtDegree(ret, degree); // they are not valid monos without this!
+	ret = mono::FinishPerpAtDegree(ret, degree); // they are not valid monos without this!
 	return ret;
 }
 
-std::vector<mono> basis::AddPlusUpToDegree(
+std::vector<std::shared_ptr<mono>> basis::AddPlusUpToDegree(
 		const std::vector<std::vector<int>>& minus, const int degree, const int M){
-	std::vector<mono> ret;
+	std::vector<std::shared_ptr<mono>> ret;
 	for(auto& entry : minus){
 		int startingDeg = 0;
 		int zeroCount = 0;
@@ -203,26 +203,27 @@ std::vector<mono> basis::AddPlusUpToDegree(
 					std::min(degree - startingDeg, startingDeg - M)));
 		for(auto& entryPerp : perp){
 			entryPerp.insert(entryPerp.begin(), entry.size()-zeroCount, 0);
-			ret.emplace_back(entry, entryPerp);
+			ret.push_back(std::make_shared<mono>(entry, entryPerp));
 		}
 	}
-	mono::FinishPerpAtDegree(ret, degree); // they are not valid monos without this!
+	ret = mono::FinishPerpAtDegree(ret, degree); // they are not valid monos without this!
 	return ret;
 }
 
 // this function takes fake monos whose Pp field has been filled with P_+ and 
 // converts them to proper ones with only Pm and Pp using the equation of motion
-std::vector<mono> mono::FinishPerpAtDegree(const std::vector<mono>& combined,
+std::vector<std::shared_ptr<mono>> mono::FinishPerpAtDegree(
+		const std::vector<std::shared_ptr<mono>>& combined,
 		const int degree){
 	std::cout << "Asked to finish the following monos:" << std::endl;
-	std::vector<mono> ret;
+	std::vector<std::shared_ptr<mono>> ret;
 	for(auto& mn : combined){
-		std::cout << mn << " -> " << std::endl;
-		mono baseMono(mn);
+		std::cout << *mn << " -> " << std::endl;
+		mono baseMono(*mn);
 		int remainingEnergy = degree;
 		for(unsigned int i = 0; i < baseMono.NParticles(); ++i){
-			remainingEnergy -= mn.pm[i] + mn.pp[i];
-			baseMono.pm[i] -= mn.pp[i];
+			remainingEnergy -= mn->pm[i] + mn->pp[i];
+			baseMono.pm[i] -= mn->pp[i];
 			baseMono.pp[i] *= 2;
 		}
 		std::vector<int> nodes(baseMono.IdentifyNodes());
@@ -231,14 +232,14 @@ std::vector<mono> mono::FinishPerpAtDegree(const std::vector<mono>& combined,
 		nodeEnergies = Permute(nodeEnergies);
 		std::vector<std::vector<int>> perpCfgs(CfgsFromNodes(nodes, 
 					nodeEnergies));
-		mono newMono(baseMono);
+		std::shared_ptr<mono> newMono;
 		for(auto& cfg : perpCfgs){
-			newMono = baseMono;
-			std::cout << newMono << " + " << cfg;
-			for(auto i = 0; i < newMono.pp.size(); ++i){
-				newMono.pp[i] += cfg[i];
+			newMono = std::make_shared<mono>(baseMono);
+			std::cout << *newMono << " + " << cfg;
+			for(auto i = 0; i < newMono->pp.size(); ++i){
+				newMono->pp[i] += cfg[i];
 			}
-			std::cout << " = " << newMono << std::endl;
+			std::cout << " = " << *newMono << std::endl;
 			ret.push_back(newMono);
 		}
 		std::cout << "--------------------" << std::endl;

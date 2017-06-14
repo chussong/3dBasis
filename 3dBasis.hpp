@@ -44,18 +44,18 @@ class mono {
 		std::vector<mono> DerivPm();
 		std::vector<mono> DerivPp();
 
-		static std::vector<mono> FinishPerpAtDegree(
-				const std::vector<mono>& combined, const int degree);
+		static std::vector<std::shared_ptr<mono>> FinishPerpAtDegree(
+				const std::vector<std::shared_ptr<mono>>& combined, const int degree);
 };
 
 class basis {
 	int degree;
 	int numP;
-	std::vector<mono> basisMonos;
+	std::vector<std::shared_ptr<mono>> basisMonos;
 
-	static std::vector<mono> AddPlusUpToDegree(
+	static std::vector<std::shared_ptr<mono>> AddPlusUpToDegree(
 			const std::vector<std::vector<int>>& minus, const int degree);
-	static std::vector<mono> AddPlusUpToDegree(
+	static std::vector<std::shared_ptr<mono>> AddPlusUpToDegree(
 			const std::vector<std::vector<int>>& minus, const int degree,
 			const int M);
 
@@ -65,6 +65,7 @@ class basis {
 		basis(const int numP, const int degree, const int M);
 		std::shared_ptr<mono> GetBasisMono(std::vector<int> pm,
 				std::vector<int> pp);
+		std::shared_ptr<mono> GetBasisMono(std::shared_ptr<mono> wildMono);
 };
 
 class poly {
