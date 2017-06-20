@@ -41,7 +41,7 @@ class mono {
 		mono(const std::vector<int>& pm, const std::vector<int>& pt,
 				const std::vector<int>& pp,	const mpq_class& coeff = 1);
 		mono(const std::vector<particle>& particles, const mpq_class& coeff = 1):
-			particles(particles), coeff(coeff) {}
+			coeff(coeff), particles(particles) {}
 
 		mpq_class& Coeff()		{ return coeff; }
 		const mpq_class& Coeff() const	{ return coeff; }
@@ -55,15 +55,15 @@ class mono {
 		int Pp(const int i) const 	{ return particles[i].pp; }
 		int& Pp(const int i) 	 	{ return particles[i].pp; }
 
-		mono& operator*=(const mpq_class& x) { coeff *= x; return *this; }
+		mono& operator*=(const mpq_class& x)	 { coeff *= x; return *this; }
 		template<typename T>
-			mono& operator*=(const T& x		   ) { coeff *= x; return *this; }
-		mono& operator/=(const mpq_class& x) { coeff /= x; return *this; }
+			mono& operator*=(const T& x)		 { coeff *= x; return *this; }
+		mono& operator/=(const mpq_class& x)	 { coeff /= x; return *this; }
 		template<typename T>
-			mono& operator/=(const T& x		   ) { coeff /= x; return *this; }
+			mono& operator/=(const T& x)		 { coeff /= x; return *this; }
+
 		bool operator==(const mono& other) const;
 		bool operator!=(const mono& other) const { return !(*this == other); }
-		mono operator-() const;
 		friend std::ostream& operator<<(std::ostream& os, const mono& out);
 
 		template<typename T>
@@ -74,6 +74,7 @@ class mono {
 			friend mono operator*(const T& x,    mono y) { return y *= x; }
 		template<typename T>
 			friend mono operator/(const T& x,    mono y) { return y /= x; }
+		mono operator-() const;
 
 		bool IsOrdered() const;
 		void Order();
@@ -166,8 +167,8 @@ class basis {
 			const std::vector<particle>& baseCfg,
 			const std::vector<std::vector<int>>& newCfgs,
 			const int componentToChange);
-	static std::vector<std::vector<int>> CfgsFromNodes(const int numP,
-			const int remainingEnergy, const std::vector<int>& nodes);
+	static std::vector<std::vector<int>> CfgsFromNodes(const int remainingEnergy,
+			const std::vector<int>& nodes, const bool exact);
 	static std::vector<std::vector<int>> CfgsFromNodePartition(
 			const std::vector<int> nodes,
 			std::vector<std::vector<int>> nodeEnergies);
@@ -187,6 +188,7 @@ class basis {
 
 std::ostream& operator<<(std::ostream& os, const std::vector<int>& out);
 std::ostream& operator<<(std::ostream& os, const std::vector<mpq_class>& out);
+std::ostream& operator<<(std::ostream& os, const std::vector<particle>& out);
 std::vector<std::vector<int>> Permute(const std::vector<std::vector<int>> ordered);
 std::vector<std::vector<int>> GetStatesByDegree(const int numP, const int deg,
 		const bool exact, const int min);
@@ -201,35 +203,15 @@ inline std::ostream& operator<<(std::ostream &o, const mpq_class &expr){
 	return o << expr.get_str();
 }
 
-// calls the generic IdentifyNodes using the class's particles and (*value)
-template<typename T>
-inline std::vector<int> mono::IdentifyNodes(T (*value)(particle)) const{
-	return IdentifyNodes([particles](unsigned int i){return value(particles[i]);},
-			NParticles());
-}
-
-// should work for any containerish thing T with operator[]
-template<typename T>
-inline std::vector<int> IdentifyNodes(T& container){
-	return IdentifyNodes([container](unsigned int i){return container[i];},
-			container.size());
-}
-
-// default behavior for a vector of particles including mono::IdentifyNodes()
-template<>
-inline std::vector<int> IdentifyNodes(std::vector<particle>& particles){
-	return IdentifyNodes([particles](unsigned int i){return 
-			std::array<int, 3>(particles[i].pm, particles[i].pt, particles[i].pp); });
-}
-
 // T can be any type or class with an == operator; value indexes T by uint
-template<typename T>
-inline std::vector<int> IdentifyNodes(T (*value)(unsigned int), const size_t size){
+template<typename Accessor>
+//inline std::vector<int> IdentifyNodes(T (*value)(unsigned int), const size_t size){
+inline std::vector<int> IdentifyNodes(Accessor A, const size_t size){
 	std::vector<int> nodes;
 	int newNode;
 	newNode = 1;
 	for(unsigned int i = 1; i < size; ++i){
-		if(value(i) != value(i-1)){
+		if(A(i) != A(i-1)){
 			nodes.push_back(newNode);
 			newNode = 1;
 		} else {
@@ -238,6 +220,28 @@ inline std::vector<int> IdentifyNodes(T (*value)(unsigned int), const size_t siz
 	}
 	nodes.push_back(newNode);
 	return nodes;
+}
+
+// calls the generic IdentifyNodes using the class's particles and (*value)
+template<typename T>
+inline std::vector<int> mono::IdentifyNodes(T (*value)(particle)) const{
+	return IdentifyNodes([this, value](unsigned int i){return value(this->particles[i]);},
+			NParticles());
+}
+
+// should work for any containerish thing T with operator[]
+template<typename T>
+inline std::vector<int> IdentifyNodes(const T& container){
+	return IdentifyNodes([container](unsigned int i){return container[i];},
+			container.size());
+}
+
+// default behavior for a vector of particles including mono::IdentifyNodes()
+template<>
+inline std::vector<int> IdentifyNodes(const std::vector<particle>& particles){
+	return IdentifyNodes([particles](unsigned int i){return 
+			std::array<int, 3>({{particles[i].pm, particles[i].pt, particles[i].pp}}); },
+			particles.size());
 }
 
 /*template<typename T, typename U>

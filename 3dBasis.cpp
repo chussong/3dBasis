@@ -46,7 +46,7 @@ mono::mono(const std::vector<int>& pm, const std::vector<int>& pt,
 		return;
 	}
 	particles.resize(pm.size());
-	for(auto i = 0; i < pm.size(); ++i){
+	for(auto i = 0u; i < pm.size(); ++i){
 		particles[i].pm = pm[i];
 		particles[i].pt = pt[i];
 		particles[i].pp = pp[i];
@@ -69,8 +69,7 @@ bool mono::operator==(const mono& other) const{
 }
 
 std::ostream& operator<<(std::ostream& os, const mono& out){
-	os << out.particles;
-	return os;
+	return os << out.coeff << " * " << out.particles;
 }
 
 mono mono::operator-() const{
@@ -98,7 +97,8 @@ void mono::Order(){
 		i += node;
 	}
 
-	nodes = IdentifyNodes([](particle p){return std::array<int,2>(p.pm,p.pt);});
+	nodes = ::IdentifyNodes([this](unsigned int i){
+			return std::array<int,2>({{Pm(i), Pt(i)}}); }, NParticles() );
 	i = 0u;
 	for(auto& node : nodes){
 		std::sort(particles.begin() + i, particles.begin() + i + node,
@@ -114,19 +114,19 @@ mono mono::OrderCopy() const{
 }
 
 std::vector<int> mono::IdentifyNodes() const{
-	return IdentifyNodes(particles);
+	return ::IdentifyNodes(particles);
 }
 
 std::vector<int> mono::IdentifyPmNodes() const{
-	return IdentifyNodes([](particle p){return p.pm;});
+	return ::IdentifyNodes([this](unsigned int i){return Pm(i);}, NParticles());
 }
 
 std::vector<int> mono::IdentifyPtNodes() const{
-	return IdentifyNodes([](particle p){return p.pt;});
+	return ::IdentifyNodes([this](unsigned int i){return Pt(i);}, NParticles());
 }
 
 std::vector<int> mono::IdentifyPpNodes() const{
-	return IdentifyNodes([](particle p){return p.pp;});
+	return ::IdentifyNodes([this](unsigned int i){return Pp(i);}, NParticles());
 }
 
 // NOTE! These break ordering, so you have to re-order when you're done!
@@ -281,6 +281,9 @@ basis::basis(const int numP, const int degree): degree(degree), numP(numP) {
 	// 3: identify nodes in (P_- and P_\perp), repeating step 2 for P_+
 	// 4: take list from step 3 and create a mono from each entry, then store
 	// 		the list of these as basisMonos
+	// NOTE: this does not make any use of the symmetries between the components
+	// 		in constructing the basis; for instance, the states where every
+	// 		pm = 0 are followed by a copy of the earlier parts of the basis
 	std::vector<std::vector<int>> minus = GetStatesUpToDegree(numP, degree);
 	std::vector<std::vector<particle>> particleCfgs;
 	for(auto& minusCfg : minus){
@@ -295,7 +298,8 @@ basis::basis(const int numP, const int degree): degree(degree), numP(numP) {
 		nodes = IdentifyNodes(configuration);
 		int remainingEnergy = degree;
 		for(auto& part : configuration) remainingEnergy -= part.pm;
-		std::vector<std::vector<int>> perp(CfgsFromNodes(numP, remainingEnergy, nodes));
+		std::vector<std::vector<int>> perp(CfgsFromNodes(remainingEnergy, nodes,
+															false));
 		for(auto& newCfg : CombinedCfgs(configuration, perp, 2)){
 			newCfgs.push_back(newCfg);
 		}
@@ -315,12 +319,15 @@ basis::basis(const int numP, const int degree): degree(degree), numP(numP) {
 		nodes = IdentifyNodes(cfg);
 		int remainingEnergy = degree;
 		for(auto& part : cfg) remainingEnergy -= part.pm + part.pt;
-		std::vector<std::vector<int>> plus(CfgsFromNodes(numP, remainingEnergy, nodes));
+		std::vector<std::vector<int>> plus(CfgsFromNodes(remainingEnergy, nodes,
+															true));
 		for(auto& newCfg : CombinedCfgs(cfg, plus, 3)){
 			particleCfgs.push_back(newCfg);
 		}
 	}
 
+	std::cout << "Constructed the following " << particleCfgs.size() 
+		<< "-element basis:" << std::endl;
 	for(auto& cfg : particleCfgs){
 		basisMonos.push_back(std::make_unique<mono>(cfg));
 		std::cout << cfg << std::endl;
@@ -364,11 +371,11 @@ std::vector<std::vector<particle>> basis::CombinedCfgs(
 	return ret;
 }
 
-std::vector<std::vector<int>> basis::CfgsFromNodes(const int numP,
-		const int remainingEnergy, const std::vector<int>& nodes){
+std::vector<std::vector<int>> basis::CfgsFromNodes(const int remainingEnergy,
+		const std::vector<int>& nodes, const bool exact){
 	std::vector<std::vector<int>> ret;
-	std::vector<std::vector<int>> nodeEnergies(GetStatesAtDegree(nodes.size(),
-				remainingEnergy));
+	std::vector<std::vector<int>> nodeEnergies(GetStatesByDegree(nodes.size(),
+				remainingEnergy, exact, 0));
 	nodeEnergies = Permute(nodeEnergies);
 	std::vector<std::vector<int>> perpCfgs(CfgsFromNodePartition(nodes, 
 				nodeEnergies));
@@ -388,7 +395,7 @@ std::vector<std::vector<int>> basis::CfgsFromNodePartition(const std::vector<int
 			for(auto& node: nodeEnergies[0]) std::cerr << node << ",";
 			std::cerr << "\b " << std::endl;
 		}
-		throw(std::runtime_error("CfgsFromNodes"));
+		throw(std::runtime_error("CfgsFromNodePartition"));
 	}
 	std::vector<std::vector<int>> finalCfgs;
 	int nPart = 0;
@@ -410,7 +417,7 @@ std::vector<std::vector<int>> basis::CfgsFromNodePartition(const std::vector<int
 		bool done = false;
 		while(!done){
 			p = 0;
-			for(auto n = 0; n < nodePoss.size(); ++n){
+			for(auto n = 0u; n < nodePoss.size(); ++n){
 				for(auto& partEnergy : nodePoss[n][cfgSpec[n]]){
 					cfg[p] = partEnergy;
 					++p;
@@ -468,10 +475,12 @@ std::ostream& operator<<(std::ostream& os, const std::vector<particle>& out){
 		if(p.pm >= 0) os << " ";
 		os << p.pm << ",";
 	}
+	os << "\b }{";
 	for(auto& p : out){
 		if(p.pt >= 0) os << " ";
 		os << p.pt << ",";
 	}
+	os << "\b }{";
 	for(auto& p : out){
 		if(p.pp >= 0) os << " ";
 		os << p.pp << ",";
@@ -660,7 +669,6 @@ std::vector<mpq_class> basis::ExpressPoly(const poly& toExpress) const{
 }
 
 poly::poly(std::vector<mono> terms){
-	bool duplicate;
 	for(auto& newTerm : terms){
 		*this += newTerm;
 	}
