@@ -26,15 +26,6 @@ class mono {
 	std::vector<int> IdentifyPmNodes() const;
 	std::vector<int> IdentifyPtNodes() const;
 	std::vector<int> IdentifyPpNodes() const;
-	/*static std::vector<std::vector<int>> CfgsFromNodes(
-			std::vector<int> nodes,
-			std::vector<std::vector<int>> nodeEnergies);*/
-
-	/*static std::vector<mono> BruteGenerateMinus(const int numP, const int degree);
-	static void BruteAddPerp(std::vector<mono>& haveMinus, const int numP,
-			const int degree);
-	static void BruteAddPlus(std::vector<mono>& havePerp, const int numP,
-			const int degree);*/
 
 	public:
 		mono(): coeff(1) {}
@@ -98,11 +89,6 @@ class mono {
 		std::vector<mono> K1() const;
 		std::vector<mono> K2() const;
 		std::vector<mono> K3() const;
-
-		/*static std::vector<std::shared_ptr<mono>> FinishPerpAtDegree(
-				const std::vector<std::shared_ptr<mono>>& combined, const int degree);*/
-
-		//static std::vector<mono> BruteGenerateMonos(const int numP, const int degree);
 };
 
 // all monos in poly should be guaranteed to be ordered correctly!
@@ -157,12 +143,6 @@ class basis {
 	int numP;
 	std::vector<std::unique_ptr<mono>> basisMonos;
 
-	/*static std::vector<std::shared_ptr<mono>> AddPlusUpToDegree(
-			const std::vector<std::vector<int>>& minus, const int degree);*/
-	/*static std::vector<std::shared_ptr<mono>> AddPlusUpToDegree(
-			const std::vector<std::vector<int>>& minus, const int degree,
-			const int M);*/
-
 	static std::vector<std::vector<particle>> CombinedCfgs(
 			const std::vector<particle>& baseCfg,
 			const std::vector<std::vector<int>>& newCfgs,
@@ -175,7 +155,6 @@ class basis {
 	public:
 		basis() = delete;
 		basis(const int numP, const int degree);
-		//basis(const int numP, const int degree, const int M);
 		mono* GetBasisMono(const std::vector<int>& pm, const std::vector<int>&,
 				const std::vector<int>& pp);
 		mono* GetBasisMono(const mono& wildMono);
@@ -193,11 +172,7 @@ std::vector<std::vector<int>> Permute(const std::vector<std::vector<int>> ordere
 std::vector<std::vector<int>> GetStatesByDegree(const int numP, const int deg,
 		const bool exact, const int min);
 std::vector<std::vector<int>> GetStatesUpToDegree(const int numP, const int deg);
-/*std::vector<std::vector<int>> GetStatesUpToDegree(const int numP, const int deg,
-		const int M);*/
 std::vector<std::vector<int>> GetStatesAtDegree(const int numP, const int deg);
-/*std::vector<std::vector<int>> GetStatesAtDegree(const int numP, const int deg,
-		const int M);*/
 
 inline std::ostream& operator<<(std::ostream &o, const mpq_class &expr){
 	return o << expr.get_str();
@@ -205,7 +180,6 @@ inline std::ostream& operator<<(std::ostream &o, const mpq_class &expr){
 
 // T can be any type or class with an == operator; value indexes T by uint
 template<typename Accessor>
-//inline std::vector<int> IdentifyNodes(T (*value)(unsigned int), const size_t size){
 inline std::vector<int> IdentifyNodes(Accessor A, const size_t size){
 	std::vector<int> nodes;
 	int newNode;
@@ -243,8 +217,4 @@ inline std::vector<int> IdentifyNodes(const std::vector<particle>& particles){
 			std::array<int, 3>({{particles[i].pm, particles[i].pt, particles[i].pp}}); },
 			particles.size());
 }
-
-/*template<typename T, typename U>
-inline std::vector<int> IdentifyNodes(T& container, U (*value)(
-*/
 #endif

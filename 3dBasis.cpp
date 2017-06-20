@@ -18,22 +18,6 @@ int main(int argc, char* argv[]) {
 	// - find kernel of above matrix
 	// - re-express kernel vectors as polynomials on startingBasis and output
 	
-	/*if(argc == 4){
-		std::string M(argv[3]);
-		basis startingBasis(std::stoi(numP), std::stoi(deg), std::stoi(M));
-		basis targetBasis(std::stoi(numP), std::stoi(deg)-1);
-
-		std::cout << "K3:" << std::endl;
-		for(auto& basisMono : startingBasis.BasisMonos()){
-			std::cout << *basisMono << " -> " << std::endl;
-			poly outPoly(basisMono->K3());
-			for(auto& outMono : outPoly){
-				std::cout << outMono << std::endl;
-			}
-			std::cout << "Or in vector form: " << targetBasis.ExpressPoly(outPoly)
-				<< std::endl;
-		}
-	}*/
 	return EXIT_SUCCESS;
 }
 
@@ -213,15 +197,6 @@ mono mono::MultPp(const unsigned int particle) const{
 	return ret;
 }
 
-// this used the EoM to take a P_+ derivative for nondynamical P_+
-/*mono mono::MultPpl(const unsigned int particle) const{
-	mono ret(*this);
-	ret.pp[particle] += 2;
-	--ret.pm[particle];
-	ret.Order();
-	return ret;
-}*/
-
 std::array<mono, 4> mono::K1(const unsigned int particle) const{
 	std::array<mono, 4> ret({{
 			2*this->DerivPp(particle).DerivPp(particle).MultPp(particle),
@@ -303,15 +278,6 @@ basis::basis(const int numP, const int degree): degree(degree), numP(numP) {
 		for(auto& newCfg : CombinedCfgs(configuration, perp, 2)){
 			newCfgs.push_back(newCfg);
 		}
-		/* CombinedCfgs should do this:
-		for(auto& cfgPerp : perp){
-			std::vector<particle> newCfg(cfgPerp.size());
-			for(auto i = 0u; i < newCfg.size(); ++i){
-				newCfg[i].pm = configuration[i];
-				newCfg[i].pt = cfgPerp[i];
-			}
-			particleCfgs.push_back(newCfg);
-		}*/
 	}
 
 	particleCfgs.clear();
@@ -438,17 +404,6 @@ std::vector<std::vector<int>> basis::CfgsFromNodePartition(const std::vector<int
 	return finalCfgs;
 }
 
-/*basis::basis(const int numP, const int degree, const int M): degree(degree),
-		numP(numP) {
-	if(std::abs(M) > degree){
-		std::cerr << "Error: there are no states with |M|=|" << M 
-			<< "| > degree=" << degree << "!" << std::endl;
-		throw(std::runtime_error("basis constructor"));
-	}
-	std::vector<std::vector<int>> minus = GetStatesUpToDegree(numP, (degree+M)/2, M);
-	basisMonos = AddPlusUpToDegree(minus, degree, M);
-}*/
-
 std::ostream& operator<<(std::ostream& os, const std::vector<int>& out){
 	os << "{";
 	for(auto& i : out){
@@ -535,107 +490,10 @@ std::vector<std::vector<int>> GetStatesUpToDegree(const int numP,
 	return GetStatesByDegree(numP, deg, false, 0);
 }
 
-/*std::vector<std::vector<int>> GetStatesUpToDegree(const int numP,
-		const int deg, const int M){
-	return GetStatesByDegree(numP, deg, false, M);
-}*/
-
 std::vector<std::vector<int>> GetStatesAtDegree(const int numP,
 		const int deg){
 	return GetStatesByDegree(numP, deg, true, 0);
 }
-
-/*std::vector<std::vector<int>> GetStatesAtDegree(const int numP,
-		const int deg, const int M){
-	return GetStatesByDegree(numP, deg, true, M);
-}*/
-
-/* ******These are from the era with nondynamical P_+******
-// we only put P_+ onto particles with 0 P_- in order to avoid overcounting
-std::vector<std::shared_ptr<mono>> basis::AddPlusUpToDegree(
-		const std::vector<std::vector<int>>& minus, const int degree){
-	std::vector<std::shared_ptr<mono>> ret;
-	for(auto& entry : minus){
-		int startingDeg = 0;
-		int zeroCount = 0;
-		for(auto& p : entry){
-			startingDeg += p;
-			if(p == 0) ++zeroCount;
-		}
-		std::vector<std::vector<int>> perp(GetStatesUpToDegree(zeroCount,
-					degree - startingDeg));
-		for(auto& entryPerp : perp){
-			// if speed turns out to matter here, probably faster to add a
-			// reversed constructor to mono instead of doing this reversal
-			std::reverse(entryPerp.begin(), entryPerp.end());
-			entryPerp.insert(entryPerp.begin(), entry.size()-zeroCount, 0);
-			ret.push_back(std::make_shared<mono>(entry, entryPerp));
-		}
-	}
-	ret = mono::FinishPerpAtDegree(ret, degree); // they are not valid monos without this!
-	return ret;
-}
-
-std::vector<std::shared_ptr<mono>> basis::AddPlusUpToDegree(
-		const std::vector<std::vector<int>>& minus, const int degree, const int M){
-	std::vector<std::shared_ptr<mono>> ret;
-	for(auto& entry : minus){
-		int startingDeg = 0;
-		int zeroCount = 0;
-		for(auto& p : entry){
-			startingDeg += p;
-			if(p == 0) ++zeroCount;
-		}
-		std::vector<std::vector<int>> perp(GetStatesAtDegree(zeroCount,
-					std::min(degree - startingDeg, startingDeg - M)));
-		for(auto& entryPerp : perp){
-			// if speed turns out to matter here, probably faster to add a
-			// reversed constructor to mono instead of doing this reversal
-			std::reverse(entryPerp.begin(), entryPerp.end());
-			entryPerp.insert(entryPerp.begin(), entry.size()-zeroCount, 0);
-			ret.push_back(std::make_shared<mono>(entry, entryPerp));
-		}
-	}
-	ret = mono::FinishPerpAtDegree(ret, degree); // they are not valid monos without this!
-	return ret;
-}
-
-// takes fake monos whose Pp field has been filled with P_+ and uses the 
-// equation of motion to convert them to proper ones with only Pm and Pp
-std::vector<std::shared_ptr<mono>> mono::FinishPerpAtDegree(
-		const std::vector<std::shared_ptr<mono>>& combined,
-		const int degree){
-	//std::cout << "Asked to finish the following monos:" << std::endl;
-	std::vector<std::shared_ptr<mono>> ret;
-	for(auto& mn : combined){
-		//std::cout << *mn << " -> " << std::endl;
-		mono baseMono(*mn);
-		int remainingEnergy = degree;
-		for(unsigned int i = 0; i < baseMono.NParticles(); ++i){
-			remainingEnergy -= mn->pm[i] + mn->pp[i];
-			baseMono.pm[i] -= mn->pp[i];
-			baseMono.pp[i] *= 2;
-		}
-		std::vector<int> nodes(baseMono.IdentifyNodes());
-		std::vector<std::vector<int>> nodeEnergies(GetStatesAtDegree(nodes.size(),
-					remainingEnergy));
-		nodeEnergies = Permute(nodeEnergies);
-		std::vector<std::vector<int>> perpCfgs(CfgsFromNodes(nodes, 
-					nodeEnergies));
-		std::shared_ptr<mono> newMono;
-		for(auto& cfg : perpCfgs){
-			newMono = std::make_shared<mono>(baseMono);
-			//std::cout << *newMono << " + " << cfg;
-			for(auto i = 0; i < newMono->pp.size(); ++i){
-				newMono->pp[i] += cfg[i];
-			}
-			//std::cout << " = " << *newMono << std::endl;
-			ret.push_back(newMono);
-		}
-		//std::cout << "--------------------" << std::endl;
-	}
-	return ret;
-}*/
 
 mono* basis::GetBasisMono(const std::vector<int>& pm, const std::vector<int>& pt,
 		const std::vector<int>& pp){
