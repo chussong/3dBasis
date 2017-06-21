@@ -9,20 +9,24 @@ int main(int argc, char* argv[]) {
 	std::string numP(argv[1]);
 	std::string deg (argv[2]);
 
-	if(argc == 3){
-		basis startingBasis(std::stoi(numP), std::stoi(deg));
-		basis targetBasis(std::stoi(numP), std::stoi(deg)-1);
-	}
+	basis startingBasis(std::stoi(numP), std::stoi(deg));
+	basis targetBasis(std::stoi(numP), std::stoi(deg)-1);
 
 	// - create matrix of K acting on each element of startingBasis
-	// - find kernel of above matrix
-	// - re-express kernel vectors as polynomials on startingBasis and output
+	Matrix KActions = KMatrix(startingBasis, targetBasis);
+
+	// - find kernel of above matrix and output
+	std::vector<poly> kernel = Kernel(KActions, startingBasis);
+
+	std::cout << "Found the following " << kernel.size() << "-dimensional kernel:"
+		<< std::endl;
+	for(auto& kernelVec : kernel) std::cout << kernelVec << std::endl;
 	
 	return EXIT_SUCCESS;
 }
 
 mono::mono(const std::vector<int>& pm, const std::vector<int>& pt,
-		const std::vector<int>& pp,	const mpq_class& coeff): coeff(coeff){
+		const std::vector<int>& pp,	const coeff_class& coeff): coeff(coeff){
 	if(pm.size() != pt.size() || pt.size() != pp.size()){
 		std::cerr << "Error: attempted to construct a monomial out of particle "
 			<< "data with different sizes: {" << pm.size() << "," << pt.size()
@@ -54,6 +58,11 @@ bool mono::operator==(const mono& other) const{
 
 std::ostream& operator<<(std::ostream& os, const mono& out){
 	return os << out.coeff << " * " << out.particles;
+}
+
+std::ostream& operator<<(std::ostream& os, const poly& out){
+	for(auto& component : out) os << component << " + ";
+	return out.size() > 0 ? os << "\b\b \b\b" : os;
 }
 
 mono mono::operator-() const{
@@ -249,7 +258,7 @@ std::vector<mono> mono::K3() const{
 	return ret;
 }
 
-basis::basis(const int numP, const int degree): degree(degree), numP(numP) {
+basis::basis(const int numP, const int degree) {
 	// 1: generate all possibilities for P_-
 	// 2: identify nodes in P_-, generate possible distributions of P_\perp to
 	// 		the nodes and then P_\perp within each node, adding each at top level
@@ -295,7 +304,7 @@ basis::basis(const int numP, const int degree): degree(degree), numP(numP) {
 	std::cout << "Constructed the following " << particleCfgs.size() 
 		<< "-element basis:" << std::endl;
 	for(auto& cfg : particleCfgs){
-		basisMonos.push_back(std::make_unique<mono>(cfg));
+		basisMonos.emplace_back(cfg);
 		std::cout << cfg << std::endl;
 	}
 }
@@ -414,7 +423,7 @@ std::ostream& operator<<(std::ostream& os, const std::vector<int>& out){
 	return os;
 }
 
-std::ostream& operator<<(std::ostream& os, const std::vector<mpq_class>& out){
+std::ostream& operator<<(std::ostream& os, const std::vector<coeff_class>& out){
 	os << "{";
 	for(auto& i : out){
 		if(i >= 0) os << " ";
@@ -442,6 +451,11 @@ std::ostream& operator<<(std::ostream& os, const std::vector<particle>& out){
 	}
 	os << "\b }";
 	return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Triplet& out){
+	return os << "(" << out.row() << "," << out.col() << "," << out.value()
+		<< ")";
 }
 
 std::vector<std::vector<int>> Permute(const std::vector<std::vector<int>> ordered){
@@ -495,22 +509,47 @@ std::vector<std::vector<int>> GetStatesAtDegree(const int numP,
 	return GetStatesByDegree(numP, deg, true, 0);
 }
 
-mono* basis::GetBasisMono(const std::vector<int>& pm, const std::vector<int>& pt,
+mono basis::GetBasisMono(const std::vector<int>& pm, const std::vector<int>& pt,
 		const std::vector<int>& pp){
 	return GetBasisMono(mono(pm, pt, pp));
 }
 
-mono* basis::GetBasisMono(const mono& wildMono){
+mono basis::GetBasisMono(const mono& wildMono){
 	for(auto& mn : basisMonos){
-		if(*mn == wildMono) return mn.get();
+		if(mn == wildMono) return mn;
 	}
 	std::cout << "Warning! Failed to find the following mono in our basis: "
 		<< wildMono << std::endl;
-	return nullptr;
+	return wildMono;
 }
 
-std::vector<mpq_class> basis::ExpressPoly(const poly& toExpress) const{
-	std::vector<mpq_class> ret;
+std::list<Triplet> basis::ExpressPoly(const poly& toExpress, 
+		const int column, const int rowOffset) const{
+	std::list<Triplet> ret;
+	if(toExpress.size() == 0) return ret;
+	unsigned int hits = 0u;
+	for(auto i = 0u; i < basisMonos.size(); ++i){
+		for(auto& term : toExpress){
+			if(term == basisMonos[i]){
+				ret.emplace_front(rowOffset+i, column, term.Coeff());
+				++hits;
+				break;
+			}
+		}
+		if(hits == toExpress.size()) break;
+	}
+	if(hits < toExpress.size()){
+		std::cerr << "Error: tried to express the polynomial " << toExpress
+		<< " on the given basis but was only able to identify " << hits
+		<< " of " << toExpress.size() << " terms." << std::endl;
+	}
+	std::cout << "Expressed " << toExpress << " as the following triplets:" << std::endl;
+	for(auto& trip : ret) std::cout << trip << std::endl;
+	return ret;
+}
+
+/*std::vector<coeff_class> basis::ExpressPoly(const poly& toExpress) const{
+	std::vector<coeff_class> ret;
 	bool nonzero;
 	for(auto& basisMono : basisMonos){
 		nonzero = false;
@@ -524,9 +563,13 @@ std::vector<mpq_class> basis::ExpressPoly(const poly& toExpress) const{
 		if(!nonzero) ret.push_back(0);
 	}
 	return ret;
-}
+}*/
 
 poly::poly(std::vector<mono> terms){
+	if(terms.size() == 0){
+		std::cout << "Warning! A poly has been constructed from an empty mono."
+			<< std::endl;
+	}
 	for(auto& newTerm : terms){
 		*this += newTerm;
 	}
@@ -610,3 +653,68 @@ poly poly::K3() const{
 	}
 	return ret;
 }
+
+Matrix KMatrix(const basis& startingBasis, const basis& targetBasis){
+	std::cout << "Constructing polynomials of K actions..." << std::endl;
+	std::vector<poly> K1Actions, K2Actions, K3Actions;
+	for(auto& basisMono : startingBasis){
+		K1Actions.emplace_back(basisMono.K1());
+		K2Actions.emplace_back(basisMono.K2());
+		K3Actions.emplace_back(basisMono.K3());
+	}
+
+	std::cout << "Converting K actions to triplets..." << std::endl;
+	std::list<Triplet> entries = ConvertToRows(K1Actions, targetBasis, 0);
+	entries.splice(entries.end(), ConvertToRows(K2Actions, targetBasis, 1));
+	entries.splice(entries.end(), ConvertToRows(K3Actions, targetBasis, 2));
+
+	std::cout << "List of triplets done, matrixifying..." << std::endl;
+	Matrix ret(3*targetBasis.size(), startingBasis.size());
+	// if this is slow, can do ret.reserve(3*numP) to speed it up
+	ret.setFromTriplets(entries.begin(), entries.end());
+	// matrix must be compressed here but setFromTriplets does it automatically
+	return ret;
+}
+
+std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms, 
+		const basis& targetBasis, const Eigen::Index rowOffset){
+	std::list<Triplet> ret = targetBasis.ExpressPoly(polyForms[0], 0,
+			rowOffset*targetBasis.size());
+	for(auto i = 1u; i < polyForms.size(); ++i){
+		ret.splice(ret.end(), targetBasis.ExpressPoly(polyForms[i], i,
+				rowOffset*targetBasis.size()));
+	}
+	return ret;
+}
+
+// takes QR decomposition of the matrix and returns the polynomial forms of its
+// rightmost N columns, which are the N orthonormal basis vectors of the kernel
+std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis){
+	std::cout << "Computing kernel from KActions..." << std::endl;
+	QRSolver solver;
+	solver.compute(KActions.transpose());
+	Matrix Q;
+	Q = solver.matrixQ();
+	std::vector<poly> ret;
+	std::cout << "Solving done, converting to polynomials..." << std::endl;
+	for(auto col = solver.rank(); col < Q.cols(); ++col){
+		ret.push_back(ColumnToPoly(Q, col, startBasis));
+	}
+	return ret;
+}
+
+poly ColumnToPoly(const Matrix& Q, const Eigen::Index col, const basis& startBasis){
+	poly ret;
+	if(static_cast<size_t>(Q.rows()) != startBasis.size()){
+		std::cerr << "Error: the given Q matrix has " << Q.rows() << " rows, "
+			<< "but the given basis has " << startBasis.size() << " monomials. "
+			<< "These must be the same." << std::endl;
+		return ret;
+	}
+	for(Eigen::Index row = 0; row < Q.rows(); ++row){
+		if(Q.coeff(row, col) == 0) continue;
+		ret += Q.coeff(row, col)*startBasis[row];
+	}
+	return ret;
+}
+

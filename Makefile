@@ -1,7 +1,7 @@
 CXX = clang++
 
 CXXFLAGS = -Wall -Wextra -pedantic -g -c -std=c++14
-LDFLAGS = -lgmp
+LDFLAGS = -lmpfr -lgmp
 EXECUTABLE = 3dBasis
 
 SOURCES = 3dBasis.cpp
