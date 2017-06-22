@@ -14,6 +14,7 @@ int main(int argc, char* argv[]) {
 
 	// - create matrix of K acting on each element of startingBasis
 	Matrix KActions = KMatrix(startingBasis, targetBasis);
+	std::cout << KActions << std::endl;
 
 	// - find kernel of above matrix and output
 	std::vector<poly> kernel = Kernel(KActions, startingBasis);
@@ -99,6 +100,17 @@ void mono::Order(){
 		i += node;
 	}
 }
+
+/* The following two functions might actually work just as well:
+bool ParticlePrecedence(const particle& a, const particle& b){
+	if(a.pm != b.pm) return a.pm > b.pm;
+	if(a.pt != b.pt) return a.pt > b.pt;
+	return a.pp > b.pp;
+}
+
+void mono::Order(){
+	std::sort(particles.begin(), particles.end(), ParticlePrecedence(a,b));
+}*/
 
 mono mono::OrderCopy() const{
 	mono ret(*this);
@@ -413,50 +425,35 @@ std::vector<std::vector<int>> basis::CfgsFromNodePartition(const std::vector<int
 	return finalCfgs;
 }
 
-std::ostream& operator<<(std::ostream& os, const std::vector<int>& out){
-	os << "{";
-	for(auto& i : out){
-		if(i >= 0) os << " ";
-		os << i << ",";
-	}
-	os << "\b }";
-	return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const std::vector<coeff_class>& out){
-	os << "{";
-	for(auto& i : out){
-		if(i >= 0) os << " ";
-		os << i << ",";
-	}
-	os << "\b }";
-	return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const std::vector<particle>& out){
-	os << "{";
-	for(auto& p : out){
-		if(p.pm >= 0) os << " ";
-		os << p.pm << ",";
-	}
-	os << "\b }{";
-	for(auto& p : out){
-		if(p.pt >= 0) os << " ";
-		os << p.pt << ",";
-	}
-	os << "\b }{";
-	for(auto& p : out){
-		if(p.pp >= 0) os << " ";
-		os << p.pp << ",";
-	}
-	os << "\b }";
-	return os;
-}
-
+// note: triplets displayed (row, column, value) despite matrix's storage type
 std::ostream& operator<<(std::ostream& os, const Triplet& out){
 	return os << "(" << out.row() << "," << out.col() << "," << out.value()
 		<< ")";
 }
+
+/*
+// note: I recommend starting a new line before this, but I'm not your parents
+std::ostream& operator<<(std::ostream& os, const Matrix& out){
+	out.isVector() ? os << "( " : os << "/ ";
+	for(auto col = 0; col < out.cols(); ++col){
+		os << out.coeff(0, col) << ", ";
+	}
+	out.isVector() ? return os << "\b\b )" : os << "\b\b \\\n";
+
+	os << "| ";
+	for(auto row = 1; row < out.rows()-1; ++row){
+		for(auto col = 0; col < out.cols(); ++col){
+			os << out.coeff(row, col) << ", ";
+		}
+	}
+	os << "\b\b |\n";
+
+	os << "\\ ";
+	for(auto col = 0; col < out.cols(); ++col){
+		of << out.coeff(out.rows()-1, col) << ", ";
+	}
+	return os << "\b\b /";
+}*/
 
 std::vector<std::vector<int>> Permute(const std::vector<std::vector<int>> ordered){
 	std::vector<std::vector<int>> ret;
@@ -509,18 +506,18 @@ std::vector<std::vector<int>> GetStatesAtDegree(const int numP,
 	return GetStatesByDegree(numP, deg, true, 0);
 }
 
-mono basis::GetBasisMono(const std::vector<int>& pm, const std::vector<int>& pt,
+unsigned int basis::FindInBasis(const std::vector<int>& pm, const std::vector<int>& pt,
 		const std::vector<int>& pp){
-	return GetBasisMono(mono(pm, pt, pp));
+	return FindInBasis(mono(pm, pt, pp));
 }
 
-mono basis::GetBasisMono(const mono& wildMono){
-	for(auto& mn : basisMonos){
-		if(mn == wildMono) return mn;
+unsigned int basis::FindInBasis(const mono& wildMono){
+	for(auto i = 0u; i < basisMonos.size(); ++i){
+		if(basisMonos[i] == wildMono) return i;
 	}
 	std::cout << "Warning! Failed to find the following mono in our basis: "
 		<< wildMono << std::endl;
-	return wildMono;
+	return -1u;
 }
 
 std::list<Triplet> basis::ExpressPoly(const poly& toExpress, 
@@ -696,7 +693,10 @@ std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis){
 	Matrix Q;
 	Q = solver.matrixQ();
 	std::vector<poly> ret;
-	std::cout << "Solving done, converting to polynomials..." << std::endl;
+	std::cout << "Solving done: Q is the following " << Q.rows() << "x" << Q.cols()
+		<< " matrix of rank " << solver.rank() 
+		<< ":\n" << Q << std::endl;
+	std::cout << "Converting the kernel in Q to polynomials..." << std::endl;
 	for(auto col = solver.rank(); col < Q.cols(); ++col){
 		ret.push_back(ColumnToPoly(Q, col, startBasis));
 	}
@@ -715,6 +715,11 @@ poly ColumnToPoly(const Matrix& Q, const Eigen::Index col, const basis& startBas
 		if(Q.coeff(row, col) == 0) continue;
 		ret += Q.coeff(row, col)*startBasis[row];
 	}
+
+	if(ret.size() == 0) return ret;
+	coeff_class smallestCoeff = std::abs(ret[0].Coeff());
+	for(auto& term : ret) smallestCoeff = std::min(std::abs(term.Coeff()), smallestCoeff);
+	for(auto& term : ret) term /= smallestCoeff;
 	return ret;
 }
 

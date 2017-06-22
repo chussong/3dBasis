@@ -6,6 +6,7 @@
 #include <vector>
 #include <array>
 #include <list>
+#include <utility>		// std::pair
 #include <iostream>
 #include <gmpxx.h>
 #include "mpreal.h"
@@ -153,8 +154,12 @@ namespace Eigen {
 	} // end namespace internal
 }*/
 
-//typedef mpq_class coeff_class;
-typedef mpfr::mpreal coeff_class;
+/***** define the type used to store the coefficients of the monomials    *****/
+/***** and thus also the entries of the matrix whose kernel we want.      *****/
+//typedef mpq_class coeff_class;				// arbitrary precision rational
+//typedef mpfr::mpreal coeff_class;				// arbitrary precision float
+typedef double coeff_class;					// ordinary double-width float
+//typedef int coeff_class;						// ordinary single-width integer
 
 typedef Eigen::SparseMatrix<coeff_class> Matrix;
 typedef Eigen::Triplet<coeff_class> Triplet;
@@ -243,7 +248,7 @@ class mono {
 		std::vector<mono> K3() const;
 };
 
-// all monos in poly should be guaranteed to be ordered correctly!
+// all monos in a poly(nomial) should be guaranteed to be ordered correctly!
 class poly {
 	std::vector<mono> terms;
 
@@ -308,9 +313,9 @@ class basis {
 	public:
 		basis() = delete;
 		basis(const int numP, const int degree);
-		mono GetBasisMono(const std::vector<int>& pm, const std::vector<int>&,
-				const std::vector<int>& pp);
-		mono GetBasisMono(const mono& wildMono);
+		unsigned int FindInBasis(const std::vector<int>& pm,
+				const std::vector<int>& pt, const std::vector<int>& pp);
+		unsigned int FindInBasis(const mono& wildMono);
 
 		std::vector<mono>& BasisMonos() { return basisMonos; }
 		const std::vector<mono>& BasisMonos() const { return basisMonos; }
@@ -330,10 +335,32 @@ class basis {
 				const int row) const;
 };
 
-std::ostream& operator<<(std::ostream& os, const std::vector<int>& out);
+class splitBasis {
+	basis oddBasis;
+	basis evenBasis;
+
+	public:
+		splitBasis() = delete;
+		splitBasis(const int numP, const int degree);
+
+		std::pair<unsigned int, basis*> FindInBasis(const std::vector<int>& pm,
+				const std::vector<int>& pt, const std::vector<int>& pp);
+		std::pair<unsigned int, basis*> FindInBasis(const mono& wildMono);
+
+		basis& Odd() { return oddBasis; }
+		basis& Even() { return evenBasis; }
+
+		std::list<Triplet> ExpressPoly(const poly& toExpress, const int column,
+				const int row) const;
+
+		static bool IsOdd(const mono& toTest);
+};
+
+/*std::ostream& operator<<(std::ostream& os, const std::vector<int>& out);
 std::ostream& operator<<(std::ostream& os, const std::vector<coeff_class>& out);
-std::ostream& operator<<(std::ostream& os, const std::vector<particle>& out);
+std::ostream& operator<<(std::ostream& os, const std::vector<particle>& out);*/
 std::ostream& operator<<(std::ostream& os, const Triplet& out);
+//std::ostream& operator<<(std::ostream& os, const Matrix& out);
 std::vector<std::vector<int>> Permute(const std::vector<std::vector<int>> ordered);
 std::vector<std::vector<int>> GetStatesByDegree(const int numP, const int deg,
 		const bool exact, const int min);
@@ -379,11 +406,46 @@ inline std::vector<int> IdentifyNodes(const T& container){
 			container.size());
 }
 
-// default behavior for a vector of particles including mono::IdentifyNodes()
+// default behavior for a vector of particles; used by mono::IdentifyNodes()
 template<>
 inline std::vector<int> IdentifyNodes(const std::vector<particle>& particles){
 	return IdentifyNodes([particles](unsigned int i){return 
 			std::array<int, 3>({{particles[i].pm, particles[i].pt, particles[i].pp}}); },
 			particles.size());
 }
+
+// stream output operator template for vectors
+template<typename T>
+inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& out){
+	os << "{";
+	for(auto& element : out){
+		if(element >= 0) os << " ";
+		os << element << ",";
+	}
+	os << "\b }";
+	return os;
+}
+
+// specialization of above template which "transposes" particle vectors
+template<>
+inline std::ostream& operator<<(std::ostream& os, const std::vector<particle>& out){
+	os << "{";
+	for(auto& p : out){
+		if(p.pm >= 0) os << " ";
+		os << p.pm << ",";
+	}
+	os << "\b }{";
+	for(auto& p : out){
+		if(p.pt >= 0) os << " ";
+		os << p.pt << ",";
+	}
+	os << "\b }{";
+	for(auto& p : out){
+		if(p.pp >= 0) os << " ";
+		os << p.pp << ",";
+	}
+	os << "\b }";
+	return os;
+}
+
 #endif
