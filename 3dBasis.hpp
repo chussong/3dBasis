@@ -1,13 +1,13 @@
 #ifndef BASIS_HPP
 #define BASIS_HPP
 
+#include <iostream>
 #include <exception>
-#include <algorithm>
 #include <vector>
 #include <array>
 #include <list>
 #include <utility>		// std::pair
-#include <iostream>
+#include <algorithm>
 #include <gmpxx.h>
 #include "mpreal.h"
 #include <Eigen/Core>
@@ -191,6 +191,18 @@ struct particle{
 
 // a mono(mial) with coefficient. It should be impossible for an instance of
 // this class to be out of order, so hopefully that's true!
+// Some notes:
+// * You CAN NOT add or subtract monos from each other. Instead, add or subtract
+// them from a poly.
+// * You CAN multiply or divide a mono by anything which can multiply or divide
+// coeff_class. If you do, coeff is changed while the momenta are unaffected.
+// * To multiply or divide by momenta, use MultPm(i), etc. These return a new
+// mono, however; momenta of an existing mono can only be changed by directly
+// accessing them through Pm(i), etc.
+// * Two monos are equal (i.e. a == b is true) if their MOMENTA are the same.
+// The coefficients do not matter in comparisons, only the momenta.
+// * std::cout << someMono; will print the mono in this format:
+// coeff * {p1_m, p2_m, ... }{p1_t, p2_t, ...}{p1_p, p2_p, ...}
 class mono {
 	coeff_class coeff;
 	std::vector<particle> particles;
@@ -219,6 +231,10 @@ class mono {
 		int& Pt(const int i) 		{ return particles[i].pt; }
 		int Pp(const int i) const 	{ return particles[i].pp; }
 		int& Pp(const int i) 	 	{ return particles[i].pp; }
+		int TotalPm() const;
+		int TotalPt() const;
+		int TotalPp() const;
+		int Degree() const { return TotalPm() + TotalPt() + TotalPp(); }
 
 		mono& operator*=(const coeff_class& x)	 { coeff *= x; return *this; }
 		template<typename T>
@@ -266,6 +282,14 @@ class mono {
 };
 
 // all monos in a poly(nomial) should be guaranteed to be ordered correctly!
+// Notes on arithmetic:
+// * You can add or subtract monos or polys from a poly. If you do, the poly
+// will check if it already has each mono; if it does, it just increases the
+// coefficient, while if it doesn't it appends that mono to terms.
+// * Individual component monos can be accessed with [] just like an ordinary
+// array. This can also be iterated through with begin() and end().
+// * The output stream operator std::cout << somePoly prints the poly as a
+// sum of its constituent monos.
 class poly {
 	std::vector<mono> terms;
 
@@ -315,6 +339,11 @@ class poly {
 };
 
 // a set of all ordered monomials of the given degree and number of particles
+// * Can be accessed with [] like an array and iterated through with begin()
+// and end().
+// * Has a stream operator, which outputs all the component monos on new lines.
+// * Most important function is ExpressPoly, which takes a polynomial and
+// expresses it as a vector in this basis's space.
 class basis {
 	std::vector<mono> basisMonos;
 
@@ -334,8 +363,9 @@ class basis {
 				const std::vector<int>& pt, const std::vector<int>& pp);
 		unsigned int FindInBasis(const mono& wildMono);
 
-		std::vector<mono>& BasisMonos() { return basisMonos; }
-		const std::vector<mono>& BasisMonos() const { return basisMonos; }
+		//std::array<basis,2> ParitySplit() const;
+		void DeleteOdd();
+		void DeleteEven();
 
 		const	mono& operator[](size_t i)	const	{return basisMonos[i];     }
 		std::size_t size()					const	{return basisMonos.size(); }
@@ -348,13 +378,17 @@ class basis {
 		std::vector<mono>::iterator			end()	noexcept
 				{ return basisMonos.end(); }
 
+		Triplet ExpressMono(const mono& toExpress, const int column,
+				const int rowOffset) const;
 		std::list<Triplet> ExpressPoly(const poly& toExpress, const int column, 
-				const int row) const;
+				const int rowOffset) const;
 };
 
+// Contains two bases and intelligently decides which one to use for various
+// requests. Because this is in two pieces, it can not be iterated through.
 class splitBasis {
-	basis oddBasis;
 	basis evenBasis;
+	basis oddBasis;
 
 	public:
 		splitBasis() = delete;
@@ -364,20 +398,17 @@ class splitBasis {
 				const std::vector<int>& pt, const std::vector<int>& pp);
 		std::pair<unsigned int, basis*> FindInBasis(const mono& wildMono);
 
-		basis& Odd() { return oddBasis; }
-		basis& Even() { return evenBasis; }
+		basis& OddBasis() { return oddBasis; }
+		basis& EvenBasis() { return evenBasis; }
 
 		std::list<Triplet> ExpressPoly(const poly& toExpress, const int column,
 				const int row) const;
 
 		static bool IsOdd(const mono& toTest);
+		static bool IsEven(const mono& toTest);
 };
 
-/*std::ostream& operator<<(std::ostream& os, const std::vector<int>& out);
-std::ostream& operator<<(std::ostream& os, const std::vector<coeff_class>& out);
-std::ostream& operator<<(std::ostream& os, const std::vector<particle>& out);*/
 std::ostream& operator<<(std::ostream& os, const Triplet& out);
-//std::ostream& operator<<(std::ostream& os, const Matrix& out);
 std::vector<std::vector<int>> Permute(const std::vector<std::vector<int>> ordered);
 std::vector<std::vector<int>> GetStatesByDegree(const int numP, const int deg,
 		const bool exact, const int min);

@@ -9,15 +9,24 @@ int main(int argc, char* argv[]) {
 	std::string numP(argv[1]);
 	std::string deg (argv[2]);
 
-	basis startingBasis(std::stoi(numP), std::stoi(deg));
+	splitBasis startingBasis(std::stoi(numP), std::stoi(deg));
+	std::cout << "Constructed a basis with " << startingBasis.EvenBasis().size()
+		<< " even elements and " << startingBasis.OddBasis().size()
+		<< " odd elements." << std::endl;
 	basis targetBasis(std::stoi(numP), std::stoi(deg)-1);
+	std::cout << "Constructed a target basis with " << targetBasis.size()
+		<< " elements." << std::endl;
+	// we could split the target basis by parity as well but it would require
+	// constructing four matrices, since K_\perp takes (even)<->(odd)
 
 	// - create matrix of K acting on each element of startingBasis
-	Matrix KActions = KMatrix(startingBasis, targetBasis);
+	Matrix evenKActions = KMatrix(startingBasis.EvenBasis(), targetBasis);
+	Matrix oddKActions = KMatrix(startingBasis.OddBasis(), targetBasis);
 	//std::cout << KActions << std::endl;
 
 	// - find kernel of above matrix and output
-	std::vector<poly> kernel = Kernel(KActions, startingBasis);
+	std::vector<poly> evenKernel = Kernel(evenKActions, startingBasis.EvenBasis());
+	std::vector<poly> oddKernel = Kernel(oddKActions, startingBasis.OddBasis());
 
 	/*std::cout << "Found the following " << kernel.size() << "-dimensional kernel:"
 		<< std::endl;
@@ -72,6 +81,34 @@ mono mono::operator-() const{
 	return ret;
 }
 
+int mono::TotalPm() const{
+	int total = 0;
+	for(auto& p : particles) total += p.pm;
+	return total;
+}
+
+int mono::TotalPt() const{
+	int total = 0;
+	for(auto& p : particles) total += p.pt;
+	return total;
+}
+int mono::TotalPp() const{
+	int total = 0;
+	for(auto& p : particles) total += p.pp;
+	return total;
+}
+
+/* The following two functions might actually work just as well as Order():
+bool ParticlePrecedence(const particle& a, const particle& b){
+	if(a.pm != b.pm) return a.pm > b.pm;
+	if(a.pt != b.pt) return a.pt > b.pt;
+	return a.pp > b.pp;
+}
+
+void mono::Order(){
+	std::sort(particles.begin(), particles.end(), ParticlePrecedence(a,b));
+}*/
+
 // this should be called whenever something happens that changes the momenta in
 // a monomial (new or existing) to ensure that it's always ordered. To ensure
 // the original operation isn't disrupted, call it in the scope of the function
@@ -100,17 +137,6 @@ void mono::Order(){
 		i += node;
 	}
 }
-
-/* The following two functions might actually work just as well:
-bool ParticlePrecedence(const particle& a, const particle& b){
-	if(a.pm != b.pm) return a.pm > b.pm;
-	if(a.pt != b.pt) return a.pt > b.pt;
-	return a.pp > b.pp;
-}
-
-void mono::Order(){
-	std::sort(particles.begin(), particles.end(), ParticlePrecedence(a,b));
-}*/
 
 mono mono::OrderCopy() const{
 	mono ret(*this);
@@ -270,6 +296,95 @@ std::vector<mono> mono::K3() const{
 	return ret;
 }
 
+poly::poly(std::vector<mono> terms){
+	if(terms.size() == 0){
+		std::cout << "Warning! A poly has been constructed from an empty mono."
+			<< std::endl;
+	}
+	for(auto& newTerm : terms){
+		*this += newTerm;
+	}
+}
+
+poly& poly::operator+=(const mono& x){
+	if(x.Coeff() == 0) return *this;
+
+	for(auto& tm : terms){
+		if(tm == x){
+			tm.Coeff() += x.Coeff();
+			return *this;
+		}
+	}
+	terms.push_back(x);
+	return *this;
+}
+
+poly& poly::operator-=(const mono& x){
+	return *this += -x;
+}
+
+poly& poly::operator+=(const poly& x){
+	for(auto& mn : x.terms){
+		*this += mn;
+	}
+	return *this;
+}
+
+poly& poly::operator-=(const poly& x){
+	for(auto& mn : x.terms){
+		*this -= mn;
+	}
+	return *this;
+}
+
+poly operator+(poly x, const poly& y){
+	return x += y;
+}
+
+poly operator-(poly x, const poly& y){
+	return x -= y;
+}
+
+poly operator+(poly x, const mono& y){
+	return x += y;
+}
+
+poly operator-(poly x, const mono& y){
+	return x -= y;
+}
+
+poly operator+(const mono& x, poly y){
+	return y += x;
+}
+
+poly operator-(const mono& x, poly y){
+	return y -= x;
+}
+
+poly poly::K1() const{
+	poly ret;
+	for(auto& term : terms){
+		for(auto& newTerm : term.K1()) ret += newTerm;
+	}
+	return ret;
+}
+
+poly poly::K2() const{
+	poly ret;
+	for(auto& term : terms){
+		for(auto& newTerm : term.K2()) ret += newTerm;
+	}
+	return ret;
+}
+
+poly poly::K3() const{
+	poly ret;
+	for(auto& term : terms){
+		for(auto& newTerm : term.K3()) ret += newTerm;
+	}
+	return ret;
+}
+
 basis::basis(const int numP, const int degree) {
 	// 1: generate all possibilities for P_-
 	// 2: identify nodes in P_-, generate possible distributions of P_\perp to
@@ -313,8 +428,6 @@ basis::basis(const int numP, const int degree) {
 		}
 	}
 
-	std::cout << "Constructed a(n) " << particleCfgs.size() << "-element basis:"
-		<< std::endl;
 	for(auto& cfg : particleCfgs){
 		basisMonos.emplace_back(cfg);
 		//std::cout << cfg << std::endl;
@@ -425,6 +538,103 @@ std::vector<std::vector<int>> basis::CfgsFromNodePartition(const std::vector<int
 	return finalCfgs;
 }
 
+unsigned int basis::FindInBasis(const std::vector<int>& pm, const std::vector<int>& pt,
+		const std::vector<int>& pp){
+	return FindInBasis(mono(pm, pt, pp));
+}
+
+unsigned int basis::FindInBasis(const mono& wildMono){
+	for(auto i = 0u; i < basisMonos.size(); ++i){
+		if(basisMonos[i] == wildMono) return i;
+	}
+	std::cout << "Warning! Failed to find the following mono in our basis: "
+		<< wildMono << std::endl;
+	return -1u;
+}
+
+/*std::array<basis,2> basis::ParitySplit() const{
+	std::array<basis,2> ret = {{*this, *this}};
+	for(int i = 0; i < 2; ++i){
+		ret[i].basisMonos.erase(std::remove_if(ret[i].begin(), ret[i].end(), 
+				[i](mono& m){ return m.TotalPt()%2 == i; } ));
+	}
+	return ret;
+}*/
+
+void basis::DeleteOdd(){
+	basisMonos.erase(std::remove_if(basisMonos.begin(), basisMonos.end(), 
+				splitBasis::IsOdd), basisMonos.end());
+}
+
+void basis::DeleteEven(){
+	basisMonos.erase(std::remove_if(basisMonos.begin(), basisMonos.end(),
+				splitBasis::IsEven), basisMonos.end());
+}
+
+Triplet basis::ExpressMono(const mono& toExpress, const int column,
+		const int rowOffset) const{
+	for(auto i = 0u; i < basisMonos.size(); ++i){
+		if(toExpress == basisMonos[i])
+			return Triplet(rowOffset+i, column, toExpress.Coeff());
+	}
+	std::cerr << "Error: tried to express the monomial " << toExpress
+	<< " on the given basis but was not able to identify it." << std::endl;
+	return Triplet(-1, -1, toExpress.Coeff());
+}
+
+std::list<Triplet> basis::ExpressPoly(const poly& toExpress, 
+		const int column, const int rowOffset) const{
+	std::list<Triplet> ret;
+	if(toExpress.size() == 0) return ret;
+	unsigned int hits = 0u;
+	for(auto i = 0u; i < basisMonos.size(); ++i){
+		for(auto& term : toExpress){
+			if(term == basisMonos[i]){
+				ret.emplace_front(rowOffset+i, column, term.Coeff());
+				++hits;
+				break;
+			}
+		}
+		if(hits == toExpress.size()) break;
+	}
+	if(hits < toExpress.size()){
+		std::cerr << "Error: tried to express the polynomial " << toExpress
+		<< " on the given basis but was only able to identify " << hits
+		<< " of " << toExpress.size() << " terms." << std::endl;
+	}
+	//std::cout << "Expressed " << toExpress << " as the following triplets:" << std::endl;
+	//for(auto& trip : ret) std::cout << trip << std::endl;
+	return ret;
+}
+
+bool splitBasis::IsOdd(const mono& toTest){
+	return toTest.TotalPt()%2 == 1;
+}
+
+bool splitBasis::IsEven(const mono& toTest){
+	return !IsOdd(toTest);
+}
+
+// this could definitely be done more intelligently if speed were important
+splitBasis::splitBasis(const int numP, const int degree): 
+	evenBasis(numP, degree), oddBasis(numP, degree){
+	evenBasis.DeleteOdd();
+	oddBasis.DeleteEven();
+}
+
+std::list<Triplet> splitBasis::ExpressPoly(const poly& toExpress, 
+		const int column, const int rowOffset) const{
+	std::list<Triplet> ret;
+	for(auto& term : toExpress){
+		if(IsOdd(term)){
+			ret.push_front(oddBasis.ExpressMono(term, column, rowOffset));
+		} else {
+			ret.push_front(evenBasis.ExpressMono(term, column, rowOffset));
+		}
+	}
+	return ret;
+}
+
 // note: triplets displayed (row, column, value) despite matrix's storage type
 std::ostream& operator<<(std::ostream& os, const Triplet& out){
 	return os << "(" << out.row() << "," << out.col() << "," << out.value()
@@ -504,151 +714,6 @@ std::vector<std::vector<int>> GetStatesUpToDegree(const int numP,
 std::vector<std::vector<int>> GetStatesAtDegree(const int numP,
 		const int deg){
 	return GetStatesByDegree(numP, deg, true, 0);
-}
-
-unsigned int basis::FindInBasis(const std::vector<int>& pm, const std::vector<int>& pt,
-		const std::vector<int>& pp){
-	return FindInBasis(mono(pm, pt, pp));
-}
-
-unsigned int basis::FindInBasis(const mono& wildMono){
-	for(auto i = 0u; i < basisMonos.size(); ++i){
-		if(basisMonos[i] == wildMono) return i;
-	}
-	std::cout << "Warning! Failed to find the following mono in our basis: "
-		<< wildMono << std::endl;
-	return -1u;
-}
-
-std::list<Triplet> basis::ExpressPoly(const poly& toExpress, 
-		const int column, const int rowOffset) const{
-	std::list<Triplet> ret;
-	if(toExpress.size() == 0) return ret;
-	unsigned int hits = 0u;
-	for(auto i = 0u; i < basisMonos.size(); ++i){
-		for(auto& term : toExpress){
-			if(term == basisMonos[i]){
-				ret.emplace_front(rowOffset+i, column, term.Coeff());
-				++hits;
-				break;
-			}
-		}
-		if(hits == toExpress.size()) break;
-	}
-	if(hits < toExpress.size()){
-		std::cerr << "Error: tried to express the polynomial " << toExpress
-		<< " on the given basis but was only able to identify " << hits
-		<< " of " << toExpress.size() << " terms." << std::endl;
-	}
-	//std::cout << "Expressed " << toExpress << " as the following triplets:" << std::endl;
-	//for(auto& trip : ret) std::cout << trip << std::endl;
-	return ret;
-}
-
-/*std::vector<coeff_class> basis::ExpressPoly(const poly& toExpress) const{
-	std::vector<coeff_class> ret;
-	bool nonzero;
-	for(auto& basisMono : basisMonos){
-		nonzero = false;
-		for(auto& term : toExpress){
-			if(term == *basisMono){
-				ret.push_back(term.Coeff());
-				nonzero = true;
-				break;
-			}
-		}
-		if(!nonzero) ret.push_back(0);
-	}
-	return ret;
-}*/
-
-poly::poly(std::vector<mono> terms){
-	if(terms.size() == 0){
-		std::cout << "Warning! A poly has been constructed from an empty mono."
-			<< std::endl;
-	}
-	for(auto& newTerm : terms){
-		*this += newTerm;
-	}
-}
-
-poly& poly::operator+=(const mono& x){
-	if(x.Coeff() == 0) return *this;
-
-	for(auto& tm : terms){
-		if(tm == x){
-			tm.Coeff() += x.Coeff();
-			return *this;
-		}
-	}
-	terms.push_back(x);
-	return *this;
-}
-
-poly& poly::operator-=(const mono& x){
-	return *this += -x;
-}
-
-poly& poly::operator+=(const poly& x){
-	for(auto& mn : x.terms){
-		*this += mn;
-	}
-	return *this;
-}
-
-poly& poly::operator-=(const poly& x){
-	for(auto& mn : x.terms){
-		*this -= mn;
-	}
-	return *this;
-}
-
-poly operator+(poly x, const poly& y){
-	return x += y;
-}
-
-poly operator-(poly x, const poly& y){
-	return x -= y;
-}
-
-poly operator+(poly x, const mono& y){
-	return x += y;
-}
-
-poly operator-(poly x, const mono& y){
-	return x -= y;
-}
-
-poly operator+(const mono& x, poly y){
-	return y += x;
-}
-
-poly operator-(const mono& x, poly y){
-	return y -= x;
-}
-
-poly poly::K1() const{
-	poly ret;
-	for(auto& term : terms){
-		for(auto& newTerm : term.K1()) ret += newTerm;
-	}
-	return ret;
-}
-
-poly poly::K2() const{
-	poly ret;
-	for(auto& term : terms){
-		for(auto& newTerm : term.K2()) ret += newTerm;
-	}
-	return ret;
-}
-
-poly poly::K3() const{
-	poly ret;
-	for(auto& term : terms){
-		for(auto& newTerm : term.K3()) ret += newTerm;
-	}
-	return ret;
 }
 
 Matrix KMatrix(const basis& startingBasis, const basis& targetBasis){
