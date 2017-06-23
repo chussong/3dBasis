@@ -14,14 +14,14 @@ int main(int argc, char* argv[]) {
 
 	// - create matrix of K acting on each element of startingBasis
 	Matrix KActions = KMatrix(startingBasis, targetBasis);
-	std::cout << KActions << std::endl;
+	//std::cout << KActions << std::endl;
 
 	// - find kernel of above matrix and output
 	std::vector<poly> kernel = Kernel(KActions, startingBasis);
 
-	std::cout << "Found the following " << kernel.size() << "-dimensional kernel:"
+	/*std::cout << "Found the following " << kernel.size() << "-dimensional kernel:"
 		<< std::endl;
-	for(auto& kernelVec : kernel) std::cout << kernelVec << std::endl;
+	for(auto& kernelVec : kernel) std::cout << kernelVec << std::endl;*/
 	
 	return EXIT_SUCCESS;
 }
@@ -313,11 +313,11 @@ basis::basis(const int numP, const int degree) {
 		}
 	}
 
-	std::cout << "Constructed the following " << particleCfgs.size() 
-		<< "-element basis:" << std::endl;
+	std::cout << "Constructed a(n) " << particleCfgs.size() << "-element basis:"
+		<< std::endl;
 	for(auto& cfg : particleCfgs){
 		basisMonos.emplace_back(cfg);
-		std::cout << cfg << std::endl;
+		//std::cout << cfg << std::endl;
 	}
 }
 
@@ -540,8 +540,8 @@ std::list<Triplet> basis::ExpressPoly(const poly& toExpress,
 		<< " on the given basis but was only able to identify " << hits
 		<< " of " << toExpress.size() << " terms." << std::endl;
 	}
-	std::cout << "Expressed " << toExpress << " as the following triplets:" << std::endl;
-	for(auto& trip : ret) std::cout << trip << std::endl;
+	//std::cout << "Expressed " << toExpress << " as the following triplets:" << std::endl;
+	//for(auto& trip : ret) std::cout << trip << std::endl;
 	return ret;
 }
 
@@ -652,7 +652,7 @@ poly poly::K3() const{
 }
 
 Matrix KMatrix(const basis& startingBasis, const basis& targetBasis){
-	std::cout << "Constructing polynomials of K actions..." << std::endl;
+	//std::cout << "Constructing polynomials of K actions..." << std::endl;
 	std::vector<poly> K1Actions, K2Actions, K3Actions;
 	for(auto& basisMono : startingBasis){
 		K1Actions.emplace_back(basisMono.K1());
@@ -660,12 +660,12 @@ Matrix KMatrix(const basis& startingBasis, const basis& targetBasis){
 		K3Actions.emplace_back(basisMono.K3());
 	}
 
-	std::cout << "Converting K actions to triplets..." << std::endl;
+	//std::cout << "Converting K actions to triplets..." << std::endl;
 	std::list<Triplet> entries = ConvertToRows(K1Actions, targetBasis, 0);
 	entries.splice(entries.end(), ConvertToRows(K2Actions, targetBasis, 1));
 	entries.splice(entries.end(), ConvertToRows(K3Actions, targetBasis, 2));
 
-	std::cout << "List of triplets done, matrixifying..." << std::endl;
+	//std::cout << "List of triplets done, matrixifying..." << std::endl;
 	Matrix ret(3*targetBasis.size(), startingBasis.size());
 	// if this is slow, can do ret.reserve(3*numP) to speed it up
 	ret.setFromTriplets(entries.begin(), entries.end());
@@ -687,33 +687,122 @@ std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms,
 // takes QR decomposition of the matrix and returns the polynomial forms of its
 // rightmost N columns, which are the N orthonormal basis vectors of the kernel
 std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis){
-	std::cout << "Computing kernel from KActions..." << std::endl;
+	//std::cout << "Computing kernel from KActions..." << std::endl;
 	QRSolver solver;
 	solver.compute(KActions.transpose());
-	Matrix Q;
-	Q = solver.matrixQ();
-	std::vector<poly> ret;
-	std::cout << "Solving done: Q is the following " << Q.rows() << "x" << Q.cols()
-		<< " matrix of rank " << solver.rank() 
-		<< ":\n" << Q << std::endl;
-	std::cout << "Converting the kernel in Q to polynomials..." << std::endl;
-	for(auto col = solver.rank(); col < Q.cols(); ++col){
-		ret.push_back(ColumnToPoly(Q, col, startBasis));
+	std::cout << "Solved. Found rank " << solver.rank() << ", i.e. "
+		<< startBasis.size() - solver.rank() << " primaries." << std::endl;
+
+	std::cout << "Converting the kernel to polynomials..." << std::endl;
+
+	/*DMatrix projector(startBasis.size(), startBasis.size() - solver.rank());
+	for(auto row = 0; row < projector.rows(); ++row){
+		for(auto col = 0; col < projector.cols(); ++col){
+			if(row == col + solver.rank()){
+				projector(row, col) = 1;
+			} else {
+				projector(row, col) = 0;
+			}
+		}
 	}
+	DMatrix kernelMatrix = solver.matrixQ()*projector;
+
+	std::vector<poly> ret;
+	std::cout << "Solving done: kernel matrix is the following " 
+		<< kernelMatrix.rows() << "x" << kernelMatrix.cols() << " matrix, equal"
+		<< " to the rank " << solver.rank() << ":\n" << kernelMatrix << std::endl;
+	for(auto col = 0; col < kernelMatrix.cols(); ++col){
+		ret.push_back(ColumnToPoly(kernelMatrix, col, startBasis));
+	}*/
+
+	DVector projector = Eigen::VectorXd::Zero(startBasis.size());
+	DVector kernelVector(startBasis.size());
+	std::vector<poly> ret;
+	ret.resize(startBasis.size() - solver.rank());
+	for(auto col = 0u; col < startBasis.size() - solver.rank(); ++col){
+		projector(solver.rank() + col-1) = 0;
+		projector(solver.rank() + col) = 1;
+		kernelVector = solver.matrixQ()*projector;
+		//std::cout << kernelVector << "\n----------" << std::endl;
+		ret[col] = VectorToPoly(kernelVector, startBasis);
+	}
+
 	return ret;
 }
 
-poly ColumnToPoly(const Matrix& Q, const Eigen::Index col, const basis& startBasis){
+/*poly VectorToPoly(const Vector& kernelVector, const basis& startBasis){
 	poly ret;
-	if(static_cast<size_t>(Q.rows()) != startBasis.size()){
-		std::cerr << "Error: the given Q matrix has " << Q.rows() << " rows, "
-			<< "but the given basis has " << startBasis.size() << " monomials. "
-			<< "These must be the same." << std::endl;
+	if(static_cast<size_t>(kernelMatrix.rows()) != startBasis.size()){
+		std::cerr << "Error: the given Q matrix has " << kernelMatrix.rows()
+			<< " rows, " << "but the given basis has " << startBasis.size() 
+			<< " monomials. These must be the same." << std::endl;
 		return ret;
 	}
-	for(Eigen::Index row = 0; row < Q.rows(); ++row){
-		if(Q.coeff(row, col) == 0) continue;
-		ret += Q.coeff(row, col)*startBasis[row];
+	for(auto row = 0; row < kernelVector.rows(); ++row){
+		if(kernelVector.coeff(row, col) == 0) continue;
+		ret += kernelMatrix.coeff(row, col)*startBasis[row];
+	}
+
+	if(ret.size() == 0) return ret;
+	coeff_class smallestCoeff = std::abs(ret[0].Coeff());
+	for(auto& term : ret) smallestCoeff = std::min(std::abs(term.Coeff()), smallestCoeff);
+	for(auto& term : ret) term /= smallestCoeff;
+	return ret;
+}*/
+
+poly VectorToPoly(const DVector& kernelVector, const basis& startBasis){
+	poly ret;
+	if(static_cast<size_t>(kernelVector.rows()) != startBasis.size()){
+		std::cerr << "Error: the given Q column has " << kernelVector.rows()
+			<< " rows, " << "but the given basis has " << startBasis.size() 
+			<< " monomials. These must be the same." << std::endl;
+		return ret;
+	}
+	for(auto row = 0; row < kernelVector.rows(); ++row){
+		if(kernelVector.coeff(row) == 0) continue;
+		ret += kernelVector.coeff(row)*startBasis[row];
+	}
+
+	if(ret.size() == 0) return ret;
+	coeff_class smallestCoeff = std::abs(ret[0].Coeff());
+	for(auto& term : ret) smallestCoeff = std::min(std::abs(term.Coeff()), smallestCoeff);
+	for(auto& term : ret) term /= smallestCoeff;
+	return ret;
+}
+
+poly ColumnToPoly(const Matrix& kernelMatrix, const Eigen::Index col, 
+		const basis& startBasis){
+	poly ret;
+	if(static_cast<size_t>(kernelMatrix.rows()) != startBasis.size()){
+		std::cerr << "Error: the given Q matrix has " << kernelMatrix.rows()
+			<< " rows, " << "but the given basis has " << startBasis.size() 
+			<< " monomials. These must be the same." << std::endl;
+		return ret;
+	}
+	for(Eigen::Index row = 0; row < kernelMatrix.rows(); ++row){
+		if(kernelMatrix.coeff(row, col) == 0) continue;
+		ret += kernelMatrix.coeff(row, col)*startBasis[row];
+	}
+
+	if(ret.size() == 0) return ret;
+	coeff_class smallestCoeff = std::abs(ret[0].Coeff());
+	for(auto& term : ret) smallestCoeff = std::min(std::abs(term.Coeff()), smallestCoeff);
+	for(auto& term : ret) term /= smallestCoeff;
+	return ret;
+}
+
+poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col, 
+		const basis& startBasis){
+	poly ret;
+	if(static_cast<size_t>(kernelMatrix.rows()) != startBasis.size()){
+		std::cerr << "Error: the given Q matrix has " << kernelMatrix.rows()
+			<< " rows, " << "but the given basis has " << startBasis.size() 
+			<< " monomials. These must be the same." << std::endl;
+		return ret;
+	}
+	for(Eigen::Index row = 0; row < kernelMatrix.rows(); ++row){
+		if(kernelMatrix.coeff(row, col) == 0) continue;
+		ret += kernelMatrix.coeff(row, col)*startBasis[row];
 	}
 
 	if(ret.size() == 0) return ret;

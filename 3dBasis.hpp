@@ -12,6 +12,7 @@
 #include "mpreal.h"
 #include <Eigen/Core>
 #include <Eigen/Sparse>
+#include <Eigen/SPQRSupport>
 #include <unsupported/Eigen/MPRealSupport>
 
 // Eigen extension for mpq_class plus a stream function
@@ -154,17 +155,33 @@ namespace Eigen {
 	} // end namespace internal
 }*/
 
-/***** define the type used to store the coefficients of the monomials    *****/
+/******************************************************************************/
+/***** Define the type used to store the coefficients of the monomials    *****/
 /***** and thus also the entries of the matrix whose kernel we want.      *****/
+/***** WARNING: SparseQR (at least) seems to always fail with integers!   *****/
+/***** I'm not sure why this is; my code never divides coeff_class.       *****/
+/******************************************************************************/
+
 //typedef mpq_class coeff_class;				// arbitrary precision rational
 //typedef mpfr::mpreal coeff_class;				// arbitrary precision float
 typedef double coeff_class;					// ordinary double-width float
-//typedef int coeff_class;						// ordinary single-width integer
+//typedef long coeff_class;						// ordinary single-width integer
 
 typedef Eigen::SparseMatrix<coeff_class> Matrix;
+typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, Eigen::Dynamic> DMatrix;
+typedef Eigen::SparseVector<coeff_class> Vector;
+typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, 1> DVector;
 typedef Eigen::Triplet<coeff_class> Triplet;
-typedef Eigen::SparseQR<Matrix, Eigen::COLAMDOrdering<int>> QRSolver;
-// SPQR is a threaded alternative to SparseQR that requires external linking
+
+/******************************************************************************/
+/***** Define which solver to use to find the kernel of the matrix.       *****/
+/***** SparseQR and SPQR are both direct (i.e. exact, non-iterative)      *****/
+/***** solvers. SPQR requires an external dependency, suitesparse;        *****/
+/***** SparseQR is built into Eigen, but appears to be a lot slower.      *****/
+/******************************************************************************/
+//typedef Eigen::SparseQR<Matrix, Eigen::COLAMDOrdering<int>> QRSolver;
+typedef Eigen::SPQR<Matrix> QRSolver; // direct interface to SPQR also possible
+
 
 struct particle{
 	int pm;	// P_-
@@ -372,7 +389,12 @@ Matrix KMatrix(const basis& startingBasis, const basis& targetBasis);
 std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms, 
 		const basis& targetBasis, const Eigen::Index rowOffset);
 std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis);
-poly ColumnToPoly(const Matrix& Q, const Eigen::Index col, const basis& startBasis);
+poly VectorToPoly(const Vector& kernelVector, const basis& startBasis);
+poly VectorToPoly(const DVector& kernelVector, const basis& startBasis);
+poly ColumnToPoly(const Matrix& kernelMatrix, const Eigen::Index col, 
+		const basis& startBasis);
+poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col, 
+		const basis& startBasis);
 
 // T can be any type or class with an == operator; value indexes T by uint
 template<typename Accessor>
