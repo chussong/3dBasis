@@ -16,8 +16,8 @@ int main(int argc, char* argv[]) {
 	basis targetBasis(std::stoi(numP), std::stoi(deg)-1);
 	std::cout << "Constructed a target basis with " << targetBasis.size()
 		<< " elements." << std::endl;
-	// we could split the target basis by parity as well but it would require
-	// constructing four matrices, since K_\perp takes (even)<->(odd)
+	// we could split the target basis by perp parity as well but it would
+	// require constructing four matrices, since K_\perp takes (even)<->(odd)
 
 	// - create matrix of K acting on each element of startingBasis
 	Matrix evenKActions = KMatrix(startingBasis.EvenBasis(), targetBasis);
@@ -752,7 +752,7 @@ std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms,
 // takes QR decomposition of the matrix and returns the polynomial forms of its
 // rightmost N columns, which are the N orthonormal basis vectors of the kernel
 std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis){
-	//std::cout << "Computing kernel from KActions..." << std::endl;
+	std::cout << "Computing kernel from K matrix..." << std::endl;
 	QRSolver solver;
 	solver.compute(KActions.transpose());
 	std::cout << "Solved. Found rank " << solver.rank() << ", i.e. "

@@ -8,152 +8,9 @@
 #include <list>
 #include <utility>		// std::pair
 #include <algorithm>
-#include <gmpxx.h>
-#include "mpreal.h"
-#include <Eigen/Core>
-#include <Eigen/Sparse>
-#include <Eigen/SPQRSupport>
-#include <unsupported/Eigen/MPRealSupport>
-
-// Eigen extension for mpq_class plus a stream function
-/*
-inline std::ostream& operator<<(std::ostream &o, const coeff_class &expr){
-	return o << expr.get_str();
-}
-
-namespace Eigen {
-	template<> struct NumTraits<mpq_class> : GenericNumTraits<mpq_class>{
-		typedef mpq_class Real;
-		typedef mpq_class NonInteger;
-		typedef mpq_class Literal;
-		typedef mpq_class Nested;
-
-		enum {
-			IsComplex = 0,
-			IsInteger = 0,
-			ReadCost = 6,
-			AddCost = 150,
-			MulCost = 100,
-			IsSigned = 1,
-			RequireInitialization = 1
-		};
-
-		static inline Real epsilon() { return 0; }
-		static inline Real dummy_precision() { return 0; }
-		static inline Real digits10() { return 0; }
-		static inline Real Pi() { return mpq_class(355,113); }
-	};
-
-	 namespace internal {
-
-	template<> inline mpq_class random<mpq_class>()
-	{
-	  gmp_randclass rr(gmp_randinit_default);
-	  return mpq_class(rr.get_z_bits(125),rr.get_z_bits(125));
-	}
-
-	template<> inline mpq_class random<mpq_class>(const mpq_class& a, const mpq_class& b)
-	{
-	  return a + (b-a) * random<mpq_class>();
-	}
-
-	inline bool isMuchSmallerThan(const mpq_class& a, const mpq_class& b, const mpq_class& eps)
-	{
-	  return ::abs(a) <= ::abs(b) * eps;
-	}
-
-	inline bool isApprox(const mpq_class& a, const mpq_class& b, const mpq_class& eps)
-	{
-		return ::abs(a-b)<eps;
-	}
-
-	inline bool isApproxOrLessThan(const mpq_class& a, const mpq_class& b, const mpq_class& eps)
-	{
-	  return a <= b;
-	}
-
-	template<> inline long double cast<mpq_class,long double>(const mpq_class& x)
-	{ return x.get_d(); }
-
-	template<> inline double cast<mpq_class,double>(const mpq_class& x)
-	{ return x.get_d(); }
-
-	template<> inline long cast<mpq_class,long>(const mpq_class& x)
-	{ return x.get_d(); }
-
-	template<> inline int cast<mpq_class,int>(const mpq_class& x)
-	{ return x.get_d(); }
-
-	// G+Smo
-	template<> inline size_t cast<mpq_class,size_t>(const mpq_class& x)
-	{ return x.get_d(); }
-
-	template<> inline unsigned cast<mpq_class,unsigned>(const mpq_class& x)
-	{ return x.get_d(); }
-
-	  // Specialize GEBP kernel and traits
-	  template<>
-	  class gebp_traits<mpq_class, mpq_class, false, false>
-	  {
-	  public:
-		typedef mpq_class ResScalar;
-		enum {
-		  Vectorizable = false,
-		  LhsPacketSize = 1,
-		  RhsPacketSize = 1,
-		  ResPacketSize = 1,
-		  NumberOfRegisters = 1,
-		  nr = 1,
-		  mr = 1,
-		  LhsProgress = 1,
-		  RhsProgress = 1
-		};
-		typedef ResScalar LhsPacket;
-		typedef ResScalar RhsPacket;
-		typedef ResScalar ResPacket;
-
-	  };
-
-	  template<typename Index, typename DataMapper, bool ConjugateLhs, bool ConjugateRhs>
-	  struct gebp_kernel<mpq_class,mpq_class,Index,DataMapper,1,1,ConjugateLhs,ConjugateRhs>
-	  {
-		typedef mpq_class num_t;
-
-		EIGEN_DONT_INLINE
-		void operator()(const DataMapper& res, const num_t* blockA, const num_t* blockB, 
-						Index rows, Index depth, Index cols, const num_t& alpha,
-						Index strideA=-1, Index strideB=-1, Index offsetA=0, Index offsetB=0)
-		{
-		  if(rows==0 || cols==0 || depth==0)
-			return;
-
-		  num_t  acc1(0), tmp(0);        
-
-		  if(strideA==-1) strideA = depth;
-		  if(strideB==-1) strideB = depth;
-
-		  for(Index i=0; i<rows; ++i)
-		  {
-			for(Index j=0; j<cols; ++j)
-			{
-			  const num_t *A = blockA + i*strideA + offsetA;
-			  const num_t *B = blockB + j*strideB + offsetB;
-			  acc1 = 0;
-			  for(Index k=0; k<depth; k++)
-			  {
-				mpq_mul(tmp.__get_mp() , A[k].__get_mp(), B[0].__get_mp());
-				mpq_add(acc1.__get_mp(), acc1.__get_mp(), tmp.__get_mp() );
-			  }
-			  
-			  mpq_mul(acc1.__get_mp()    , acc1.__get_mp() , alpha.__get_mp());
-			  mpq_add(res(i,j).__get_mp(), res(i,j).__get_mp(), acc1.__get_mp() );
-			}
-		  }
-		}
-	  };
-
-	} // end namespace internal
-}*/
+#include "Eigen/Core"
+#include "Eigen/Sparse"
+#include "Eigen/SPQRSupport"
 
 /******************************************************************************/
 /***** Define the type used to store the coefficients of the monomials    *****/
@@ -164,8 +21,8 @@ namespace Eigen {
 
 //typedef mpq_class coeff_class;				// arbitrary precision rational
 //typedef mpfr::mpreal coeff_class;				// arbitrary precision float
-typedef double coeff_class;					// ordinary double-width float
-//typedef long coeff_class;						// ordinary single-width integer
+typedef double coeff_class;						// ordinary double-width float
+//typedef long coeff_class;						// ordinary double-width integer
 
 typedef Eigen::SparseMatrix<coeff_class> Matrix;
 typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, Eigen::Dynamic> DMatrix;
@@ -415,7 +272,9 @@ std::vector<std::vector<int>> GetStatesByDegree(const int numP, const int deg,
 std::vector<std::vector<int>> GetStatesUpToDegree(const int numP, const int deg);
 std::vector<std::vector<int>> GetStatesAtDegree(const int numP, const int deg);
 
-// functions interfacing with Eigen
+
+// functions interfacing with Eigen ------------------------------------------
+
 Matrix KMatrix(const basis& startingBasis, const basis& targetBasis);
 std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms, 
 		const basis& targetBasis, const Eigen::Index rowOffset);
@@ -426,6 +285,9 @@ poly ColumnToPoly(const Matrix& kernelMatrix, const Eigen::Index col,
 		const basis& startBasis);
 poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col, 
 		const basis& startBasis);
+
+
+// templates -----------------------------------------------------------------
 
 // T can be any type or class with an == operator; value indexes T by uint
 template<typename Accessor>
