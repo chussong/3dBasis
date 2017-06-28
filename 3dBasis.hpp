@@ -3,157 +3,18 @@
 
 #include <iostream>
 #include <exception>
+#include <string>
 #include <vector>
 #include <array>
 #include <list>
 #include <utility>		// std::pair
-#include <algorithm>
-#include <gmpxx.h>
-#include "mpreal.h"
-#include <Eigen/Core>
-#include <Eigen/Sparse>
-#include <Eigen/SPQRSupport>
-#include <unsupported/Eigen/MPRealSupport>
+#include <algorithm>	// std::remove_if
+#include "Eigen/Core"
+#include "Eigen/Sparse"
+#include "Eigen/SPQRSupport"
 
-// Eigen extension for mpq_class plus a stream function
-/*
-inline std::ostream& operator<<(std::ostream &o, const coeff_class &expr){
-	return o << expr.get_str();
-}
-
-namespace Eigen {
-	template<> struct NumTraits<mpq_class> : GenericNumTraits<mpq_class>{
-		typedef mpq_class Real;
-		typedef mpq_class NonInteger;
-		typedef mpq_class Literal;
-		typedef mpq_class Nested;
-
-		enum {
-			IsComplex = 0,
-			IsInteger = 0,
-			ReadCost = 6,
-			AddCost = 150,
-			MulCost = 100,
-			IsSigned = 1,
-			RequireInitialization = 1
-		};
-
-		static inline Real epsilon() { return 0; }
-		static inline Real dummy_precision() { return 0; }
-		static inline Real digits10() { return 0; }
-		static inline Real Pi() { return mpq_class(355,113); }
-	};
-
-	 namespace internal {
-
-	template<> inline mpq_class random<mpq_class>()
-	{
-	  gmp_randclass rr(gmp_randinit_default);
-	  return mpq_class(rr.get_z_bits(125),rr.get_z_bits(125));
-	}
-
-	template<> inline mpq_class random<mpq_class>(const mpq_class& a, const mpq_class& b)
-	{
-	  return a + (b-a) * random<mpq_class>();
-	}
-
-	inline bool isMuchSmallerThan(const mpq_class& a, const mpq_class& b, const mpq_class& eps)
-	{
-	  return ::abs(a) <= ::abs(b) * eps;
-	}
-
-	inline bool isApprox(const mpq_class& a, const mpq_class& b, const mpq_class& eps)
-	{
-		return ::abs(a-b)<eps;
-	}
-
-	inline bool isApproxOrLessThan(const mpq_class& a, const mpq_class& b, const mpq_class& eps)
-	{
-	  return a <= b;
-	}
-
-	template<> inline long double cast<mpq_class,long double>(const mpq_class& x)
-	{ return x.get_d(); }
-
-	template<> inline double cast<mpq_class,double>(const mpq_class& x)
-	{ return x.get_d(); }
-
-	template<> inline long cast<mpq_class,long>(const mpq_class& x)
-	{ return x.get_d(); }
-
-	template<> inline int cast<mpq_class,int>(const mpq_class& x)
-	{ return x.get_d(); }
-
-	// G+Smo
-	template<> inline size_t cast<mpq_class,size_t>(const mpq_class& x)
-	{ return x.get_d(); }
-
-	template<> inline unsigned cast<mpq_class,unsigned>(const mpq_class& x)
-	{ return x.get_d(); }
-
-	  // Specialize GEBP kernel and traits
-	  template<>
-	  class gebp_traits<mpq_class, mpq_class, false, false>
-	  {
-	  public:
-		typedef mpq_class ResScalar;
-		enum {
-		  Vectorizable = false,
-		  LhsPacketSize = 1,
-		  RhsPacketSize = 1,
-		  ResPacketSize = 1,
-		  NumberOfRegisters = 1,
-		  nr = 1,
-		  mr = 1,
-		  LhsProgress = 1,
-		  RhsProgress = 1
-		};
-		typedef ResScalar LhsPacket;
-		typedef ResScalar RhsPacket;
-		typedef ResScalar ResPacket;
-
-	  };
-
-	  template<typename Index, typename DataMapper, bool ConjugateLhs, bool ConjugateRhs>
-	  struct gebp_kernel<mpq_class,mpq_class,Index,DataMapper,1,1,ConjugateLhs,ConjugateRhs>
-	  {
-		typedef mpq_class num_t;
-
-		EIGEN_DONT_INLINE
-		void operator()(const DataMapper& res, const num_t* blockA, const num_t* blockB, 
-						Index rows, Index depth, Index cols, const num_t& alpha,
-						Index strideA=-1, Index strideB=-1, Index offsetA=0, Index offsetB=0)
-		{
-		  if(rows==0 || cols==0 || depth==0)
-			return;
-
-		  num_t  acc1(0), tmp(0);        
-
-		  if(strideA==-1) strideA = depth;
-		  if(strideB==-1) strideB = depth;
-
-		  for(Index i=0; i<rows; ++i)
-		  {
-			for(Index j=0; j<cols; ++j)
-			{
-			  const num_t *A = blockA + i*strideA + offsetA;
-			  const num_t *B = blockB + j*strideB + offsetB;
-			  acc1 = 0;
-			  for(Index k=0; k<depth; k++)
-			  {
-				mpq_mul(tmp.__get_mp() , A[k].__get_mp(), B[0].__get_mp());
-				mpq_add(acc1.__get_mp(), acc1.__get_mp(), tmp.__get_mp() );
-			  }
-			  
-			  mpq_mul(acc1.__get_mp()    , acc1.__get_mp() , alpha.__get_mp());
-			  mpq_add(res(i,j).__get_mp(), res(i,j).__get_mp(), acc1.__get_mp() );
-			}
-		  }
-		}
-	  };
-
-	} // end namespace internal
-}*/
+constexpr char VERSION[] = "0.4.0";
+constexpr char RELEASE_DATE[] = "28th June, 2017";
 
 /******************************************************************************/
 /***** Define the type used to store the coefficients of the monomials    *****/
@@ -164,8 +25,8 @@ namespace Eigen {
 
 //typedef mpq_class coeff_class;				// arbitrary precision rational
 //typedef mpfr::mpreal coeff_class;				// arbitrary precision float
-typedef double coeff_class;					// ordinary double-width float
-//typedef long coeff_class;						// ordinary single-width integer
+typedef double coeff_class;						// ordinary double-width float
+//typedef long coeff_class;						// ordinary double-width integer
 
 typedef Eigen::SparseMatrix<coeff_class> Matrix;
 typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, Eigen::Dynamic> DMatrix;
@@ -187,7 +48,11 @@ struct particle{
 	int pm;	// P_-
 	int pt; // P_\perp
 	int pp; // P_+
+
+	bool operator==(const particle& other) const;
+	bool operator!=(const particle& other) const { return !(*this == other); }
 };
+bool ParticlePrecedence(const particle& a, const particle& b);
 
 // a mono(mial) with coefficient. It should be impossible for an instance of
 // this class to be out of order, so hopefully that's true!
@@ -206,6 +71,7 @@ struct particle{
 class mono {
 	coeff_class coeff;
 	std::vector<particle> particles;
+	bool usingEoM;
 
 	std::vector<int> IdentifyNodes() const;
 	template<typename T> std::vector<int> IdentifyNodes(T (*value)(particle)) const;
@@ -214,11 +80,13 @@ class mono {
 	std::vector<int> IdentifyPpNodes() const;
 
 	public:
-		mono(): coeff(1) {}
+		mono(const bool usingEoM = false): coeff(1), usingEoM(usingEoM) {}
 		mono(const std::vector<int>& pm, const std::vector<int>& pt,
-				const std::vector<int>& pp,	const coeff_class& coeff = 1);
-		mono(const std::vector<particle>& particles, const coeff_class& coeff = 1):
-			coeff(coeff), particles(particles) {}
+				const std::vector<int>& pp,	const bool usingEoM = false,
+				const coeff_class& coeff = 1);
+		mono(const std::vector<particle>& particles, const bool usingEoM = false,
+				const coeff_class& coeff = 1):
+			coeff(coeff), particles(particles), usingEoM(usingEoM) {}
 
 		coeff_class& Coeff()		{ return coeff; }
 		const coeff_class& Coeff() const	{ return coeff; }
@@ -234,6 +102,9 @@ class mono {
 		int TotalPm() const;
 		int TotalPt() const;
 		int TotalPp() const;
+		int MaxPm() const;
+		int MaxPt() const;
+		int MaxPp() const;
 		int Degree() const { return TotalPm() + TotalPt() + TotalPp(); }
 
 		mono& operator*=(const coeff_class& x)	 { coeff *= x; return *this; }
@@ -260,6 +131,9 @@ class mono {
 		bool IsOrdered() const;
 		void Order();
 		mono OrderCopy() const;
+
+		void MirrorPM();
+		static bool MirrorIsBetter(const mono& m);
 
 		mono DerivPm(const unsigned int targetParticle) const;
 		mono DerivPt(const unsigned int targetParticle) const;
@@ -310,6 +184,9 @@ class poly {
 		friend poly operator+(const mono& x, poly y);
 		friend poly operator-(const mono& x, poly y);
 
+		bool operator==(const poly& other) const;
+		bool operator!=(const poly& other) const { return !(*this == other); }
+
 		const	mono& operator[](size_t i)	const	{ return terms[i]; }
 				mono& operator[](size_t i)			{ return terms[i]; }
 		size_t	size()						const	{return terms.size(); }
@@ -328,6 +205,8 @@ class poly {
 		poly DerivPp(const int);
 		poly DerivPm();
 		poly DerivPp();
+
+		void MirrorPM() { for(auto& t : terms) t.MirrorPM(); }
 
 		poly K1() const;
 		poly K2() const;
@@ -356,9 +235,10 @@ class basis {
 	static std::vector<std::vector<int>> CfgsFromNodePartition(
 			const std::vector<int> nodes,
 			std::vector<std::vector<int>> nodeEnergies);
+	static bool PpDominant(const mono& m);
+
 	public:
-		basis() = delete;
-		basis(const int numP, const int degree);
+		basis(const int numP, const int degree, const int options);
 		unsigned int FindInBasis(const std::vector<int>& pm,
 				const std::vector<int>& pt, const std::vector<int>& pp);
 		unsigned int FindInBasis(const mono& wildMono);
@@ -366,6 +246,9 @@ class basis {
 		//std::array<basis,2> ParitySplit() const;
 		void DeleteOdd();
 		void DeleteEven();
+		void DeleteSymm();
+		void DeleteAsymm();
+		//void SortBasis();
 
 		const	mono& operator[](size_t i)	const	{return basisMonos[i];     }
 		std::size_t size()					const	{return basisMonos.size(); }
@@ -391,41 +274,74 @@ class splitBasis {
 	basis oddBasis;
 
 	public:
-		splitBasis() = delete;
-		splitBasis(const int numP, const int degree);
+		splitBasis(const int numP, const int degree, const int options);
 
 		std::pair<unsigned int, basis*> FindInBasis(const std::vector<int>& pm,
 				const std::vector<int>& pt, const std::vector<int>& pp);
 		std::pair<unsigned int, basis*> FindInBasis(const mono& wildMono);
 
 		basis& OddBasis() { return oddBasis; }
+		const basis& OddBasis() const { return oddBasis; }
 		basis& EvenBasis() { return evenBasis; }
+		const basis& EvenBasis() const { return evenBasis; }
+
+		splitBasis BecomeAsymmetric();
+		void DeleteSymm();
+		void DeleteAsymm();
+		//splitPolyBasis AdditiveSymmetrization();
 
 		std::list<Triplet> ExpressPoly(const poly& toExpress, const int column,
 				const int row) const;
 
-		static bool IsOdd(const mono& toTest);
+		static bool IsOdd (const mono& toTest);
 		static bool IsEven(const mono& toTest);
+		static bool IsSymm(const mono& toTest);
+		static bool IsAsymm(const mono& toTest);
 };
 
 std::ostream& operator<<(std::ostream& os, const Triplet& out);
+
+// state generation -----------------------------------------------------------
 std::vector<std::vector<int>> Permute(const std::vector<std::vector<int>> ordered);
 std::vector<std::vector<int>> GetStatesByDegree(const int numP, const int deg,
 		const bool exact, const int min);
 std::vector<std::vector<int>> GetStatesUpToDegree(const int numP, const int deg);
 std::vector<std::vector<int>> GetStatesAtDegree(const int numP, const int deg);
+bool EoMAllowed(const std::vector<particle>& cfg);
 
-// functions interfacing with Eigen
+// startup and input parsing --------------------------------------------------
+
+enum options { OPT_BRUTE = 0b1, OPT_VERSION = 0b10, OPT_DEBUG = 0b100,
+				OPT_PARITYONLY = 0b1000, OPT_EQNMOTION = 0b10000 };
+std::array<int,3> ParseArguments(int argc, char* argv[]);
+int ParseOptions(std::vector<std::string> options);
+
+int FindPrimaries(int numP, int degree, int options);
+int FindPrimariesParityOnly(int numP, int degree, int options);
+int FindPrimariesBruteForce(int numP, int degree, int options);
+
+
+// functions interfacing with Eigen ------------------------------------------
+
 Matrix KMatrix(const basis& startingBasis, const basis& targetBasis);
+Matrix K13Matrix(const basis& startingBasis, const basis& targetBasis);
+Matrix K2Matrix(const basis& startingBasis, const basis& targetBasis);
+std::array<Matrix,4> KMatrices(const splitBasis& startingBasis,
+		const splitBasis& targetBasis);
 std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms, 
 		const basis& targetBasis, const Eigen::Index rowOffset);
 std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis);
+std::vector<poly> CombineKernels(const std::vector<poly>& kernel1,
+		const std::vector<poly>& kernel2);
 poly VectorToPoly(const Vector& kernelVector, const basis& startBasis);
 poly VectorToPoly(const DVector& kernelVector, const basis& startBasis);
 poly ColumnToPoly(const Matrix& kernelMatrix, const Eigen::Index col, 
 		const basis& startBasis);
 poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col, 
 		const basis& startBasis);
+
+
+// templates -----------------------------------------------------------------
 
 // T can be any type or class with an == operator; value indexes T by uint
 template<typename Accessor>

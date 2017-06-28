@@ -1,42 +1,179 @@
 #include "3dBasis.hpp"
 
 int main(int argc, char* argv[]) {
-	if(argc < 3 || argc > 3){
-		std::cerr << "Error: provide number of particles and degree when "
-			<< "calling." << std::endl;
-		return EXIT_FAILURE;
+	std::array<int,3> args = ParseArguments(argc, argv);
+	if(args[2] & OPT_VERSION){
+		std::cout << "This is 3dBasis version " << VERSION << ", released "
+			<< RELEASE_DATE << ". The latest updates can always be found at "
+			<< "https://github.com/chussong/3dBasis." << std::endl;
+		return EXIT_SUCCESS;
 	}
-	std::string numP(argv[1]);
-	std::string deg (argv[2]);
 
-	splitBasis startingBasis(std::stoi(numP), std::stoi(deg));
-	std::cout << "Constructed a basis with " << startingBasis.EvenBasis().size()
-		<< " even elements and " << startingBasis.OddBasis().size()
+	if(args[2] & OPT_BRUTE){
+		return FindPrimariesBruteForce(args[0], args[1], args[2]);
+	} else {
+		return FindPrimariesParityOnly(args[0], args[1], args[2]);
+	}
+}
+
+//------------------------------------------------------------------------------
+// targetBasis is not split because this would require finding the overlap
+// between two kernels with distinct bases, which is quite nontrivial. It's 
+// possible that splitting targetBasis could fit well with a separate 
+// orthogonalization step if one is added in the future.
+//------------------------------------------------------------------------------
+int FindPrimaries(int numP, int degree, int options){
+	splitBasis startingBasisA(numP, degree, options);
+	splitBasis startingBasisS = startingBasisA.BecomeAsymmetric();
+	std::cout << "Constructed an asymmetric starting basis with " 
+		<< startingBasisA.EvenBasis().size()
+		<< " even elements and " << startingBasisA.OddBasis().size()
 		<< " odd elements." << std::endl;
-	basis targetBasis(std::stoi(numP), std::stoi(deg)-1);
+	std::cout << "Constructed a symmetric starting basis with " 
+		<< startingBasisS.EvenBasis().size()
+		<< " even elements and " << startingBasisS.OddBasis().size()
+		<< " odd elements." << std::endl;
+	basis targetBasis(numP, degree-1, options);
 	std::cout << "Constructed a target basis with " << targetBasis.size()
 		<< " elements." << std::endl;
-	// we could split the target basis by parity as well but it would require
-	// constructing four matrices, since K_\perp takes (even)<->(odd)
 
 	// - create matrix of K acting on each element of startingBasis
-	Matrix evenKActions = KMatrix(startingBasis.EvenBasis(), targetBasis);
-	Matrix oddKActions = KMatrix(startingBasis.OddBasis(), targetBasis);
-	//std::cout << KActions << std::endl;
+	Matrix evenKActionA(KMatrix(startingBasisA.EvenBasis(), targetBasis));
+	Matrix oddKActionA (KMatrix(startingBasisA.OddBasis() , targetBasis));
+	Matrix evenKActionS(KMatrix(startingBasisS.EvenBasis(), targetBasis));
+	Matrix oddKActionS (KMatrix(startingBasisS.OddBasis() , targetBasis));
 
 	// - find kernel of above matrix and output
-	std::vector<poly> evenKernel = Kernel(evenKActions, startingBasis.EvenBasis());
-	std::vector<poly> oddKernel = Kernel(oddKActions, startingBasis.OddBasis());
 
-	/*std::cout << "Found the following " << kernel.size() << "-dimensional kernel:"
-		<< std::endl;
-	for(auto& kernelVec : kernel) std::cout << kernelVec << std::endl;*/
+	std::vector<poly> evenKernelA = Kernel(evenKActionA, startingBasisA.EvenBasis());
+	std::vector<poly> oddKernelA  = Kernel(oddKActionA , startingBasisA.OddBasis());
+	std::vector<poly> evenKernelS = Kernel(evenKActionS, startingBasisS.EvenBasis());
+	std::vector<poly> oddKernelS  = Kernel(oddKActionS , startingBasisS.OddBasis());
+
+	std::cout << "Found a total of " 
+		<< 2*evenKernelA.size() + 2*oddKernelA.size()\
+			+ evenKernelS.size() + oddKernelS.size()
+		<< " primaries." << std::endl;
+
+	/*std::cout << "Even asymmetric:" << std::endl;
+	for(auto& kernelVec : evenKernelA) std::cout << kernelVec << std::endl;
+	std::cout << "Odd asymmetric:" << std::endl;
+	for(auto& kernelVec : oddKernelA) std::cout << kernelVec << std::endl;
+	std::cout << "Even symmetric:" << std::endl;
+	for(auto& kernelVec : evenKernelS) std::cout << kernelVec << std::endl;
+	std::cout << "Odd symmetric:" << std::endl;
+	for(auto& kernelVec : oddKernelS) std::cout << kernelVec << std::endl;*/
 	
 	return EXIT_SUCCESS;
 }
 
+int FindPrimariesParityOnly(int numP, int degree, int options){
+	splitBasis startingBasis(numP, degree, options);
+	std::cout << "Constructed a starting basis with " 
+		<< startingBasis.EvenBasis().size()
+		<< " even elements and " << startingBasis.OddBasis().size()
+		<< " odd elements." << std::endl;
+	basis targetBasis(numP, degree-1, options);
+	std::cout << "Constructed a target basis with " << targetBasis.size()
+		<< " elements." << std::endl;
+
+	Matrix evenKAction(KMatrix(startingBasis.EvenBasis(), targetBasis));
+	Matrix oddKAction (KMatrix(startingBasis.OddBasis() , targetBasis));
+
+	std::vector<poly> evenKernel = Kernel(evenKAction, startingBasis.EvenBasis());
+	std::vector<poly> oddKernel  = Kernel(oddKAction , startingBasis.OddBasis());
+
+	std::cout << "Found a total of " << evenKernel.size() + oddKernel.size() 
+		<< " primaries." << std::endl;
+
+	return EXIT_SUCCESS;
+}
+
+int FindPrimariesBruteForce(int numP, int degree, int options){
+	basis startingBasis(numP, degree, options);
+	std::cout << "Constructed a starting basis with " << startingBasis.size()
+		<< " elements." << std::endl;
+	basis targetBasis(numP, degree-1, options);
+	std::cout << "Constructed a target basis with " << targetBasis.size()
+		<< " elements." << std::endl;
+
+	// - create matrix of K acting on each element of startingBasis
+	Matrix kAction(KMatrix(startingBasis, targetBasis));
+
+	// - find kernel of above matrix and output
+
+	std::vector<poly> kernel = Kernel(kAction, startingBasis);
+
+	std::cout << "Found the following " << kernel.size() << "-dimensional kernel:"
+		<< std::endl;
+	//for(auto& kernelVec : kernel) std::cout << kernelVec << std::endl;
+	
+	return EXIT_SUCCESS;
+}
+
+std::array<int,3> ParseArguments(int argc, char* argv[]){
+	std::vector<std::string> options;
+	std::string arg;
+	std::array<int,3> ret;
+	int j = 0;
+	for(int i = 1; i < argc; ++i){
+		arg = argv[i];
+		if(arg.size() > 0){
+			if(arg[0] == '-'){
+				options.push_back(arg);
+			} else {
+				if(j > 1){
+					std::cerr << "Error: at most two non-option arguments may "
+						<< "be given." << std::endl;
+					return ret;
+				}
+				try{ret[j] = std::stoi(arg);}
+				catch(const std::invalid_argument &e){
+					std::cerr << "Error: this non-option argument could not be "
+						<< "converted to an integer: " << arg << std::endl;
+					throw;
+				}
+				catch(const std::out_of_range &e){
+					std::cerr << "Error: specification of N or degree is too "
+						<< "large to store. This computation would never finish"
+						<< " anyway..." << std::endl;
+					throw;
+				}
+				++j;
+			}
+		}
+	}
+	ret[2] = ParseOptions(options);
+	return ret;
+}
+
+// -b solves using the non-split method
+int ParseOptions(std::vector<std::string> options){
+	int ret = 0;
+	for(auto& opt : options){
+		if(opt.compare(0, 2, "-v") == 0){
+			ret = ret | OPT_VERSION;
+			continue;
+		}
+		if(opt.compare(0, 2, "-b") == 0){
+			ret = ret | OPT_BRUTE;
+			continue;
+		}
+		if(opt.compare(0, 2, "-p") == 0){
+			ret = ret | OPT_PARITYONLY;
+			continue;
+		}
+		if(opt.compare(0, 2, "-e") == 0){
+			ret = ret | OPT_EQNMOTION;
+			continue;
+		}
+	}
+	return ret;
+}
+
 mono::mono(const std::vector<int>& pm, const std::vector<int>& pt,
-		const std::vector<int>& pp,	const coeff_class& coeff): coeff(coeff){
+		const std::vector<int>& pp,	const bool usingEoM,
+		const coeff_class& coeff): coeff(coeff), usingEoM(usingEoM){
 	if(pm.size() != pt.size() || pt.size() != pp.size()){
 		std::cerr << "Error: attempted to construct a monomial out of particle "
 			<< "data with different sizes: {" << pm.size() << "," << pt.size()
@@ -67,6 +204,7 @@ bool mono::operator==(const mono& other) const{
 }
 
 std::ostream& operator<<(std::ostream& os, const mono& out){
+	if(out.coeff == 1) return os << out.particles;
 	return os << out.coeff << " * " << out.particles;
 }
 
@@ -98,7 +236,27 @@ int mono::TotalPp() const{
 	return total;
 }
 
-/* The following two functions might actually work just as well as Order():
+// if the mono is ordered, particles[0] is guaranteed to have the highest Pm
+int mono::MaxPm() const{
+	if(particles.size() < 1) return -1;
+	return particles[0].pm;
+}
+
+// for this and MaxPp(), we have to actually check
+int mono::MaxPt() const{
+	int max = -1;
+	for(auto& p : particles) if(p.pt > max) max = p.pt;
+	return max;
+}
+
+// technically we could interrupt this when p.pp < max
+int mono::MaxPp() const{
+	int max = -1;
+	for(auto& p : particles) if(p.pp > max) max = p.pp;
+	return max;
+}
+
+// The following two functions might actually work just as well as old Order():
 bool ParticlePrecedence(const particle& a, const particle& b){
 	if(a.pm != b.pm) return a.pm > b.pm;
 	if(a.pt != b.pt) return a.pt > b.pt;
@@ -106,9 +264,42 @@ bool ParticlePrecedence(const particle& a, const particle& b){
 }
 
 void mono::Order(){
-	std::sort(particles.begin(), particles.end(), ParticlePrecedence(a,b));
-}*/
+	if(usingEoM){
+		for(auto& p : particles){
+			if(p.pm > 0 && p.pp > 0){
+				p.pm -= 1;
+				p.pp -= 1;
+				p.pt += 2;
+			}
+		}
+	}
+	std::sort(particles.begin(), particles.end(), ParticlePrecedence);
+}
 
+bool particle::operator==(const particle& other) const{
+	return (pm == other.pm) && (pt == other.pt) && (pp == other.pp);
+}
+
+bool mono::MirrorIsBetter(const mono& original){
+	if(original.TotalPm() != original.TotalPp())
+		return original.TotalPp() > original.TotalPm();
+	if(original.MaxPm() != original.MaxPp())
+		return original.MaxPp() > original.MaxPm();
+	mono mirror(original);
+	mirror.MirrorPM();
+	std::cout << "Compare " << original << " to its mirror: " << mirror << std::endl;
+
+	for(auto i = 0u; i < original.NParticles(); ++i){
+		if(original.Pt(i) != mirror.Pt(i)) return mirror.Pt(i) > original.Pt(i);
+	}
+
+	std::cout << "Asked to compare " << original << " to its mirror but they "
+		<< "were the same..." << std::endl;
+
+	return false;
+}
+
+/*
 // this should be called whenever something happens that changes the momenta in
 // a monomial (new or existing) to ensure that it's always ordered. To ensure
 // the original operation isn't disrupted, call it in the scope of the function
@@ -136,7 +327,7 @@ void mono::Order(){
 				[](particle a, particle b){return a.pp > b.pp;});
 		i += node;
 	}
-}
+}*/
 
 mono mono::OrderCopy() const{
 	mono ret(*this);
@@ -158,6 +349,16 @@ std::vector<int> mono::IdentifyPtNodes() const{
 
 std::vector<int> mono::IdentifyPpNodes() const{
 	return ::IdentifyNodes([this](unsigned int i){return Pp(i);}, NParticles());
+}
+
+void mono::MirrorPM(){
+	int temp;
+	for(auto& p : particles){
+		temp = p.pm;
+		p.pm = p.pp;
+		p.pp = temp;
+	}
+	Order();
 }
 
 // NOTE! These break ordering, so you have to re-order when you're done!
@@ -361,6 +562,22 @@ poly operator-(const mono& x, poly y){
 	return y -= x;
 }
 
+bool poly::operator==(const poly& other) const{
+	bool found;
+	for(auto& term1 : terms){
+		found = false;
+		for(auto& term2 : other.terms){
+			if(term1 == term2){
+				if(term1.Coeff() != term2.Coeff()) return false;
+				found = true;
+				break;
+			}
+		}
+		if(!found) return false;
+	}
+	return true;
+}
+
 poly poly::K1() const{
 	poly ret;
 	for(auto& term : terms){
@@ -385,7 +602,7 @@ poly poly::K3() const{
 	return ret;
 }
 
-basis::basis(const int numP, const int degree) {
+basis::basis(const int numP, const int degree, const int options) {
 	// 1: generate all possibilities for P_-
 	// 2: identify nodes in P_-, generate possible distributions of P_\perp to
 	// 		the nodes and then P_\perp within each node, adding each at top level
@@ -395,6 +612,7 @@ basis::basis(const int numP, const int degree) {
 	// NOTE: this does not make any use of the symmetries between the components
 	// 		in constructing the basis; for instance, the states where every
 	// 		pm = 0 are followed by a copy of the earlier parts of the basis
+	const bool useEoM = (options & OPT_EQNMOTION) != 0;
 	std::vector<std::vector<int>> minus = GetStatesUpToDegree(numP, degree);
 	std::vector<std::vector<particle>> particleCfgs;
 	for(auto& minusCfg : minus){
@@ -424,12 +642,12 @@ basis::basis(const int numP, const int degree) {
 		std::vector<std::vector<int>> plus(CfgsFromNodes(remainingEnergy, nodes,
 															true));
 		for(auto& newCfg : CombinedCfgs(cfg, plus, 3)){
-			particleCfgs.push_back(newCfg);
+			if(!useEoM || EoMAllowed(newCfg)) particleCfgs.push_back(newCfg);
 		}
 	}
 
 	for(auto& cfg : particleCfgs){
-		basisMonos.emplace_back(cfg);
+		basisMonos.emplace_back(cfg, useEoM);
 		//std::cout << cfg << std::endl;
 	}
 }
@@ -571,6 +789,36 @@ void basis::DeleteEven(){
 				splitBasis::IsEven), basisMonos.end());
 }
 
+// this deletes the +/- symmetric elements AND deletes the P+ dominant ones,
+// defined to be those with P+ > P- or max(P+) > max(P-)
+void basis::DeleteSymm(){
+	basisMonos.erase(std::remove_if(basisMonos.begin(), basisMonos.end(),
+				splitBasis::IsSymm), basisMonos.end());
+	basisMonos.erase(std::remove_if(basisMonos.begin(), basisMonos.end(),
+				mono::MirrorIsBetter), basisMonos.end());
+	std::cout << "Basis after deleting symmetric and unfavorable elements: \n";
+	for(auto& m : basisMonos) std::cout << m << std::endl;
+	std::cout << "--------------------" << std::endl;
+}
+
+void basis::DeleteAsymm(){
+	basisMonos.erase(std::remove_if(basisMonos.begin(), basisMonos.end(),
+				splitBasis::IsAsymm), basisMonos.end());
+}
+
+/*void basis::SortBasis(){
+	std::sort(basisMonos.begin(), basisMonos.end(), mono::MonoPrecedence);
+	std::cout << "Sorted basis to this:" << std::endl;
+	for(auto i = 0u; i < basisMonos.size()/2; ++i){
+		std::cout << basisMonos[i] << std::endl;
+	}
+	std::cout << "----- half way pt -----" << std::endl;
+	for(auto i = basisMonos.size()/2; i < basisMonos.size(); ++i){
+		std::cout << basisMonos[i] << std::endl;
+	}
+	std::cout << "-------------------" << std::endl;
+}*/
+
 Triplet basis::ExpressMono(const mono& toExpress, const int column,
 		const int rowOffset) const{
 	for(auto i = 0u; i < basisMonos.size(); ++i){
@@ -615,12 +863,47 @@ bool splitBasis::IsEven(const mono& toTest){
 	return !IsOdd(toTest);
 }
 
+bool splitBasis::IsSymm(const mono& toTest){
+	mono clone(toTest);
+	clone.MirrorPM();
+	/*std::cout << toTest;
+	std::cout << (clone == toTest ? " == " : " != ");
+	std::cout << clone << std::endl;*/
+	return clone == toTest;
+}
+
+bool splitBasis::IsAsymm(const mono& toTest){
+	return !IsSymm(toTest);
+}
+
 // this could definitely be done more intelligently if speed were important
-splitBasis::splitBasis(const int numP, const int degree): 
-	evenBasis(numP, degree), oddBasis(numP, degree){
+splitBasis::splitBasis(const int numP, const int degree, const int options): 
+	evenBasis(numP, degree, options), oddBasis(numP, degree, options){
 	evenBasis.DeleteOdd();
 	oddBasis.DeleteEven();
 }
+
+splitBasis splitBasis::BecomeAsymmetric(){
+	splitBasis symm(*this);
+	DeleteSymm();
+	symm.DeleteAsymm();
+	return symm;
+}
+
+void splitBasis::DeleteSymm(){
+	oddBasis.DeleteSymm();
+	evenBasis.DeleteSymm();
+}
+
+void splitBasis::DeleteAsymm(){
+	oddBasis.DeleteAsymm();
+	evenBasis.DeleteAsymm();
+}
+
+// create a copy of this basis which is symmetrized by adding mirror operators
+// to all member monomials
+//splitPolyBasis AdditiveSymmetrization(){
+//}
 
 std::list<Triplet> splitBasis::ExpressPoly(const poly& toExpress, 
 		const int column, const int rowOffset) const{
@@ -716,8 +999,16 @@ std::vector<std::vector<int>> GetStatesAtDegree(const int numP,
 	return GetStatesByDegree(numP, deg, true, 0);
 }
 
+bool EoMAllowed(const std::vector<particle>& cfg){
+	for(auto& p : cfg){
+		if(p.pm != 0 && p.pp != 0) return false;
+	}
+	return true;
+}
+
 Matrix KMatrix(const basis& startingBasis, const basis& targetBasis){
 	//std::cout << "Constructing polynomials of K actions..." << std::endl;
+	if(startingBasis.size() == 0) return Matrix(0, 0);
 	std::vector<poly> K1Actions, K2Actions, K3Actions;
 	for(auto& basisMono : startingBasis){
 		K1Actions.emplace_back(basisMono.K1());
@@ -738,6 +1029,43 @@ Matrix KMatrix(const basis& startingBasis, const basis& targetBasis){
 	return ret;
 }
 
+Matrix K13Matrix(const basis& startingBasis, const basis& targetBasis){
+	std::vector<poly> K1Actions, K3Actions;
+	for(auto& basisMono : startingBasis){
+		K1Actions.emplace_back(basisMono.K1());
+		K3Actions.emplace_back(basisMono.K3());
+	}
+
+	std::list<Triplet> entries = ConvertToRows(K1Actions, targetBasis, 0);
+	entries.splice(entries.end(), ConvertToRows(K3Actions, targetBasis, 1));
+
+	Matrix ret(2*targetBasis.size(), startingBasis.size());
+	ret.setFromTriplets(entries.begin(), entries.end());
+	return ret;
+}
+
+Matrix K2Matrix(const basis& startingBasis, const basis& targetBasis){
+	std::vector<poly> K2Actions;
+	for(auto& basisMono : startingBasis){
+		K2Actions.emplace_back(basisMono.K2());
+	}
+
+	std::list<Triplet> entries = ConvertToRows(K2Actions, targetBasis, 0);
+
+	Matrix ret(targetBasis.size(), startingBasis.size());
+	ret.setFromTriplets(entries.begin(), entries.end());
+	return ret;
+}
+
+std::array<Matrix,4> KMatrices(const splitBasis& startingBasis,
+		const splitBasis& targetBasis){
+	return std::array<Matrix,4>({{
+			K13Matrix(startingBasis.EvenBasis(), targetBasis.EvenBasis()),
+			K2Matrix (startingBasis.EvenBasis(), targetBasis.OddBasis()),
+			K13Matrix(startingBasis.OddBasis() , targetBasis.OddBasis()),
+			K2Matrix (startingBasis.OddBasis() , targetBasis.EvenBasis())}});
+}
+
 std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms, 
 		const basis& targetBasis, const Eigen::Index rowOffset){
 	std::list<Triplet> ret = targetBasis.ExpressPoly(polyForms[0], 0,
@@ -752,7 +1080,8 @@ std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms,
 // takes QR decomposition of the matrix and returns the polynomial forms of its
 // rightmost N columns, which are the N orthonormal basis vectors of the kernel
 std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis){
-	//std::cout << "Computing kernel from KActions..." << std::endl;
+	if(KActions.rows() == 0 || KActions.cols() == 0) return std::vector<poly>();
+	std::cout << "Computing kernel from K matrix..." << std::endl;
 	QRSolver solver;
 	solver.compute(KActions.transpose());
 	std::cout << "Solved. Found rank " << solver.rank() << ", i.e. "
@@ -780,10 +1109,14 @@ std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis){
 		ret.push_back(ColumnToPoly(kernelMatrix, col, startBasis));
 	}*/
 
+
 	DVector projector = Eigen::VectorXd::Zero(startBasis.size());
 	DVector kernelVector(startBasis.size());
 	std::vector<poly> ret;
 	ret.resize(startBasis.size() - solver.rank());
+
+	return ret; // THIS IS FAKE, REMOVE IT IF WE WANT THE INFO
+
 	for(auto col = 0u; col < startBasis.size() - solver.rank(); ++col){
 		projector(solver.rank() + col-1) = 0;
 		projector(solver.rank() + col) = 1;
@@ -792,6 +1125,21 @@ std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis){
 		ret[col] = VectorToPoly(kernelVector, startBasis);
 	}
 
+	return ret;
+}
+
+std::vector<poly> CombineKernels(const std::vector<poly>& kernel1,
+		const std::vector<poly>& kernel2){
+	std::vector<poly> ret;
+	for(auto& poly1 : kernel1){
+		for(auto& poly2 : kernel2){
+			if(poly1 == poly2){
+				ret.push_back(poly1);
+				break;
+			}
+		}
+	}
+	std::cout << "Combined kernels to get " << ret.size() << " primaries." << std::endl;
 	return ret;
 }
 

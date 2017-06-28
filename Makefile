@@ -1,27 +1,55 @@
+#-------------------------------------------------------------------------------
+# Central Makefile for 3dBasis
+#-------------------------------------------------------------------------------
+
+BASEDIR = $(CURDIR)
+
 CXX = clang++
 
-CXXFLAGS = -Wall -Wextra -pedantic -O3 -g -c -std=c++14
-LDFLAGS = -lmpfr -lgmp -lspqr -lcholmod
+CXXFLAGS = -IEigen -ISuiteSparse/include -Wall -Wextra -pedantic -O3 -g -c -std=c++14
+LDFLAGS = -L$(BASEDIR)/lib -Wl,-rpath=$(BASEDIR)/SuiteSparse/lib -lspqr -lcholmod -lmetis -lopenblas
 EXECUTABLE = 3dBasis
 
 SOURCES = 3dBasis.cpp
 OBJECTS = 3dBasis.o
 
-all: $(EXECUTABLE)
+default: $(EXECUTABLE)
+
+all:  | lib
+	( cd LAPACK && $(MAKE) lib )
+	( ln -s $(BASEDIR)/LAPACK/liblapack.a $(BASEDIR)/lib/liblapack.a )
+	( cd OpenBLAS && $(MAKE) libs )
+	( ln -s $(BASEDIR)/OpenBLAS/libopenblas.a $(BASEDIR)/lib/libopenblas.a )
+	( cd SuiteSparse && $(MAKE) library \
+		LDFLAGS="-L$(BASEDIR)/SuiteSparse/lib -L$(BASEDIR)/lib" \
+		BLAS="-lopenblas -lgfortran -lpthread" )
+	( ln -s $(BASEDIR)/SuiteSparse/lib/libspqr.so $(BASEDIR)/lib/libspqr.so )
+	( ln -s $(BASEDIR)/SuiteSparse/lib/libcholmod.so $(BASEDIR)/lib/libcholmod.so )
+	( $(MAKE) $(EXECUTABLE) )
 
 $(EXECUTABLE): $(OBJECTS)
 	$(CXX) $+ $(LDFLAGS) -o $@
 
-3dBasis.o: 3dBasis.cpp 3dBasis.hpp
+3dBasis.o: 3dBasis.cpp 3dBasis.hpp lib/libspqr.so
 	$(CXX) $(CXXFLAGS) $< -o $@
+
+lib/libspqr.so: lib/liblapack.a lib/libopenblas.a
+	( cd SuiteSparse && $(MAKE) library \
+		LDFLAGS="-L$(BASEDIR)/SuiteSparse/lib -L$(BASEDIR)/lib" \
+		BLAS="-lopenblas -lgfortran -lpthread" )
+	( ln -s $(BASEDIR)/SuiteSparse/lib/libspqr.so $(BASEDIR)/lib/libspqr.so )
+	( ln -s $(BASEDIR)/SuiteSparse/lib/libcholmod.so $(BASEDIR)/lib/libcholmod.so )
+
+lib/liblapack.a: | lib
+	( cd LAPACK && $(MAKE) lib )
+	( ln -s $(BASEDIR)/LAPACK/liblapack.a $(BASEDIR)/lib/liblapack.a )
+
+lib/libopenblas.a: | lib
+	( cd OpenBLAS && $(MAKE) libs )
+	( ln -s $(BASEDIR)/OpenBLAS/libopenblas.a $(BASEDIR)/lib/libopenblas.a )
+
+lib:
+	mkdir -p lib
 
 clean:
 	rm -f *.o && rm -f $(EXECUTABLE)
-
-# eventually we want make to:
-# 0? compile LAPACK or BLAS for local system
-# 1: compile suitesparse for local system (linking to LAPACK/BLAS if applicable)
-# 2: compile GMP for local system
-# 3: compile mpfr for local system
-# 4: compile 3dBasis
-# So all of the above should be included in subdirectories.
