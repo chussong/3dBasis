@@ -7,7 +7,7 @@ BASEDIR = $(CURDIR)
 CXX = clang++
 
 CXXFLAGS = -IEigen -ISuiteSparse/include -Wall -Wextra -pedantic -O3 -g -c -std=c++14
-LDFLAGS = -L$(BASEDIR)/lib -Wl,-rpath=$(BASEDIR)/SuiteSparse/lib -lspqr -lcholmod -lmetis -lopenblas
+LDFLAGS = -L$(BASEDIR)/lib -Wl,-rpath=$(BASEDIR)/lib -lspqr -lcholmod -lmetis -lopenblas
 EXECUTABLE = 3dBasis
 
 SOURCES = 3dBasis.cpp
@@ -39,6 +39,7 @@ lib/libspqr.so: lib/liblapack.a lib/libopenblas.a
 		BLAS="-lopenblas -lgfortran -lpthread" )
 	( ln -s $(BASEDIR)/SuiteSparse/lib/libspqr.so $(BASEDIR)/lib/libspqr.so )
 	( ln -s $(BASEDIR)/SuiteSparse/lib/libcholmod.so $(BASEDIR)/lib/libcholmod.so )
+	( ln -s $(BASEDIR)/SuiteSparse/lib/libmetis.so $(BASEDIR)/lib/libmetis.so )
 
 lib/liblapack.a: | lib
 	( cd LAPACK && $(MAKE) lib )

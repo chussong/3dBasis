@@ -96,11 +96,6 @@ int FindPrimariesBruteForce(int numP, int degree, int options){
 	basis targetBasis(numP, degree-1, options);
 	std::cout << "Constructed a target basis with " << targetBasis.size()
 		<< " elements." << std::endl;
-<<<<<<< HEAD
-=======
-	// we could split the target basis by perp parity as well but it would
-	// require constructing four matrices, since K_\perp takes (even)<->(odd)
->>>>>>> c7773a5dbf261019b19b1dfe916159267205ef93
 
 	// - create matrix of K acting on each element of startingBasis
 	Matrix kAction(KMatrix(startingBasis, targetBasis));
@@ -1085,10 +1080,7 @@ std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms,
 // takes QR decomposition of the matrix and returns the polynomial forms of its
 // rightmost N columns, which are the N orthonormal basis vectors of the kernel
 std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis){
-<<<<<<< HEAD
 	if(KActions.rows() == 0 || KActions.cols() == 0) return std::vector<poly>();
-=======
->>>>>>> c7773a5dbf261019b19b1dfe916159267205ef93
 	std::cout << "Computing kernel from K matrix..." << std::endl;
 	QRSolver solver;
 	solver.compute(KActions.transpose());
