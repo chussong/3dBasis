@@ -320,7 +320,6 @@ int FindPrimaries(int numP, int degree, int options);
 int FindPrimariesParityOnly(int numP, int degree, int options);
 int FindPrimariesBruteForce(int numP, int degree, int options);
 
-
 // functions interfacing with Eigen ------------------------------------------
 
 Matrix KMatrix(const basis& startingBasis, const basis& targetBasis);

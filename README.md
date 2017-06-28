@@ -20,15 +20,15 @@ and [OpenBLAS](http://www.openblas.net/) low-level matrix manipulation libraries
 To compile, get a terminal in this directory and type "make". If you have C++
 and Fortran compilers available everything will ideally be handled automatically.  
 
-#Note: the dependencies currently do not build correctly inside a directory with
-a space in its path. For now, make sure you don't have one (this means you can't
-build it in the shared Dropbox folder).#  
+**Note: the dependencies do not build correctly inside a directory with a space
+in its path.**  
 
 Mac users can get a C++ compiler by running xcode-select --install to get the 
 Command Line Tools. Unfortunately, they do not contain a Fortran compiler, so 
-you will also need to get gfortran; I suggest downloading it from [the GCC wiki]
-(http://gcc.gnu.org/wiki/GFortranBinariesMacOS). You can also use a different
-Fortran compiler by changing "gfortran" to something else in the LAPACK Makefile.  
+you will also need to get gfortran; I suggest downloading it from
+[the GCC wiki](http://gcc.gnu.org/wiki/GFortranBinariesMacOS). You can also use
+a different Fortran compiler by changing "gfortran" to something else in the
+LAPACK Makefile.  
 
 ## Usage
 
