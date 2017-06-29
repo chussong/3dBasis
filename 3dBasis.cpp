@@ -85,6 +85,14 @@ int FindPrimariesParityOnly(int numP, int degree, int options){
 
 	std::cout << "Found a total of " << evenKernel.size() + oddKernel.size() 
 		<< " primaries." << std::endl;
+	std::cout << "Even:" << std::endl;
+	for(auto& kernelVec : evenKernel){
+		std::cout << kernelVec.HumanReadable() << std::endl;
+	}
+	std::cout << "Odd:" << std::endl;
+	for(auto& kernelVec : oddKernel){
+		std::cout << kernelVec.HumanReadable() << std::endl;
+	}
 
 	return EXIT_SUCCESS;
 }
@@ -106,7 +114,7 @@ int FindPrimariesBruteForce(int numP, int degree, int options){
 
 	std::cout << "Found the following " << kernel.size() << "-dimensional kernel:"
 		<< std::endl;
-	//for(auto& kernelVec : kernel) std::cout << kernelVec << std::endl;
+	for(auto& kernelVec : kernel) std::cout << kernelVec.HumanReadable() << std::endl;
 	
 	return EXIT_SUCCESS;
 }
@@ -208,9 +216,44 @@ std::ostream& operator<<(std::ostream& os, const mono& out){
 	return os << out.coeff << " * " << out.particles;
 }
 
-std::ostream& operator<<(std::ostream& os, const poly& out){
-	for(auto& component : out) os << component << " + ";
-	return out.size() > 0 ? os << "\b\b \b\b" : os;
+/*std::string mono::HumanReadable(){
+	std::string ret = "";
+	for(auto& p : particles){
+		if(p.pm != 0){
+			ret.append("M");
+			if(p.pm != 1) ret.append("^" + std::to_string(p.pm));
+		}
+		if(p.pt != 0){
+			ret.append("T");
+			if(p.pt != 1) ret.append("^" + std::to_string(p.pt));
+		}
+		if(p.pp != 0){
+			ret.append("P");
+			if(p.pp != 1) ret.append("^" + std::to_string(p.pp));
+		}
+		ret.append("Φ");
+	}
+	return ret;
+}*/
+
+std::string mono::HumanReadable(){
+	std::ostringstream os;
+	for(auto& p : particles){
+		if(p.pm != 0){
+			os << "M";
+			if(p.pm != 1) os << "^" << p.pm;
+		}
+		if(p.pt != 0){
+			os << "T";
+			if(p.pt != 1) os << "^" << p.pt;
+		}
+		if(p.pp != 0){
+			os << "P";
+			if(p.pp != 1) os << "^" << p.pp;
+		}
+		os << "Φ";
+	}
+	return os.str();
 }
 
 mono mono::operator-() const{
@@ -578,6 +621,39 @@ bool poly::operator==(const poly& other) const{
 	return true;
 }
 
+std::ostream& operator<<(std::ostream& os, const poly& out){
+	for(auto& component : out) os << component << " + ";
+	return out.size() > 0 ? os << "\b\b \b\b" : os;
+}
+
+/*std::string poly::HumanReadable(){
+	if(terms.size() == 0) return "";
+	std::string ret = "";
+	if(terms[0].Coeff() < 0) ret.append("  ");
+	for(auto& term : terms){
+		if(term.Coeff() < 0) ret.append("\b\b- ");
+		if(std::abs(term.Coeff()) != 1){
+			ret.append(std::to_string(std::abs(term.Coeff())));
+		}
+		ret.append(term.HumanReadable() + " + ");
+	}
+	ret.erase(ret.end()-3, ret.end());
+	return ret;
+}*/
+
+std::string poly::HumanReadable(){
+	if(terms.size() == 0) return "";
+	std::ostringstream os;
+	if(terms[0].Coeff() < 0) os << "  ";
+	for(auto& term : terms){
+		if(term.Coeff() < 0) os << "\b\b- ";
+		if(std::abs(term.Coeff()) != 1) os << std::abs(term.Coeff());
+		os << term.HumanReadable() << " + ";
+	}
+	os << "\b\b\b   ";
+	return os.str();
+}
+
 poly poly::K1() const{
 	poly ret;
 	for(auto& term : terms){
@@ -918,6 +994,83 @@ std::list<Triplet> splitBasis::ExpressPoly(const poly& toExpress,
 	return ret;
 }
 
+mBasis::mBasis(const int numP, const int degree, const int options){
+	std::vector<basis> mLevels;
+	for(int M = 0; M <= degree; ++M){
+		mLevels.push_back(BasisAtM(numP, degree, M, options));
+	}
+
+	poly topState;
+	for(int M = degree; M >= 0; --M){
+		topState = LmKernel(mLevels[M]);
+		multiplets.push_back(CompleteMultiplet(topState));
+	}
+
+	std::reverse(multiplets.begin(), multiplets.end());
+}
+
+basis mBasis::BasisAtM(const int numP, const int degree, const int M, 
+		const int options){
+	std::vector<std::vector<int>> minusCfgs = GetStatesUpToDegree(numP, degree, M);
+	int zeroCount, totalPm;
+	std::vector<std::vector<int>> plusCfgs, perpCfgs;
+	std::vector<std::vector<particle>> combinedCfgs;
+	std::vector<particle> combinedCfg;
+	combinedCfg.resize(numP);
+	for(auto& minusCfg : minusCfgs){
+		zeroCount = numP;
+		totalPm = 0;
+		plusCfgs.clear();
+		while(zeroCount > 0){
+			if(minusCfg[numP-zeroCount] != 0){
+				totalPm += minusCfg[numP-zeroCount];
+				--zeroCount;
+			} else {
+				break;
+			}
+		}
+		plusCfgs = GetStatesAtDegree(zeroCount, totalPm - M);
+		for(auto& plusCfg : plusCfgs){
+			combinedCfg.clear();
+			for(auto i = 0; i < numP; ++i){
+				combinedCfg[i].pm = minusCfg[i];
+				combinedCfg[i].pp = plusCfg[i];
+			}
+			combinedCfgs.push_back(combinedCfg);
+		}
+	}
+
+	std::vector<mono> basisMonos;
+	std::vector<int> nodes;
+	const bool useEoM = (options & OPT_EQNMOTION);
+	for(auto& cfg : combinedCfgs){
+		nodes = IdentifyNodes(cfg);
+		int remainingEnergy = degree;
+		for(auto& part : cfg) remainingEnergy -= part.pm + part.pt;
+		std::vector<std::vector<int>> perp(basis::CfgsFromNodes(remainingEnergy, nodes,
+															true));
+		for(auto& newCfg : basis::CombinedCfgs(cfg, perp, 2)){
+			if(!useEoM || EoMAllowed(newCfg)) basisMonos.emplace_back(newCfg);
+		}
+	}
+
+	return basis(basisMonos);
+}
+
+poly mBasis::LmKernel(const basis& mLevel){
+}
+
+/*std::vector<poly> mBasis::CompleteMultiplet(const poly& topState){
+	std::vector<poly> ret;
+	ret.push_back(topState);
+	poly nextState = topState.L3();
+	while(nextState.size() != 0){
+		ret.push_back(nextState);
+		nextState = nextState.L3();
+	}
+	return ret;
+}*/
+
 // note: triplets displayed (row, column, value) despite matrix's storage type
 std::ostream& operator<<(std::ostream& os, const Triplet& out){
 	return os << "(" << out.row() << "," << out.col() << "," << out.value()
@@ -990,13 +1143,13 @@ std::vector<std::vector<int>> GetStatesByDegree(const int numP,
 }
 
 std::vector<std::vector<int>> GetStatesUpToDegree(const int numP,
-		const int deg){
-	return GetStatesByDegree(numP, deg, false, 0);
+		const int deg, const int M){
+	return GetStatesByDegree(numP, deg, false, M);
 }
 
 std::vector<std::vector<int>> GetStatesAtDegree(const int numP,
-		const int deg){
-	return GetStatesByDegree(numP, deg, true, 0);
+		const int deg, const int M){
+	return GetStatesByDegree(numP, deg, true, M);
 }
 
 bool EoMAllowed(const std::vector<particle>& cfg){
@@ -1082,6 +1235,7 @@ std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms,
 std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis){
 	if(KActions.rows() == 0 || KActions.cols() == 0) return std::vector<poly>();
 	std::cout << "Computing kernel from K matrix..." << std::endl;
+	//std::cout << KActions << std::endl;
 	QRSolver solver;
 	solver.compute(KActions.transpose());
 	std::cout << "Solved. Found rank " << solver.rank() << ", i.e. "
@@ -1115,12 +1269,13 @@ std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis){
 	std::vector<poly> ret;
 	ret.resize(startBasis.size() - solver.rank());
 
-	return ret; // THIS IS FAKE, REMOVE IT IF WE WANT THE INFO
+	//return ret; // THIS IS FAKE, REMOVE IT IF WE WANT THE INFO
 
 	for(auto col = 0u; col < startBasis.size() - solver.rank(); ++col){
 		projector(solver.rank() + col-1) = 0;
 		projector(solver.rank() + col) = 1;
 		kernelVector = solver.matrixQ()*projector;
+		//std::cout << "Projecting out with this: " << projector << std::endl;
 		//std::cout << kernelVector << "\n----------" << std::endl;
 		ret[col] = VectorToPoly(kernelVector, startBasis);
 	}
@@ -1172,7 +1327,7 @@ poly VectorToPoly(const DVector& kernelVector, const basis& startBasis){
 		return ret;
 	}
 	for(auto row = 0; row < kernelVector.rows(); ++row){
-		if(kernelVector.coeff(row) == 0) continue;
+		if(std::abs(kernelVector.coeff(row)) < 1e-10) continue;
 		ret += kernelVector.coeff(row)*startBasis[row];
 	}
 
