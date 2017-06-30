@@ -50,7 +50,7 @@ class poly {
 				{ return terms.end(); }
 
 		friend std::ostream& operator<<(std::ostream& os, const poly& out);
-		std::string HumanReadable();
+		std::string HumanReadable() const;
 
 		poly DerivPm(const int);
 		poly DerivPp(const int);
@@ -59,13 +59,13 @@ class poly {
 
 		void MirrorPM() { for(auto& t : terms) t.MirrorPM(); }
 
-		poly K1() const;
-		poly K2() const;
-		poly K3() const;
+		poly K1(const coeff_class delta) const;
+		poly K2(const coeff_class delta) const;
+		poly K3(const coeff_class delta) const;
 
-		static poly K1(const mono& inputMono);
-		static poly K2(const mono& inputMono);
-		static poly K3(const mono& inputMono);
+		static poly K1(const mono& inputMono, const coeff_class delta);
+		static poly K2(const mono& inputMono, const coeff_class delta);
+		static poly K3(const mono& inputMono, const coeff_class delta);
 };
 
 #endif

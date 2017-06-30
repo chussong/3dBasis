@@ -67,7 +67,7 @@ class mono {
 		bool operator==(const mono& other) const;
 		bool operator!=(const mono& other) const { return !(*this == other); }
 		friend std::ostream& operator<<(std::ostream& os, const mono& out);
-		std::string HumanReadable();
+		std::string HumanReadable() const;
 
 		template<typename T>
 			friend mono operator*(mono x, const T&    y) { return x *= y; }
@@ -97,13 +97,16 @@ class mono {
 		mono MultPt(const unsigned int targetParticle) const;
 		mono MultPp(const unsigned int targetParticle) const;
 
-		std::array<mono, 4> K1(const unsigned int targetParticle) const;
-		std::array<mono, 5> K2(const unsigned int targetParticle) const;
-		std::array<mono, 4> K3(const unsigned int targetParticle) const;
+		std::array<mono, 4> K1(const unsigned int targetParticle,
+				const coeff_class delta) const;
+		std::array<mono, 5> K2(const unsigned int targetParticle,
+				const coeff_class delta) const;
+		std::array<mono, 4> K3(const unsigned int targetParticle,
+				const coeff_class delta) const;
 
-		std::vector<mono> K1() const;
-		std::vector<mono> K2() const;
-		std::vector<mono> K3() const;
+		std::vector<mono> K1(const coeff_class delta) const;
+		std::vector<mono> K2(const coeff_class delta) const;
+		std::vector<mono> K3(const coeff_class delta) const;
 };
 
 #endif

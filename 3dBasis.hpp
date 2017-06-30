@@ -28,6 +28,8 @@ constexpr char RELEASE_DATE[] = __DATE__;
 typedef double coeff_class;						// ordinary double-width float
 //typedef long coeff_class;						// ordinary double-width integer
 
+//constexpr coeff_class delta = 0.25;
+
 typedef Eigen::SparseMatrix<coeff_class> Matrix;
 typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, Eigen::Dynamic> DMatrix;
 typedef Eigen::SparseVector<coeff_class> Vector;
@@ -42,6 +44,13 @@ typedef Eigen::Triplet<coeff_class> Triplet;
 /******************************************************************************/
 //typedef Eigen::SparseQR<Matrix, Eigen::COLAMDOrdering<int>> QRSolver;
 typedef Eigen::SPQR<Matrix> QRSolver; // direct interface to SPQR also possible
+
+struct arguments{
+	int numP;
+	int degree;
+	coeff_class delta;
+	int options;
+};
 
 struct particle{
 	int pm;	// P_-
@@ -63,21 +72,25 @@ std::ostream& operator<<(std::ostream& os, const Triplet& out);
 // startup and input parsing --------------------------------------------------
 
 enum options { OPT_BRUTE = 1 << 0, OPT_VERSION = 1 << 1, OPT_DEBUG = 1 << 2,
-				OPT_PARITYONLY = 1 << 3, OPT_EQNMOTION = 1 << 4 };
-std::array<int,3> ParseArguments(int argc, char* argv[]);
+				OPT_PARITYONLY = 1 << 3, OPT_EQNMOTION = 1 << 4,
+				OPT_MSORTING = 1 << 5 };
+arguments ParseArguments(int argc, char* argv[]);
 int ParseOptions(std::vector<std::string> options);
 
-int FindPrimaries(int numP, int degree, int options);
-int FindPrimariesParityOnly(int numP, int degree, int options);
-int FindPrimariesBruteForce(int numP, int degree, int options);
+int FindPrimaries(const arguments& args);
+int FindPrimariesParityOnly(const arguments& args);
+int FindPrimariesBruteForce(const arguments& args);
 
 // functions interfacing with Eigen ------------------------------------------
 
-Matrix KMatrix(const basis& startingBasis, const basis& targetBasis);
-Matrix K13Matrix(const basis& startingBasis, const basis& targetBasis);
-Matrix K2Matrix(const basis& startingBasis, const basis& targetBasis);
+Matrix KMatrix(const basis& startingBasis, const basis& targetBasis,
+		const coeff_class delta);
+Matrix K13Matrix(const basis& startingBasis, const basis& targetBasis,
+		const coeff_class delta);
+Matrix K2Matrix(const basis& startingBasis, const basis& targetBasis,
+		const coeff_class delta);
 std::array<Matrix,4> KMatrices(const splitBasis& startingBasis,
-		const splitBasis& targetBasis);
+		const splitBasis& targetBasis, const coeff_class delta);
 std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms, 
 		const basis& targetBasis, const Eigen::Index rowOffset);
 std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis);
@@ -92,6 +105,50 @@ poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col,
 
 
 // templates -----------------------------------------------------------------
+
+template<typename ParseTo>
+ParseTo ReadArg(const std::string& arg){
+	std::cerr << "Error: attempted to parse the argument " << arg << " to a "
+		<< "type with no known parsing function. Please specialize the ReadArg "
+		<< "template to your coeff_class." << std::endl;
+	return ParseTo();
+}
+
+template<>
+int ReadArg<int>(const std::string& arg){
+	int ret;
+	try{ret = std::stoi(arg);}
+	catch(const std::invalid_argument &e){
+		std::cerr << "Error: this non-option argument could not be "
+			<< "converted to an integer: " << arg << std::endl;
+		throw;
+	}
+	catch(const std::out_of_range &e){
+		std::cerr << "Error: specification of N or degree is too "
+			<< "large to store. This computation would never finish"
+			<< " anyway..." << std::endl;
+		throw;
+	}
+	return ret;
+}
+
+template<>
+double ReadArg<double>(const std::string& arg){
+	double ret;
+	try{ret = std::stod(arg);}
+	catch(const std::invalid_argument &e){
+		std::cerr << "Error: this non-option argument could not be "
+			<< "converted to an integer: " << arg << std::endl;
+		throw;
+	}
+	catch(const std::out_of_range &e){
+		std::cerr << "Error: specification of N or degree is too "
+			<< "large to store. This computation would never finish"
+			<< " anyway..." << std::endl;
+		throw;
+	}
+	return ret;
+}
 
 // T can be any type or class with an == operator; value indexes T by uint
 template<typename Accessor>

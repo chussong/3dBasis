@@ -34,11 +34,17 @@ LAPACK Makefile.
 
 For now, the program only does one thing: when invoked with ./3dBasis N D, where
 N and D are nonnegative integers, it outputs the number of primary operators
-with N particles and D derivatives. It also constructs an orthonormal basis for
-the space of these primaries, but is currently not set to output it; if you want
-this information, there is a commented-out line at the end of main() in 
-3dBasis.cpp. The primary vectors will be different from those output by
-Mathematica, but they should both span the same space.  
+with N particles and D derivatives. A third optional argument specifies the
+scaling dimension of the particles; if not given, this is automatically set to
+0.5.  
+
+The program is capable of constructing an orthonormal basis for the space of
+primaries, but is currently not configured to do so; if you want this 
+information, there is a premature return statement (marked with a comment) in
+the Kernel function; remove that and uncomment the lines at the ends of the 
+various FindPrimary functions in 3dBasis.cpp. The primary vectors may be 
+different from those output by Mathematica, but they should both span the same 
+space.  
 
 The current version of 3dBasis is configured to use double precision floating
 point numbers. This can be changed in 3dBasis.hpp by changing the line with the
@@ -70,3 +76,8 @@ odd/even perp parity, but there is also a symmetry under exchange of the minus
 and plus components which allows a reduction in basis size. The target basis
 can also be split using the distinct perp-parity properties of the different
 boost generators. I have not yet implemented either of these.  
+
+There is currently an uncertainty of about ~0.3% in the number of primary 
+operators. This is likely due to the machine epsilon used by the QR solver, but
+I haven't gone in and tracked it down yet. Since our matrix entries are O(1), we
+should be able to set quite a large epsilon without contamination.  

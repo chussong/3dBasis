@@ -1,18 +1,31 @@
 #include "3dBasis.hpp"
 
 int main(int argc, char* argv[]) {
-	std::array<int,3> args = ParseArguments(argc, argv);
-	if(args[2] & OPT_VERSION){
+	arguments args = ParseArguments(argc, argv);
+	if(args.options & OPT_VERSION){
 		std::cout << "This is 3dBasis version " << VERSION << ", released "
 			<< RELEASE_DATE << ". The latest updates can always be found at "
 			<< "https://github.com/chussong/3dBasis." << std::endl;
 		return EXIT_SUCCESS;
 	}
 
-	if(args[2] & OPT_BRUTE){
-		return FindPrimariesBruteForce(args[0], args[1], args[2]);
+	if(args.degree == 0 || args.numP == 0){
+		std::cerr << "Error: you must enter a number of particles, a degree, "
+			<< "and a value for delta." << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	if(args.delta == 0) args.delta = 0.5;
+
+	if(args.options & OPT_MSORTING){
+		mBasis mTest(args.numP, args.degree, args.options);
+		return EXIT_SUCCESS;
+	}
+
+	if(args.options & OPT_BRUTE){
+		return FindPrimariesBruteForce(args);
 	} else {
-		return FindPrimariesParityOnly(args[0], args[1], args[2]);
+		return FindPrimariesParityOnly(args);
 	}
 }
 
@@ -22,7 +35,11 @@ int main(int argc, char* argv[]) {
 // possible that splitting targetBasis could fit well with a separate 
 // orthogonalization step if one is added in the future.
 //------------------------------------------------------------------------------
-int FindPrimaries(int numP, int degree, int options){
+int FindPrimaries(const arguments& args){
+	int numP = args.numP;
+	int degree = args.degree;
+	coeff_class delta = args.delta;
+	int options = args.options;
 	splitBasis startingBasisA(numP, degree, options);
 	splitBasis startingBasisS = startingBasisA.BecomeAsymmetric();
 	std::cout << "Constructed an asymmetric starting basis with " 
@@ -38,10 +55,10 @@ int FindPrimaries(int numP, int degree, int options){
 		<< " elements." << std::endl;
 
 	// - create matrix of K acting on each element of startingBasis
-	Matrix evenKActionA(KMatrix(startingBasisA.EvenBasis(), targetBasis));
-	Matrix oddKActionA (KMatrix(startingBasisA.OddBasis() , targetBasis));
-	Matrix evenKActionS(KMatrix(startingBasisS.EvenBasis(), targetBasis));
-	Matrix oddKActionS (KMatrix(startingBasisS.OddBasis() , targetBasis));
+	Matrix evenKActionA(KMatrix(startingBasisA.EvenBasis(), targetBasis, delta));
+	Matrix oddKActionA (KMatrix(startingBasisA.OddBasis() , targetBasis, delta));
+	Matrix evenKActionS(KMatrix(startingBasisS.EvenBasis(), targetBasis, delta));
+	Matrix oddKActionS (KMatrix(startingBasisS.OddBasis() , targetBasis, delta));
 
 	// - find kernel of above matrix and output
 
@@ -67,37 +84,54 @@ int FindPrimaries(int numP, int degree, int options){
 	return EXIT_SUCCESS;
 }
 
-int FindPrimariesParityOnly(int numP, int degree, int options){
+int FindPrimariesParityOnly(const arguments& args){
+	int numP = args.numP;
+	int degree = args.degree;
+	coeff_class delta = args.delta;
+	int options = args.options;
 	splitBasis startingBasis(numP, degree, options);
 	std::cout << "Constructed a starting basis with " 
 		<< startingBasis.EvenBasis().size()
 		<< " even elements and " << startingBasis.OddBasis().size()
 		<< " odd elements." << std::endl;
+	if(options & OPT_DEBUG){
+		std::cout << startingBasis.EvenBasis() << std::endl;
+		std::cout << startingBasis.OddBasis() << std::endl;
+	}
 	basis targetBasis(numP, degree-1, options);
 	std::cout << "Constructed a target basis with " << targetBasis.size()
 		<< " elements." << std::endl;
+	if(options & OPT_DEBUG){
+		std::cout << targetBasis << std::endl;
+	}
 
-	Matrix evenKAction(KMatrix(startingBasis.EvenBasis(), targetBasis));
-	Matrix oddKAction (KMatrix(startingBasis.OddBasis() , targetBasis));
+	Matrix evenKAction(KMatrix(startingBasis.EvenBasis(), targetBasis, delta));
+	Matrix oddKAction (KMatrix(startingBasis.OddBasis() , targetBasis, delta));
 
 	std::vector<poly> evenKernel = Kernel(evenKAction, startingBasis.EvenBasis());
 	std::vector<poly> oddKernel  = Kernel(oddKAction , startingBasis.OddBasis());
 
 	std::cout << "Found a total of " << evenKernel.size() + oddKernel.size() 
 		<< " primaries." << std::endl;
-	std::cout << "Even:" << std::endl;
-	for(auto& kernelVec : evenKernel){
-		std::cout << kernelVec.HumanReadable() << std::endl;
-	}
-	std::cout << "Odd:" << std::endl;
-	for(auto& kernelVec : oddKernel){
-		std::cout << kernelVec.HumanReadable() << std::endl;
+	if(options & OPT_DEBUG){
+		std::cout << "Even:" << std::endl;
+		for(auto& kernelVec : evenKernel){
+			std::cout << kernelVec.HumanReadable() << std::endl;
+		}
+		std::cout << "Odd:" << std::endl;
+		for(auto& kernelVec : oddKernel){
+			std::cout << kernelVec.HumanReadable() << std::endl;
+		}
 	}
 
 	return EXIT_SUCCESS;
 }
 
-int FindPrimariesBruteForce(int numP, int degree, int options){
+int FindPrimariesBruteForce(const arguments& args){
+	int numP = args.numP;
+	int degree = args.degree;
+	coeff_class delta = args.delta;
+	int options = args.options;
 	basis startingBasis(numP, degree, options);
 	std::cout << "Constructed a starting basis with " << startingBasis.size()
 		<< " elements." << std::endl;
@@ -106,23 +140,27 @@ int FindPrimariesBruteForce(int numP, int degree, int options){
 		<< " elements." << std::endl;
 
 	// - create matrix of K acting on each element of startingBasis
-	Matrix kAction(KMatrix(startingBasis, targetBasis));
+	Matrix kAction(KMatrix(startingBasis, targetBasis, delta));
 
 	// - find kernel of above matrix and output
 
 	std::vector<poly> kernel = Kernel(kAction, startingBasis);
 
-	std::cout << "Found the following " << kernel.size() << "-dimensional kernel:"
-		<< std::endl;
-	for(auto& kernelVec : kernel) std::cout << kernelVec.HumanReadable() << std::endl;
+	if(options & OPT_DEBUG){
+		std::cout << "Found the following " << kernel.size() << "-dimensional kernel:"
+			<< std::endl;
+		for(auto& kernelVec : kernel) std::cout << kernelVec.HumanReadable() << std::endl;
+	} else {
+		std::cout << "Found " << kernel.size() << " primary operators." << std::endl;
+	}
 	
 	return EXIT_SUCCESS;
 }
 
-std::array<int,3> ParseArguments(int argc, char* argv[]){
+arguments ParseArguments(int argc, char* argv[]){
 	std::vector<std::string> options;
 	std::string arg;
-	std::array<int,3> ret;
+	arguments ret;
 	int j = 0;
 	for(int i = 1; i < argc; ++i){
 		arg = argv[i];
@@ -130,28 +168,26 @@ std::array<int,3> ParseArguments(int argc, char* argv[]){
 			if(arg[0] == '-'){
 				options.push_back(arg);
 			} else {
-				if(j > 1){
-					std::cerr << "Error: at most two non-option arguments may "
-						<< "be given." << std::endl;
-					return ret;
-				}
-				try{ret[j] = std::stoi(arg);}
-				catch(const std::invalid_argument &e){
-					std::cerr << "Error: this non-option argument could not be "
-						<< "converted to an integer: " << arg << std::endl;
-					throw;
-				}
-				catch(const std::out_of_range &e){
-					std::cerr << "Error: specification of N or degree is too "
-						<< "large to store. This computation would never finish"
-						<< " anyway..." << std::endl;
-					throw;
+				switch(j){
+					case 0:
+						ret.numP = ReadArg<int>(arg);
+						break;
+					case 1:
+						ret.degree = ReadArg<int>(arg);
+						break;
+					case 2:
+						ret.delta = ReadArg<coeff_class>(arg);
+						break;
+					default:
+						std::cerr << "Error: at most two non-option arguments may "
+							<< "be given." << std::endl;
+						return ret;
 				}
 				++j;
 			}
 		}
 	}
-	ret[2] = ParseOptions(options);
+	ret.options = ParseOptions(options);
 	return ret;
 }
 
@@ -173,6 +209,10 @@ int ParseOptions(std::vector<std::string> options){
 		}
 		if(opt.compare(0, 2, "-e") == 0){
 			ret = ret | OPT_EQNMOTION;
+			continue;
+		}
+		if(opt.compare(0, 2, "-m") == 0){
+			ret = ret | OPT_MSORTING;
 			continue;
 		}
 	}
@@ -236,7 +276,7 @@ std::ostream& operator<<(std::ostream& os, const mono& out){
 	return ret;
 }*/
 
-std::string mono::HumanReadable(){
+std::string mono::HumanReadable() const{
 	std::ostringstream os;
 	for(auto& p : particles){
 		if(p.pm != 0){
@@ -488,54 +528,57 @@ mono mono::MultPp(const unsigned int particle) const{
 	return ret;
 }
 
-std::array<mono, 4> mono::K1(const unsigned int particle) const{
+std::array<mono, 4> mono::K1(const unsigned int particle,
+		const coeff_class delta) const{
 	std::array<mono, 4> ret({{
 			2*this->DerivPp(particle).DerivPp(particle).MultPp(particle),
 			2*this->DerivPt(particle).DerivPp(particle).MultPt(particle),
-			/*(technically 2*delta*)*/this->DerivPp(particle),
+			2*delta*this->DerivPp(particle),
 			this->DerivPt(particle).DerivPt(particle).MultPm(particle)}});
 	return ret;
 }
 
-std::array<mono, 5> mono::K2(const unsigned int particle) const{
+std::array<mono, 5> mono::K2(const unsigned int particle,
+		const coeff_class delta) const{
 	std::array<mono, 5> ret({{
 			-2*this->DerivPt(particle).DerivPp(particle).MultPp(particle),
 			-2*this->DerivPt(particle).DerivPm(particle).MultPm(particle),
 			-this->DerivPt(particle).DerivPt(particle).MultPt(particle),
-			-/*(technically 2*delta*)*/this->DerivPt(particle),
+			-2*delta*this->DerivPt(particle),
 			-2*this->DerivPm(particle).DerivPp(particle).MultPt(particle)}});
 	return ret;
 }
 
-std::array<mono, 4> mono::K3(const unsigned int particle) const{
+std::array<mono, 4> mono::K3(const unsigned int particle,
+		const coeff_class delta) const{
 	std::array<mono, 4> ret({{
 			2*this->DerivPm(particle).DerivPm(particle).MultPm(particle),
 			2*this->DerivPt(particle).DerivPm(particle).MultPt(particle),
-			/*(technically 2*delta*)*/this->DerivPm(particle),
+			2*delta*this->DerivPm(particle),
 			this->DerivPt(particle).DerivPt(particle).MultPp(particle)}});
 	return ret;
 }
 
-std::vector<mono> mono::K1() const{
+std::vector<mono> mono::K1(const coeff_class delta) const{
 	std::vector<mono> ret;
 	for(unsigned int i = 0; i < NParticles(); ++i){
-		for(auto& outMono : this->K1(i)) ret.push_back(outMono.OrderCopy());
+		for(auto& outMono : this->K1(i, delta)) ret.push_back(outMono.OrderCopy());
 	}
 	return ret;
 }
 
-std::vector<mono> mono::K2() const{
+std::vector<mono> mono::K2(const coeff_class delta) const{
 	std::vector<mono> ret;
 	for(unsigned int i = 0; i < NParticles(); ++i){
-		for(auto& outMono : this->K2(i)) ret.push_back(outMono.OrderCopy());
+		for(auto& outMono : this->K2(i, delta)) ret.push_back(outMono.OrderCopy());
 	}
 	return ret;
 }
 
-std::vector<mono> mono::K3() const{
+std::vector<mono> mono::K3(const coeff_class delta) const{
 	std::vector<mono> ret;
 	for(unsigned int i = 0; i < NParticles(); ++i){
-		for(auto& outMono : this->K3(i)) ret.push_back(outMono.OrderCopy());
+		for(auto& outMono : this->K3(i, delta)) ret.push_back(outMono.OrderCopy());
 	}
 	return ret;
 }
@@ -641,7 +684,7 @@ std::ostream& operator<<(std::ostream& os, const poly& out){
 	return ret;
 }*/
 
-std::string poly::HumanReadable(){
+std::string poly::HumanReadable() const{
 	if(terms.size() == 0) return "";
 	std::ostringstream os;
 	if(terms[0].Coeff() < 0) os << "  ";
@@ -654,26 +697,26 @@ std::string poly::HumanReadable(){
 	return os.str();
 }
 
-poly poly::K1() const{
+poly poly::K1(const coeff_class delta) const{
 	poly ret;
 	for(auto& term : terms){
-		for(auto& newTerm : term.K1()) ret += newTerm;
+		for(auto& newTerm : term.K1(delta)) ret += newTerm;
 	}
 	return ret;
 }
 
-poly poly::K2() const{
+poly poly::K2(const coeff_class delta) const{
 	poly ret;
 	for(auto& term : terms){
-		for(auto& newTerm : term.K2()) ret += newTerm;
+		for(auto& newTerm : term.K2(delta)) ret += newTerm;
 	}
 	return ret;
 }
 
-poly poly::K3() const{
+poly poly::K3(const coeff_class delta) const{
 	poly ret;
 	for(auto& term : terms){
-		for(auto& newTerm : term.K3()) ret += newTerm;
+		for(auto& newTerm : term.K3(delta)) ret += newTerm;
 	}
 	return ret;
 }
@@ -895,6 +938,12 @@ void basis::DeleteAsymm(){
 	std::cout << "-------------------" << std::endl;
 }*/
 
+std::ostream& operator<<(std::ostream& os, const basis& out){
+	os << "{ ";
+	for(auto& m : out.basisMonos) os << m.HumanReadable() << ", ";
+	return os << "\b\b }";
+}
+
 Triplet basis::ExpressMono(const mono& toExpress, const int column,
 		const int rowOffset) const{
 	for(auto i = 0u; i < basisMonos.size(); ++i){
@@ -998,20 +1047,23 @@ mBasis::mBasis(const int numP, const int degree, const int options){
 	std::vector<basis> mLevels;
 	for(int M = 0; M <= degree; ++M){
 		mLevels.push_back(BasisAtM(numP, degree, M, options));
+		std::cout << mLevels[M] << std::endl;
 	}
 
-	poly topState;
+	/*poly topState;
 	for(int M = degree; M >= 0; --M){
 		topState = LmKernel(mLevels[M]);
 		multiplets.push_back(CompleteMultiplet(topState));
 	}
 
-	std::reverse(multiplets.begin(), multiplets.end());
+	std::reverse(multiplets.begin(), multiplets.end());*/
 }
 
 basis mBasis::BasisAtM(const int numP, const int degree, const int M, 
 		const int options){
-	std::vector<std::vector<int>> minusCfgs = GetStatesUpToDegree(numP, degree, M);
+	std::cout << "Constructing basis at M = " << M << "." << std::endl;
+	std::vector<std::vector<int>> minusCfgs = GetStatesUpToDegree(numP,
+			(degree + M)/2, M);
 	int zeroCount, totalPm;
 	std::vector<std::vector<int>> plusCfgs, perpCfgs;
 	std::vector<std::vector<particle>> combinedCfgs;
@@ -1029,9 +1081,13 @@ basis mBasis::BasisAtM(const int numP, const int degree, const int M,
 				break;
 			}
 		}
+		if(zeroCount == 0 && totalPm > M) continue;
 		plusCfgs = GetStatesAtDegree(zeroCount, totalPm - M);
 		for(auto& plusCfg : plusCfgs){
-			combinedCfg.clear();
+			plusCfg.insert(plusCfg.begin(), numP - plusCfg.size(), 0);
+			if(options & OPT_DEBUG) std::cout << "Minus: " << minusCfg << std::endl;
+			if(options & OPT_DEBUG) std::cout << "Plus: " << plusCfg << std::endl;
+			//combinedCfg.clear();
 			for(auto i = 0; i < numP; ++i){
 				combinedCfg[i].pm = minusCfg[i];
 				combinedCfg[i].pp = plusCfg[i];
@@ -1044,9 +1100,14 @@ basis mBasis::BasisAtM(const int numP, const int degree, const int M,
 	std::vector<int> nodes;
 	const bool useEoM = (options & OPT_EQNMOTION);
 	for(auto& cfg : combinedCfgs){
+		if(options & OPT_DEBUG) std::cout << "Processing this cfg: " << cfg << std::endl;
 		nodes = IdentifyNodes(cfg);
 		int remainingEnergy = degree;
-		for(auto& part : cfg) remainingEnergy -= part.pm + part.pt;
+		for(auto& part : cfg) remainingEnergy -= part.pm + part.pp;
+		if(options & OPT_DEBUG){
+			std::cout << "Generating states with remaining energy " << remainingEnergy
+			<< std::endl;
+		}
 		std::vector<std::vector<int>> perp(basis::CfgsFromNodes(remainingEnergy, nodes,
 															true));
 		for(auto& newCfg : basis::CombinedCfgs(cfg, perp, 2)){
@@ -1159,14 +1220,15 @@ bool EoMAllowed(const std::vector<particle>& cfg){
 	return true;
 }
 
-Matrix KMatrix(const basis& startingBasis, const basis& targetBasis){
+Matrix KMatrix(const basis& startingBasis, const basis& targetBasis,
+		const coeff_class delta){
 	//std::cout << "Constructing polynomials of K actions..." << std::endl;
 	if(startingBasis.size() == 0) return Matrix(0, 0);
 	std::vector<poly> K1Actions, K2Actions, K3Actions;
 	for(auto& basisMono : startingBasis){
-		K1Actions.emplace_back(basisMono.K1());
-		K2Actions.emplace_back(basisMono.K2());
-		K3Actions.emplace_back(basisMono.K3());
+		K1Actions.emplace_back(basisMono.K1(delta));
+		K2Actions.emplace_back(basisMono.K2(delta));
+		K3Actions.emplace_back(basisMono.K3(delta));
 	}
 
 	//std::cout << "Converting K actions to triplets..." << std::endl;
@@ -1182,11 +1244,12 @@ Matrix KMatrix(const basis& startingBasis, const basis& targetBasis){
 	return ret;
 }
 
-Matrix K13Matrix(const basis& startingBasis, const basis& targetBasis){
+Matrix K13Matrix(const basis& startingBasis, const basis& targetBasis,
+		const coeff_class delta){
 	std::vector<poly> K1Actions, K3Actions;
 	for(auto& basisMono : startingBasis){
-		K1Actions.emplace_back(basisMono.K1());
-		K3Actions.emplace_back(basisMono.K3());
+		K1Actions.emplace_back(basisMono.K1(delta));
+		K3Actions.emplace_back(basisMono.K3(delta));
 	}
 
 	std::list<Triplet> entries = ConvertToRows(K1Actions, targetBasis, 0);
@@ -1197,10 +1260,11 @@ Matrix K13Matrix(const basis& startingBasis, const basis& targetBasis){
 	return ret;
 }
 
-Matrix K2Matrix(const basis& startingBasis, const basis& targetBasis){
+Matrix K2Matrix(const basis& startingBasis, const basis& targetBasis,
+		const coeff_class delta){
 	std::vector<poly> K2Actions;
 	for(auto& basisMono : startingBasis){
-		K2Actions.emplace_back(basisMono.K2());
+		K2Actions.emplace_back(basisMono.K2(delta));
 	}
 
 	std::list<Triplet> entries = ConvertToRows(K2Actions, targetBasis, 0);
@@ -1211,12 +1275,13 @@ Matrix K2Matrix(const basis& startingBasis, const basis& targetBasis){
 }
 
 std::array<Matrix,4> KMatrices(const splitBasis& startingBasis,
-		const splitBasis& targetBasis){
+		const splitBasis& targetBasis, const coeff_class delta){
 	return std::array<Matrix,4>({{
-			K13Matrix(startingBasis.EvenBasis(), targetBasis.EvenBasis()),
-			K2Matrix (startingBasis.EvenBasis(), targetBasis.OddBasis()),
-			K13Matrix(startingBasis.OddBasis() , targetBasis.OddBasis()),
-			K2Matrix (startingBasis.OddBasis() , targetBasis.EvenBasis())}});
+			K13Matrix(startingBasis.EvenBasis(), targetBasis.EvenBasis(), delta),
+			K2Matrix (startingBasis.EvenBasis(), targetBasis.OddBasis(), delta),
+			K13Matrix(startingBasis.OddBasis() , targetBasis.OddBasis(), delta),
+			K2Matrix (startingBasis.OddBasis() , targetBasis.EvenBasis(), delta)
+			}});
 }
 
 std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms, 
@@ -1269,7 +1334,7 @@ std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis){
 	std::vector<poly> ret;
 	ret.resize(startBasis.size() - solver.rank());
 
-	//return ret; // THIS IS FAKE, REMOVE IT IF WE WANT THE INFO
+	return ret; // THIS IS FAKE, REMOVE IT IF WE WANT THE INFO
 
 	for(auto col = 0u; col < startBasis.size() - solver.rank(); ++col){
 		projector(solver.rank() + col-1) = 0;

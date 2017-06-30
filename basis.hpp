@@ -34,6 +34,8 @@ class basis {
 		//void SortBasis();
 
 		const	mono& operator[](size_t i)	const	{return basisMonos[i];     }
+		friend std::ostream& operator<<(std::ostream& os, const basis& out);
+
 		std::size_t size()					const	{return basisMonos.size(); }
 		std::vector<mono>::const_iterator	begin() const noexcept
 				{ return basisMonos.begin(); }
