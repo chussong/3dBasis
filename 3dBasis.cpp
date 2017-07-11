@@ -18,6 +18,7 @@ int main(int argc, char* argv[]) {
 	if(args.delta == 0) args.delta = 0.5;
 
 	if(args.options & OPT_MSORTING){
+		args.options = args.options | OPT_EQNMOTION;
 		mBasis mTest(args.numP, args.degree, args.options);
 		return EXIT_SUCCESS;
 	}
@@ -62,10 +63,14 @@ int FindPrimaries(const arguments& args){
 
 	// - find kernel of above matrix and output
 
-	std::vector<poly> evenKernelA = Kernel(evenKActionA, startingBasisA.EvenBasis());
-	std::vector<poly> oddKernelA  = Kernel(oddKActionA , startingBasisA.OddBasis());
-	std::vector<poly> evenKernelS = Kernel(evenKActionS, startingBasisS.EvenBasis());
-	std::vector<poly> oddKernelS  = Kernel(oddKActionS , startingBasisS.OddBasis());
+	std::vector<poly> evenKernelA = Kernel(evenKActionA, startingBasisA.EvenBasis(),
+			false);
+	std::vector<poly> oddKernelA  = Kernel(oddKActionA , startingBasisA.OddBasis(),
+			false);
+	std::vector<poly> evenKernelS = Kernel(evenKActionS, startingBasisS.EvenBasis(),
+			false);
+	std::vector<poly> oddKernelS  = Kernel(oddKActionS , startingBasisS.OddBasis(),
+			false);
 
 	std::cout << "Found a total of " 
 		<< 2*evenKernelA.size() + 2*oddKernelA.size()\
@@ -108,8 +113,10 @@ int FindPrimariesParityOnly(const arguments& args){
 	Matrix evenKAction(KMatrix(startingBasis.EvenBasis(), targetBasis, delta));
 	Matrix oddKAction (KMatrix(startingBasis.OddBasis() , targetBasis, delta));
 
-	std::vector<poly> evenKernel = Kernel(evenKAction, startingBasis.EvenBasis());
-	std::vector<poly> oddKernel  = Kernel(oddKAction , startingBasis.OddBasis());
+	std::vector<poly> evenKernel = Kernel(evenKAction, startingBasis.EvenBasis(),
+			false);
+	std::vector<poly> oddKernel  = Kernel(oddKAction , startingBasis.OddBasis(),
+			false);
 
 	std::cout << "Found a total of " << evenKernel.size() + oddKernel.size() 
 		<< " primaries." << std::endl;
@@ -144,7 +151,7 @@ int FindPrimariesBruteForce(const arguments& args){
 
 	// - find kernel of above matrix and output
 
-	std::vector<poly> kernel = Kernel(kAction, startingBasis);
+	std::vector<poly> kernel = Kernel(kAction, startingBasis, false);
 
 	if(options & OPT_DEBUG){
 		std::cout << "Found the following " << kernel.size() << "-dimensional kernel:"
@@ -187,6 +194,7 @@ arguments ParseArguments(int argc, char* argv[]){
 			}
 		}
 	}
+	if(j < 2) ret.numP = 0; // invalidate the input since it was insufficient
 	ret.options = ParseOptions(options);
 	return ret;
 }
@@ -204,7 +212,7 @@ int ParseOptions(std::vector<std::string> options){
 			continue;
 		}
 		if(opt.compare(0, 2, "-p") == 0){
-			ret = ret | OPT_PARITYONLY;
+			ret = ret | OPT_PARITYONLY;	// currently the default behavior
 			continue;
 		}
 		if(opt.compare(0, 2, "-e") == 0){
@@ -215,8 +223,18 @@ int ParseOptions(std::vector<std::string> options){
 			ret = ret | OPT_MSORTING;
 			continue;
 		}
+		if(opt.compare(0, 2, "-d") == ){
+			ret = ret | OPT_DEBUG;
+			continue;
+		}
 	}
 	return ret;
+}
+
+mono::mono(const std::vector<particle>& particles, const bool usingEoM, 
+		const coeff_class& coeff): coeff(coeff), particles(particles), 
+		usingEoM(usingEoM){
+	if(usingEoM) Order();
 }
 
 mono::mono(const std::vector<int>& pm, const std::vector<int>& pt,
@@ -234,6 +252,7 @@ mono::mono(const std::vector<int>& pm, const std::vector<int>& pt,
 		particles[i].pt = pt[i];
 		particles[i].pp = pp[i];
 	}
+	if(usingEoM) Order();
 }
 
 // note: like all operations on completed monos, this assumes both are ordered
@@ -347,16 +366,36 @@ bool ParticlePrecedence(const particle& a, const particle& b){
 }
 
 void mono::Order(){
-	if(usingEoM){
+	// if EoM in use, 2MP == T^2
+	// this variant only eliminates +- pairs on the same particle
+	/*if(usingEoM){
 		for(auto& p : particles){
-			if(p.pm > 0 && p.pp > 0){
+			while(p.pm > 0 && p.pp > 0){
+				coeff /= 2; // I think this is right...
 				p.pm -= 1;
 				p.pp -= 1;
 				p.pt += 2;
 			}
 		}
+	}*/
+	// this variant eliminates + completely, turning it into Pt^2/(2Pm)
+	if(usingEoM){
+		for(auto& p : particles){
+			if(p.pp > 0){
+				coeff /= std::pow(2,p.pp); // no bit shift in case coeff < 0
+				p.pm -= p.pp;
+				p.pt += 2*p.pp;
+				p.pp = 0;
+			}
+		}
 	}
 	std::sort(particles.begin(), particles.end(), ParticlePrecedence);
+}
+
+mono mono::OrderCopy() const{
+	mono ret(*this);
+	ret.Order();
+	return ret;
 }
 
 bool particle::operator==(const particle& other) const{
@@ -411,12 +450,6 @@ void mono::Order(){
 		i += node;
 	}
 }*/
-
-mono mono::OrderCopy() const{
-	mono ret(*this);
-	ret.Order();
-	return ret;
-}
 
 std::vector<int> mono::IdentifyNodes() const{
 	return ::IdentifyNodes(particles);
@@ -524,7 +557,12 @@ mono mono::MultPt(const unsigned int particle) const{
 
 mono mono::MultPp(const unsigned int particle) const{
 	mono ret(*this);
-	++ret.Pp(particle);
+	if(usingEoM){
+		ret.Pm(particle) -= 1;
+		ret.Pt(particle) += 2;
+	} else {
+		ret.Pp(particle) += 1;
+	}
 	return ret;
 }
 
@@ -583,7 +621,47 @@ std::vector<mono> mono::K3(const coeff_class delta) const{
 	return ret;
 }
 
-poly::poly(std::vector<mono> terms){
+// These three L are only consistent if you use the equations of motion!
+std::array<mono,2> mono::L1(const unsigned int targetParticle) const{
+	return std::array<mono,2>({{this->DerivPm(targetParticle).MultPt(targetParticle),
+			this->DerivPt(targetParticle).MultPp(targetParticle)}});
+}
+
+std::array<mono,1> mono::L2(const unsigned int targetParticle) const{
+	return std::array<mono,1>({{this->DerivPm(targetParticle).MultPm(targetParticle)}});
+}
+
+std::array<mono,1> mono::L3(const unsigned int targetParticle) const{
+	return std::array<mono,1>({{this->DerivPt(targetParticle).MultPm(targetParticle)}});
+}
+
+std::vector<mono> mono::L1() const{
+	std::vector<mono> ret;
+	for(unsigned int i = 0; i < NParticles(); ++i){
+		for(auto& outMono : this->L1(i)) ret.push_back(outMono.OrderCopy());
+	}
+	return ret;
+}
+
+std::vector<mono> mono::L2() const{
+	std::vector<mono> ret;
+	for(unsigned int i = 0; i < NParticles(); ++i){
+		for(auto& outMono : this->L2(i)) ret.push_back(outMono.OrderCopy());
+	}
+	return ret;
+}
+
+std::vector<mono> mono::L3() const{
+	std::vector<mono> ret;
+	for(unsigned int i = 0; i < NParticles(); ++i){
+		for(auto& outMono : this->L3(i)) ret.push_back(outMono.OrderCopy());
+	}
+	return ret;
+}
+
+// the reason this uses += rather than a copy is so that coefficients can be
+// added for monomials which appear more than once
+poly::poly(const std::vector<mono>& terms){
 	if(terms.size() == 0){
 		std::cout << "Warning! A poly has been constructed from an empty mono."
 			<< std::endl;
@@ -693,7 +771,7 @@ std::string poly::HumanReadable() const{
 		if(std::abs(term.Coeff()) != 1) os << std::abs(term.Coeff());
 		os << term.HumanReadable() << " + ";
 	}
-	os << "\b\b\b   ";
+	os << "\b\b\b"; // this will leave a '+' around if <2 more chars are written
 	return os.str();
 }
 
@@ -1050,15 +1128,22 @@ mBasis::mBasis(const int numP, const int degree, const int options){
 		std::cout << mLevels[M] << std::endl;
 	}
 
-	/*poly topState;
-	for(int M = degree; M >= 0; --M){
-		topState = LmKernel(mLevels[M]);
-		multiplets.push_back(CompleteMultiplet(topState));
+	Matrix L3Actions;
+	std::vector<poly> L3Kernel;
+	for(int M = degree; M > 0; --M){
+		L3Actions = L3Matrix(mLevels[M-1], mLevels[M]);
+		L3Kernel = Kernel(L3Actions, mLevels[M-1], true);
+		std::cout << "L3 kernel at L=" << M-1 << ": " << L3Kernel << std::endl;
+		//multiplets.push_back(CompleteMultiplet(topState));
 	}
 
-	std::reverse(multiplets.begin(), multiplets.end());*/
+	//std::reverse(multiplets.begin(), multiplets.end());
 }
 
+// This function was written before I figured out that the EoM were necessary
+// for an L eigenbasis, so it generates non-EoM compliant states and then throws
+// them out. If you care more than I do right now, you can change it to directly
+// generate only the states that we want.
 basis mBasis::BasisAtM(const int numP, const int degree, const int M, 
 		const int options){
 	std::cout << "Constructing basis at M = " << M << "." << std::endl;
@@ -1098,7 +1183,8 @@ basis mBasis::BasisAtM(const int numP, const int degree, const int M,
 
 	std::vector<mono> basisMonos;
 	std::vector<int> nodes;
-	const bool useEoM = (options & OPT_EQNMOTION);
+	//const bool useEoM = (options & OPT_EQNMOTION);
+	const bool useEoM = true; // EoM is mandatory for L eigenbasis
 	for(auto& cfg : combinedCfgs){
 		if(options & OPT_DEBUG) std::cout << "Processing this cfg: " << cfg << std::endl;
 		nodes = IdentifyNodes(cfg);
@@ -1111,23 +1197,46 @@ basis mBasis::BasisAtM(const int numP, const int degree, const int M,
 		std::vector<std::vector<int>> perp(basis::CfgsFromNodes(remainingEnergy, nodes,
 															true));
 		for(auto& newCfg : basis::CombinedCfgs(cfg, perp, 2)){
-			if(!useEoM || EoMAllowed(newCfg)) basisMonos.emplace_back(newCfg);
+			basisMonos.emplace_back(newCfg, useEoM);
 		}
 	}
+
+	/*for(mono& m : basisMonos){
+		m.Order();
+		m.Coeff() = 1;
+	}*/
 
 	return basis(basisMonos);
 }
 
-poly mBasis::LmKernel(const basis& mLevel){
+Matrix mBasis::L3Matrix(const basis& startingMBasis, const basis& targetMBasis){
+	std::cout << "Constructing polynomials of L actions..." << std::endl;
+	if(startingMBasis.size() == 0) return Matrix();
+	std::vector<poly> L3Actions;
+	for(auto& basisMono : startingMBasis){
+		L3Actions.emplace_back(basisMono.L3());
+	}
+
+	std::cout << "Converting L actions to triplets..." << std::endl;
+	std::list<Triplet> triplets = ConvertToRows(L3Actions, targetMBasis, 0);
+
+	std::cout << "List of triplets done, matrixifying..." << std::endl;
+	Matrix ret(targetMBasis.size(), startingMBasis.size());
+	// if this is slow, can do ret.reserve(3*numP) to speed it up
+	ret.setFromTriplets(triplets.begin(), triplets.end());
+	// matrix must be compressed here but setFromTriplets does it automatically
+
+	//std::cout << "Matrix done, here it is:" << std::endl << ret << std::endl;
+	return ret;
 }
 
 /*std::vector<poly> mBasis::CompleteMultiplet(const poly& topState){
 	std::vector<poly> ret;
 	ret.push_back(topState);
-	poly nextState = topState.L3();
+	poly nextState = topState.L1();
 	while(nextState.size() != 0){
 		ret.push_back(nextState);
-		nextState = nextState.L3();
+		nextState = nextState.L1();
 	}
 	return ret;
 }*/
@@ -1213,12 +1322,22 @@ std::vector<std::vector<int>> GetStatesAtDegree(const int numP,
 	return GetStatesByDegree(numP, deg, true, M);
 }
 
+// this version is a 'loose' EoM compliance that only removes Pp which are on
+// the same particle as a Pm
 bool EoMAllowed(const std::vector<particle>& cfg){
 	for(auto& p : cfg){
 		if(p.pm != 0 && p.pp != 0) return false;
 	}
 	return true;
 }
+
+// this is a 'strict' EoM compliance where all Pp must be 0
+/*bool EoMAllowed(const std::vector<particle>& cfg){
+	for(auto& p : cfg){
+		if(p.pp != 0) return false;
+	}
+	return true;
+}*/
 
 Matrix KMatrix(const basis& startingBasis, const basis& targetBasis,
 		const coeff_class delta){
@@ -1297,7 +1416,8 @@ std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms,
 
 // takes QR decomposition of the matrix and returns the polynomial forms of its
 // rightmost N columns, which are the N orthonormal basis vectors of the kernel
-std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis){
+std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis,
+		const bool outputKernel){
 	if(KActions.rows() == 0 || KActions.cols() == 0) return std::vector<poly>();
 	std::cout << "Computing kernel from K matrix..." << std::endl;
 	//std::cout << KActions << std::endl;
@@ -1334,7 +1454,7 @@ std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis){
 	std::vector<poly> ret;
 	ret.resize(startBasis.size() - solver.rank());
 
-	return ret; // THIS IS FAKE, REMOVE IT IF WE WANT THE INFO
+	if(!outputKernel) return ret;
 
 	for(auto col = 0u; col < startBasis.size() - solver.rank(); ++col){
 		projector(solver.rank() + col-1) = 0;

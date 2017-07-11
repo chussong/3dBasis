@@ -59,8 +59,11 @@ There are several options available:
 | Option | Description |
 | ------ | ----------- |
 | -b | perform pure brute force calculation without using subspaces |
+| -d | debug mode, producing lots of extra output |
 | -e | require that monomials obey the equations of motion (experimental) |
-| -v | instead of running, print the version and date of the release and exit |
+| -m | sort computation by angular momentum multiplet (under construction).
+This option automatically enables the equations of motion (-e) |
+| -v | instead of running, print the version and date of release, then exit |
 
 ## Notes on Efficiency
 

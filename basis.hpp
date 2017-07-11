@@ -101,7 +101,7 @@ class mBasis {
 		basis BasisAtM(const int numP, const int degree, const int M,
 				const int options);
 
-		poly LmKernel(const basis& mLevel);
+		Matrix L3Matrix(const basis& startingMBasis, const basis& targetMBasis);
 		std::vector<poly> CompleteMultiplet(const poly& topState);
 };
 

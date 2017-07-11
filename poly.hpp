@@ -20,7 +20,7 @@ class poly {
 	public:
 		explicit poly() {}
 		explicit poly(const mono starter) { terms.push_back(starter); }
-		explicit poly(std::vector<mono> terms);
+		explicit poly(const std::vector<mono>& terms);
 
 		poly& operator+=(const mono& x);
 		poly& operator-=(const mono& x);

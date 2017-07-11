@@ -13,7 +13,7 @@
 #include "Eigen/Sparse"
 #include "Eigen/SPQRSupport"
 
-constexpr char VERSION[] = "0.4.1";
+constexpr char VERSION[] = "0.4.2";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 /******************************************************************************/
@@ -93,7 +93,8 @@ std::array<Matrix,4> KMatrices(const splitBasis& startingBasis,
 		const splitBasis& targetBasis, const coeff_class delta);
 std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms, 
 		const basis& targetBasis, const Eigen::Index rowOffset);
-std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis);
+std::vector<poly> Kernel(const Matrix& KActions, const basis& startBasis,
+		const bool outputKernel);
 std::vector<poly> CombineKernels(const std::vector<poly>& kernel1,
 		const std::vector<poly>& kernel2);
 poly VectorToPoly(const Vector& kernelVector, const basis& startBasis);
@@ -142,9 +143,8 @@ double ReadArg<double>(const std::string& arg){
 		throw;
 	}
 	catch(const std::out_of_range &e){
-		std::cerr << "Error: specification of N or degree is too "
-			<< "large to store. This computation would never finish"
-			<< " anyway..." << std::endl;
+		std::cerr << "Error: specification of Delta is too large to store."
+			<< std::endl;
 		throw;
 	}
 	return ret;
@@ -199,6 +199,18 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& out){
 		os << element << ",";
 	}
 	os << "\b }";
+	return os;
+}
+
+// specialization of above template for vectors of polynomials
+template<>
+inline std::ostream& operator<<(std::ostream& os, const std::vector<poly>& out){
+	if(out.size() == 0) return os << "{ }";
+	os << "{ ";
+	for(auto& element : out){
+		os << element.HumanReadable() << " | ";
+	}
+	os << "\b\b \b}";
 	return os;
 }
 

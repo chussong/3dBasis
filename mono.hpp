@@ -35,13 +35,13 @@ class mono {
 				const std::vector<int>& pp,	const bool usingEoM = false,
 				const coeff_class& coeff = 1);
 		mono(const std::vector<particle>& particles, const bool usingEoM = false,
-				const coeff_class& coeff = 1):
-			coeff(coeff), particles(particles), usingEoM(usingEoM) {}
+				const coeff_class& coeff = 1);
 
 		coeff_class& Coeff()		{ return coeff; }
 		const coeff_class& Coeff() const	{ return coeff; }
 
 		unsigned int NParticles() const { return particles.size(); }
+		bool UsingEoM() const { return usingEoM; }
 
 		int Pm(const int i) const 	{ return particles[i].pm; }
 		int& Pm(const int i) 		{ return particles[i].pm; }
@@ -97,6 +97,7 @@ class mono {
 		mono MultPt(const unsigned int targetParticle) const;
 		mono MultPp(const unsigned int targetParticle) const;
 
+		// K on specific particle
 		std::array<mono, 4> K1(const unsigned int targetParticle,
 				const coeff_class delta) const;
 		std::array<mono, 5> K2(const unsigned int targetParticle,
@@ -104,9 +105,21 @@ class mono {
 		std::array<mono, 4> K3(const unsigned int targetParticle,
 				const coeff_class delta) const;
 
+		// K on entire mono
 		std::vector<mono> K1(const coeff_class delta) const;
 		std::vector<mono> K2(const coeff_class delta) const;
 		std::vector<mono> K3(const coeff_class delta) const;
-};
 
+		// L on specific particle
+		std::array<mono,2> L1(const unsigned int targetParticle) const;
+		std::array<mono,1> L2(const unsigned int targetParticle) const;
+		std::array<mono,1> L3(const unsigned int targetParticle) const;
+
+		// L on entire mono
+		std::vector<mono> L1() const;
+		std::vector<mono> L2() const;
+		std::vector<mono> L3() const;
+
+
+};
 #endif
