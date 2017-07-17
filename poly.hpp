@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include "mono.hpp"
+#include "io.hpp"
 
 // all monos in a poly(nomial) should be guaranteed to be ordered correctly!
 // Notes on arithmetic:
@@ -67,5 +68,17 @@ class poly {
 		static poly K2(const mono& inputMono, const coeff_class delta);
 		static poly K3(const mono& inputMono, const coeff_class delta);
 };
+
+// specialization of above template for vectors of polynomials
+template<>
+inline std::ostream& operator<<(std::ostream& os, const std::vector<poly>& out){
+	if(out.size() == 0) return os << "{ }";
+	os << "{ ";
+	for(auto& element : out){
+		os << element.HumanReadable() << " | ";
+	}
+	os << "\b\b \b}";
+	return os;
+}
 
 #endif

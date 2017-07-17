@@ -1,8 +1,13 @@
 #ifndef MONO_HPP
 #define MONO_HPP
 
+#include <iostream>
+#include <array>
 #include <vector>
 #include <ostream>
+
+#include "constants.hpp"
+#include "construction.hpp"
 
 // a mono(mial) with coefficient. It should be impossible for an instance of
 // this class to be out of order, so hopefully that's true!
@@ -79,6 +84,7 @@ class mono {
 			friend mono operator/(const T& x,    mono y) { return y /= x; }
 		mono operator-() const;
 
+		static bool ParticlePrecedence(const particle& a, const particle& b);
 		bool IsOrdered() const;
 		void Order();
 		mono OrderCopy() const;
@@ -122,4 +128,12 @@ class mono {
 
 
 };
+
+// calls the generic IdentifyNodes using the class's particles and (*value)
+template<typename T>
+inline std::vector<int> mono::IdentifyNodes(T (*value)(particle)) const{
+	return IdentifyNodes([this, value](unsigned int i){return value(this->particles[i]);},
+			NParticles());
+}
+
 #endif
