@@ -103,6 +103,9 @@ class mBasis {
 	std::vector<Basis<mono>> mLevels;
 	std::vector<std::vector<poly>> topStates; // L eigenstates with M = L = i
 
+	static std::vector<Basis<mono>> MakeNegativeLevels(
+			std::vector<Basis<mono>>& nonNegativeMLevels);
+
 	public:
 		mBasis(const int numP, const int degree, const int options);
 
@@ -114,7 +117,7 @@ class mBasis {
 
 		const Basis<mono>* Level(const int M) const;
 
-		unsigned int Degree() const { return mLevels.size()-1; }
+		unsigned int Degree() const { return (mLevels.size()-1)/2; }
 		unsigned int LevelSize(const int L) const;
 		std::vector<poly>& TopStates(const int L) { return topStates[L]; }
 		const std::vector<poly>& TopStates(const int L) const { return topStates[L]; }
@@ -298,7 +301,8 @@ inline std::list<Triplet> Basis<mono>::ExpressPoly(const poly& toExpress,
 	if(hits < toExpress.size()){
 		std::cerr << "Error: tried to express the polynomial " << toExpress
 		<< " on the given basis but was only able to identify " << hits
-		<< " of " << toExpress.size() << " terms." << std::endl;
+		<< " of " << toExpress.size() << " terms. Here's the basis:" << std::endl;
+		std::cerr << *this << std::endl;
 	}
 	//std::cout << "Expressed " << toExpress << " as the following triplets:" << std::endl;
 	//for(auto& trip : ret) std::cout << trip << std::endl;

@@ -66,7 +66,9 @@ std::ostream& operator<<(std::ostream& os, const mono& out){
 
 std::string mono::HumanReadable() const{
 	std::ostringstream os;
-	if(std::abs(Coeff() - 1) > EPSILON) os << Coeff() << "*";
+	// WARNING: this assumes that the sign of the coefficient will be accounted
+	// for in the function calling this! Only the absolute value is attached!
+	if(std::abs(Coeff() - 1) > EPSILON) os << std::abs(Coeff()) << "*";
 	for(auto& p : particles){
 		if(p.pm != 0){
 			os << "M";
@@ -151,7 +153,7 @@ void mono::Order(){
 	// this variant eliminates + completely, turning it into Pt^2/(2Pm)
 	if(usingEoM){
 		for(auto& p : particles){
-			if(p.pp > 0){
+			if(p.pp != 0){
 				//std::cout << "Reordering " << HumanReadable();
 				coeff /= std::pow(2,p.pp); // no bit shift in case coeff < 0
 				p.pm -= p.pp;
@@ -176,8 +178,7 @@ bool mono::MirrorIsBetter(const mono& original){
 		return original.TotalPp() > original.TotalPm();
 	if(original.MaxPm() != original.MaxPp())
 		return original.MaxPp() > original.MaxPm();
-	mono mirror(original);
-	mirror.MirrorPM();
+	mono mirror(original.MirrorPM());
 	std::cout << "Compare " << original << " to its mirror: " << mirror << std::endl;
 
 	for(auto i = 0u; i < original.NParticles(); ++i){
@@ -236,14 +237,18 @@ std::vector<int> mono::IdentifyPpNodes() const{
 	return ::IdentifyNodes([this](unsigned int i){return Pp(i);}, NParticles());
 }
 
-void mono::MirrorPM(){
-	int temp;
-	for(auto& p : particles){
-		temp = p.pm;
-		p.pm = p.pp;
-		p.pp = temp;
+mono mono::MirrorPM() const{
+	mono ret(*this);
+	for(auto i = 0u; i < NParticles(); ++i){
+		ret.Pm(i) = this->Pp(i);
+		ret.Pp(i) = this->Pm(i);
+		/*if(ret.Pp(i) < 0){
+			ret.Pm(i) -= ret.Pp(i);
+			ret.Pp(i) = 0;
+		}*/
 	}
-	Order();
+	ret.Order();
+	return ret;
 }
 
 void mono::NullIfIllegal(){

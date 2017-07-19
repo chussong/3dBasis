@@ -182,7 +182,7 @@ int FindPrimariesByM(const arguments& args){
 	std::vector<poly> primaries;
 	unsigned int primCount = 0u;
 	// I think this is supposed to be -= 2, but maybe -= 1 is needed
-	for(int L = args.degree; L >= 0; L -= 2){
+	for(int L = args.degree; L >= 0; L -= 1){
 		primCount += AddPrimariesAtL(startBasis, targetBasis, L, primaries, args.delta);
 	}
 
@@ -195,7 +195,7 @@ int FindPrimariesByM(const arguments& args){
 unsigned int AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis,
 		const unsigned int L, std::vector<poly>& primaries, 
 		const coeff_class delta){
-	std::cout << "Constructing polynomials of L=" << L << " actions..." << std::endl;
+	//std::cout << "Constructing polynomials of L=" << L << " actions..." << std::endl;
 	std::vector<poly> K1Actions, K2Actions, K3Actions;
 	for(auto& topState : startBasis.TopStates(L)){
 		if(L+1 < targetBasis.Degree()) K1Actions.emplace_back(topState.K1(delta));
@@ -203,13 +203,20 @@ unsigned int AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis
 		K3Actions.emplace_back(topState.K3(delta));
 	}
 
-	std::cout << "Converting L actions to triplets..." << std::endl;
+	//std::cout << "Converting L actions to triplets..." << std::endl;
 	std::list<Triplet> entries;
-	if(L+1 < targetBasis.Degree()){
+	if(L+1 <= targetBasis.Degree()){
+		/*std::cout << "Querying targetBasis.Level(" << L+1 << "); the basis has "
+			<< "degree " << targetBasis.Degree() << ", and the size of the "
+			<< "level in question is " << targetBasis.LevelSize(L+1) << "." 
+			<< std::endl;
+		std::cout << *targetBasis.Level(L+1) << std::endl;
+		std::cout << "Meanwhile, the matrix we're using is this:" << std::endl;
+		std::cout << K1Actions << std::endl;*/
 		entries.splice(entries.end(), 
 				ConvertToRows(K1Actions, *targetBasis.Level(L+1), 0));
 	}
-	if(L+1 < targetBasis.Degree()){
+	if(L <= targetBasis.Degree()){
 		entries.splice(entries.end(), 
 				ConvertToRows(K2Actions, *targetBasis.Level(L), 
 					targetBasis.LevelSize(L+1)));
@@ -226,10 +233,13 @@ unsigned int AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis
 	matrixK.setFromTriplets(entries.begin(), entries.end());
 	// matrix must be compressed here but setFromTriplets does it automatically
 
+	std::cout << "Computing kernel of K matrix at level " << L << "." << std::endl;
 	std::vector<poly> kernel = Kernel(matrixK, 
 			Basis<poly>(startBasis.TopStates(L)), false);
 	for(auto& newPrimary : kernel) primaries.push_back(std::move(newPrimary));
 	// if the pushing back is slow, can easily resize and fill in
+	//std::cout << "Kernel:" << std::endl;
+	//std::cout << kernel << std::endl;
 	return kernel.size()*(2*L+1);
 }
 
@@ -304,26 +314,45 @@ bool particle::operator==(const particle& other) const{
 	return (pm == other.pm) && (pt == other.pt) && (pp == other.pp);
 }
 
-mBasis::mBasis(const int numP, const int degree, const int options){
-	for(int M = 0; M <= degree; ++M){
-		mLevels.push_back(BasisAtM(numP, degree, M, options));
-		std::cout << mLevels[M] << std::endl;
+std::vector<Basis<mono>> mBasis::MakeNegativeLevels(
+		std::vector<Basis<mono>>& nonNegativeMLevels){
+	std::vector<Basis<mono>> ret;
+	std::vector<mono> newLevel;
+	for(auto degree = nonNegativeMLevels.size()-1; degree > 0; --degree){
+		newLevel.clear();
+		for(auto& mon : nonNegativeMLevels[degree]){
+			newLevel.push_back(mon.MirrorPM());
+		}
+		ret.emplace_back(newLevel);
 	}
+	for(auto degree = 0u; degree < nonNegativeMLevels.size(); ++degree){
+		ret.push_back(nonNegativeMLevels[degree]);
+	}
+	return ret;
+}
+
+mBasis::mBasis(const int numP, const int degree, const int options){
+	std::vector<Basis<mono>> nonNegativeMLevels;
+	for(int M = 0; M <= degree; ++M){
+		nonNegativeMLevels.push_back(BasisAtM(numP, degree, M, options));
+		if(options & OPT_DEBUG) std::cout << nonNegativeMLevels[M] << std::endl;
+	}
+	mLevels = MakeNegativeLevels(nonNegativeMLevels);
 
 	Matrix L3Actions;
 	std::vector<poly> L3Kernel;
 	for(int M = 0; M < degree; ++M){
-		L3Actions = L3Matrix(mLevels[M], mLevels[M+1]);
-		L3Kernel = Kernel(L3Actions, mLevels[M], true);
-		std::cout << "States at the top of the L=" << M << " multiplet: " 
-			<< L3Kernel << std::endl;
+		L3Actions = L3Matrix(*Level(M), *Level(M+1));
+		L3Kernel = Kernel(L3Actions, *Level(M), true);
+		//std::cout << "States at the top of the L=" << M << " multiplet: " 
+			//<< L3Kernel << std::endl;
 
 		topStates.push_back(L3Kernel);
 	}
 	// all states with M=d are in L3Kernel;
-	L3Kernel.resize(mLevels[degree].size());
-	for(auto i = 0u; i < mLevels[degree].size(); ++i){
-		L3Kernel[i] = poly(mLevels[degree][i]);
+	L3Kernel.resize(LevelSize(degree));
+	for(auto i = 0u; i < LevelSize(degree); ++i){
+		L3Kernel[i] = poly((*Level(degree))[i]);
 	}
 	topStates.push_back(L3Kernel);
 }
@@ -334,7 +363,8 @@ mBasis::mBasis(const int numP, const int degree, const int options){
 // generate only the useful states.
 Basis<mono> mBasis::BasisAtM(const int numP, const int degree, const int M, 
 		const int options){
-	std::cout << "Constructing basis at M = " << M << "." << std::endl;
+	if(options & OPT_DEBUG) 
+		std::cout << "Constructing basis at M = " << M << "." << std::endl;
 	std::vector<std::vector<int>> minusCfgs = GetStatesUpToDegree(numP,
 			(degree + M)/2, M);
 	int zeroCount, totalPm;
@@ -398,17 +428,17 @@ Basis<mono> mBasis::BasisAtM(const int numP, const int degree, const int M,
 }
 
 Matrix mBasis::L3Matrix(const Basis<mono>& startingMBasis, const Basis<mono>& targetMBasis){
-	std::cout << "Constructing polynomials of L actions..." << std::endl;
+	//std::cout << "Constructing polynomials of L actions..." << std::endl;
 	if(startingMBasis.size() == 0) return Matrix();
 	std::vector<poly> L3Actions;
 	for(auto& basisMono : startingMBasis){
 		L3Actions.emplace_back(basisMono.L3());
 	}
 
-	std::cout << "Converting L actions to triplets..." << std::endl;
+	//std::cout << "Converting L actions to triplets..." << std::endl;
 	std::list<Triplet> triplets = ConvertToRows(L3Actions, targetMBasis, 0);
 
-	std::cout << "List of triplets done, matrixifying..." << std::endl;
+	//std::cout << "List of triplets done, matrixifying..." << std::endl;
 	Matrix ret(targetMBasis.size(), startingMBasis.size());
 	// if this is slow, can do ret.reserve(3*numP) to speed it up
 	ret.setFromTriplets(triplets.begin(), triplets.end());
@@ -430,17 +460,17 @@ Matrix mBasis::L3Matrix(const Basis<mono>& startingMBasis, const Basis<mono>& ta
 }*/
 
 const Basis<mono>* mBasis::Level(const int M) const {
-	if(static_cast<unsigned int>(std::abs(M)) >= mLevels.size()){
+	if(static_cast<unsigned int>(std::abs(M)) > Degree()){
 		std::cerr << "Error: basis at M=" << M << " was requested, but only "
 			<< mLevels.size() << " are known." << std::endl;
 		return nullptr;
 	}
-	return &mLevels[std::abs(M)];
+	return &mLevels[M + Degree()];
 }
 
-unsigned int mBasis::LevelSize(const int L) const {
-	if(static_cast<unsigned int>(std::abs(L)) >= mLevels.size()) return 0;
-	return mLevels[std::abs(L)].size();
+unsigned int mBasis::LevelSize(const int M) const {
+	if(static_cast<unsigned int>(std::abs(M)) > Degree()) return 0;
+	return Level(M)->size();
 }
 
 // note: triplets displayed (row, column, value) despite matrix's storage type
@@ -559,6 +589,7 @@ std::array<Matrix,4> KMatrices(const splitBasis<mono>& startingBasis,
 
 std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms, 
 		const Basis<mono>& targetBasis, const Eigen::Index rowOffset){
+	if(polyForms.size() == 0) return std::list<Triplet>();
 	std::list<Triplet> ret = targetBasis.ExpressPoly(polyForms[0], 0,
 			rowOffset);
 	for(auto i = 1u; i < polyForms.size(); ++i){

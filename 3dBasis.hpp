@@ -129,7 +129,7 @@ template<class T>
 inline std::vector<poly> Kernel(const Matrix& KActions, const Basis<T>& startBasis,
 		const bool outputKernel){
 	if(KActions.rows() == 0 || KActions.cols() == 0) return std::vector<poly>();
-	std::cout << "Computing kernel from K matrix..." << std::endl;
+	//std::cout << "Computing kernel from K matrix..." << std::endl;
 	//std::cout << KActions << std::endl;
 	QRSolver solver;
 	solver.setPivotThreshold(EPSILON); // norms smaller than this are zero

@@ -88,7 +88,7 @@ class mono {
 		void Order();
 		mono OrderCopy() const;
 
-		void MirrorPM();
+		mono MirrorPM() const;
 		static bool MirrorIsBetter(const mono& m);
 
 		void NullIfIllegal();
