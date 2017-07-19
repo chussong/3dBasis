@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	if(args.delta == 0) args.delta = 0.5;
+	if(std::abs(args.delta) < EPSILON) args.delta = 0.5;
 
 	if(args.options & OPT_MSORTING){
 		args.options = args.options | OPT_EQNMOTION;
@@ -93,6 +93,9 @@ int FindPrimariesParityOnly(const arguments& args){
 	int degree = args.degree;
 	coeff_class delta = args.delta;
 	int options = args.options;
+
+	//options = options | OPT_DEBUG;
+
 	splitBasis<mono> startingBasis(numP, degree, options);
 	std::cout << "Constructed a starting basis with " 
 		<< startingBasis.EvenBasis().size()
@@ -113,9 +116,9 @@ int FindPrimariesParityOnly(const arguments& args){
 	Matrix oddKAction (KMatrix(startingBasis.OddBasis() , targetBasis, delta));
 
 	std::vector<poly> evenKernel = Kernel(evenKAction, startingBasis.EvenBasis(),
-			false);
+			options & OPT_DEBUG);
 	std::vector<poly> oddKernel  = Kernel(oddKAction , startingBasis.OddBasis(),
-			false);
+			options & OPT_DEBUG);
 
 	std::cout << "Found a total of " << evenKernel.size() + oddKernel.size() 
 		<< " primaries." << std::endl;
@@ -138,19 +141,28 @@ int FindPrimariesBruteForce(const arguments& args){
 	int degree = args.degree;
 	coeff_class delta = args.delta;
 	int options = args.options;
+
+	//options = options | OPT_DEBUG;
+
 	Basis<mono> startingBasis(numP, degree, options);
 	std::cout << "Constructed a starting basis with " << startingBasis.size()
 		<< " elements." << std::endl;
+	if(options & OPT_DEBUG){
+		std::cout << startingBasis << std::endl;
+	}
 	Basis<mono> targetBasis(numP, degree-1, options);
 	std::cout << "Constructed a target basis with " << targetBasis.size()
 		<< " elements." << std::endl;
+	if(options & OPT_DEBUG){
+		std::cout << targetBasis << std::endl;
+	}
 
 	// - create matrix of K acting on each element of startingBasis
 	Matrix kAction(KMatrix(startingBasis, targetBasis, delta));
 
 	// - find kernel of above matrix and output
 
-	std::vector<poly> kernel = Kernel(kAction, startingBasis, false);
+	std::vector<poly> kernel = Kernel(kAction, startingBasis, options & OPT_DEBUG);
 
 	if(options & OPT_DEBUG){
 		std::cout << "Found the following " << kernel.size() << "-dimensional kernel:"
@@ -168,22 +180,22 @@ int FindPrimariesByM(const arguments& args){
 	mBasis targetBasis(args.numP, args.degree-1, args.options);
 
 	std::vector<poly> primaries;
+	unsigned int primCount = 0u;
 	// I think this is supposed to be -= 2, but maybe -= 1 is needed
-	for(int L = args.degree; L <= args.degree; L -= 2){
-		AddPrimariesAtL(startBasis, targetBasis, L, primaries, args.delta);
+	for(int L = args.degree; L >= 0; L -= 2){
+		primCount += AddPrimariesAtL(startBasis, targetBasis, L, primaries, args.delta);
 	}
 
-	std::cout << primaries.size() << " primaries identified: " << primaries
+	std::cout << primCount << " primaries identified: " << primaries
 		<< std::endl;
 
 	return EXIT_SUCCESS;
 }
 
-void AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis,
+unsigned int AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis,
 		const unsigned int L, std::vector<poly>& primaries, 
 		const coeff_class delta){
-	//std::cout << "Constructing polynomials of K actions..." << std::endl;
-	//if(startingBasis.size() == 0) return Matrix(0, 0);
+	std::cout << "Constructing polynomials of L=" << L << " actions..." << std::endl;
 	std::vector<poly> K1Actions, K2Actions, K3Actions;
 	for(auto& topState : startBasis.TopStates(L)){
 		if(L+1 < targetBasis.Degree()) K1Actions.emplace_back(topState.K1(delta));
@@ -191,7 +203,7 @@ void AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis,
 		K3Actions.emplace_back(topState.K3(delta));
 	}
 
-	//std::cout << "Converting K actions to triplets..." << std::endl;
+	std::cout << "Converting L actions to triplets..." << std::endl;
 	std::list<Triplet> entries;
 	if(L+1 < targetBasis.Degree()){
 		entries.splice(entries.end(), 
@@ -215,9 +227,10 @@ void AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis,
 	// matrix must be compressed here but setFromTriplets does it automatically
 
 	std::vector<poly> kernel = Kernel(matrixK, 
-			Basis<poly>(startBasis.TopStates(L)), true);
+			Basis<poly>(startBasis.TopStates(L)), false);
 	for(auto& newPrimary : kernel) primaries.push_back(std::move(newPrimary));
 	// if the pushing back is slow, can easily resize and fill in
+	return kernel.size()*(2*L+1);
 }
 
 arguments ParseArguments(int argc, char* argv[]){
@@ -280,7 +293,7 @@ int ParseOptions(std::vector<std::string> options){
 			continue;
 		}
 		if(opt.compare(0, 2, "-d") == 0){
-			ret = ret | OPT_DEBUG;
+			ret = ret | OPT_DIRICHLET;
 			continue;
 		}
 	}
@@ -299,14 +312,20 @@ mBasis::mBasis(const int numP, const int degree, const int options){
 
 	Matrix L3Actions;
 	std::vector<poly> L3Kernel;
-	for(int M = degree; M > 0; --M){
-		L3Actions = L3Matrix(mLevels[M-1], mLevels[M]);
-		L3Kernel = Kernel(L3Actions, mLevels[M-1], true);
-		std::cout << "States at the top of the L=" << M-1 << " multiplet: " 
+	for(int M = 0; M < degree; ++M){
+		L3Actions = L3Matrix(mLevels[M], mLevels[M+1]);
+		L3Kernel = Kernel(L3Actions, mLevels[M], true);
+		std::cout << "States at the top of the L=" << M << " multiplet: " 
 			<< L3Kernel << std::endl;
 
 		topStates.push_back(L3Kernel);
 	}
+	// all states with M=d are in L3Kernel;
+	L3Kernel.resize(mLevels[degree].size());
+	for(auto i = 0u; i < mLevels[degree].size(); ++i){
+		L3Kernel[i] = poly(mLevels[degree][i]);
+	}
+	topStates.push_back(L3Kernel);
 }
 
 // This function was written before I figured out that the EoM were necessary
@@ -551,37 +570,18 @@ std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms,
 
 // takes QR decomposition of the matrix and returns the polynomial forms of its
 // rightmost N columns, which are the N orthonormal basis vectors of the kernel
-std::vector<poly> Kernel(const Matrix& KActions, const Basis<mono>& startBasis,
+/*std::vector<poly> Kernel(const Matrix& KActions, const Basis<mono>& startBasis,
 		const bool outputKernel){
 	if(KActions.rows() == 0 || KActions.cols() == 0) return std::vector<poly>();
 	std::cout << "Computing kernel from K matrix..." << std::endl;
 	//std::cout << KActions << std::endl;
 	QRSolver solver;
+	solver.setPivotThreshold(EPSILON); // norms smaller than this are zero
 	solver.compute(KActions.transpose());
 	std::cout << "Solved. Found rank " << solver.rank() << ", i.e. "
 		<< startBasis.size() - solver.rank() << " kernel elements." << std::endl;
 
 	std::cout << "Converting the kernel to polynomials..." << std::endl;
-
-	/*DMatrix projector(startBasis.size(), startBasis.size() - solver.rank());
-	for(auto row = 0; row < projector.rows(); ++row){
-		for(auto col = 0; col < projector.cols(); ++col){
-			if(row == col + solver.rank()){
-				projector(row, col) = 1;
-			} else {
-				projector(row, col) = 0;
-			}
-		}
-	}
-	DMatrix kernelMatrix = solver.matrixQ()*projector;
-
-	std::vector<poly> ret;
-	std::cout << "Solving done: kernel matrix is the following " 
-		<< kernelMatrix.rows() << "x" << kernelMatrix.cols() << " matrix, equal"
-		<< " to the rank " << solver.rank() << ":\n" << kernelMatrix << std::endl;
-	for(auto col = 0; col < kernelMatrix.cols(); ++col){
-		ret.push_back(ColumnToPoly(kernelMatrix, col, startBasis));
-	}*/
 
 
 	DVector projector = Eigen::VectorXd::Zero(startBasis.size());
@@ -601,7 +601,7 @@ std::vector<poly> Kernel(const Matrix& KActions, const Basis<mono>& startBasis,
 	}
 
 	return ret;
-}
+}*/
 
 std::vector<poly> CombineKernels(const std::vector<poly>& kernel1,
 		const std::vector<poly>& kernel2){

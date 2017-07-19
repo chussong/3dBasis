@@ -36,7 +36,7 @@ inline std::vector<int> IdentifyNodes(const std::vector<particle>& particles){
 			particles.size());
 }
 
-std::vector<std::vector<int>> Permute(const std::vector<std::vector<int>> ordered){
+inline std::vector<std::vector<int>> Permute(const std::vector<std::vector<int>> ordered){
 	std::vector<std::vector<int>> ret;
 	for(auto& base : ordered){
 		std::vector<int> current(base);

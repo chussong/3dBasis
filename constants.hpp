@@ -18,6 +18,7 @@ typedef double coeff_class;						// ordinary double-width float
 //typedef long coeff_class;						// ordinary double-width integer
 
 //constexpr coeff_class delta = 0.25;
+constexpr coeff_class EPSILON = 1e-5;
 
 typedef Eigen::SparseMatrix<coeff_class> Matrix;
 typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, Eigen::Dynamic> DMatrix;
@@ -52,6 +53,6 @@ struct particle{
 
 enum options { OPT_BRUTE = 1 << 0, OPT_VERSION = 1 << 1, OPT_DEBUG = 1 << 2,
 				OPT_PARITYONLY = 1 << 3, OPT_EQNMOTION = 1 << 4,
-				OPT_MSORTING = 1 << 5 };
+				OPT_MSORTING = 1 << 5, OPT_DIRICHLET = 1 << 6 };
 
 #endif

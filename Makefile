@@ -33,7 +33,7 @@ $(EXECUTABLE): $(OBJECTS)
 3dBasis.o: 3dBasis.cpp 3dBasis.hpp mono.hpp poly.hpp basis.hpp lib/libspqr.so
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-mono.o: mono.cpp mono.hpp io.hpp constants.hpp
+mono.o: mono.cpp mono.hpp io.hpp constants.hpp construction.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 poly.o: poly.cpp poly.hpp mono.hpp io.hpp constants.hpp

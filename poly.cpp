@@ -13,11 +13,12 @@ poly::poly(const std::vector<mono>& terms){
 }
 
 poly& poly::operator+=(const mono& x){
-	if(x.Coeff() == 0) return *this;
+	if(std::abs(x.Coeff()) < EPSILON) return *this;
 
-	for(auto& tm : terms){
-		if(tm == x){
-			tm.Coeff() += x.Coeff();
+	for(auto it = terms.begin(); it != terms.end(); ++it){
+		if(*it == x){
+			it->Coeff() += x.Coeff();
+			if(std::abs(it->Coeff()) < EPSILON) terms.erase(it);
 			return *this;
 		}
 	}
@@ -67,13 +68,19 @@ poly operator-(const mono& x, poly y){
 	return y -= x;
 }
 
+poly poly::operator-() const{
+	poly ret(*this);
+	for(auto& m : ret) m = -m;
+	return ret;
+}
+
 bool poly::operator==(const poly& other) const{
 	bool found;
 	for(auto& term1 : terms){
 		found = false;
 		for(auto& term2 : other.terms){
 			if(term1 == term2){
-				if(term1.Coeff() != term2.Coeff()) return false;
+				if(std::abs(term1.Coeff() - term2.Coeff()) > EPSILON) return false;
 				found = true;
 				break;
 			}
@@ -112,7 +119,7 @@ std::string poly::HumanReadable() const{
 		if(std::abs(term.Coeff()) != 1) os << std::abs(term.Coeff());
 		os << term.HumanReadable() << " + ";
 	}
-	os << "\b\b\b"; // this will leave a '+' around if <2 more chars are written
+	os << "\b\b \b\b"; // this will leave a '+' around if <2 more chars are written
 	return os.str();
 }
 

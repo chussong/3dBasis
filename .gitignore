@@ -1,0 +1,21 @@
+# Compiled object files
+*.o
+
+# Compiled libraries
+*.so
+*.a
+
+# Vim swap files
+*.swp
+
+# LaTeX bits
+*.aux
+*.bcf
+*.log
+*.out
+*.pdf
+*.run.xml
+*.tex
+
+# Mathematica notebooks
+*.nb

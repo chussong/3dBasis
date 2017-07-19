@@ -22,7 +22,8 @@
 // * Two monos are equal (i.e. a == b is true) if their MOMENTA are the same.
 // The coefficients do not matter in comparisons, only the momenta.
 // * std::cout << someMono; will print the mono in this format:
-// coeff * {p1_m, p2_m, ... }{p1_t, p2_t, ...}{p1_p, p2_p, ...}
+// coeff * {p1_m, p2_m, ... }{p1_t, p2_t, ...}{p1_p, p2_p, ...}. You may prefer
+// someMono.HumanReadable(), which more resembles how you'd write it on a board.
 class mono {
 	coeff_class coeff;
 	std::vector<particle> particles;
@@ -80,8 +81,6 @@ class mono {
 			friend mono operator/(mono x, const T&    y) { return x /= y; }
 		template<typename T>
 			friend mono operator*(const T& x,    mono y) { return y *= x; }
-		template<typename T>
-			friend mono operator/(const T& x,    mono y) { return y /= x; }
 		mono operator-() const;
 
 		static bool ParticlePrecedence(const particle& a, const particle& b);
@@ -92,6 +91,7 @@ class mono {
 		void MirrorPM();
 		static bool MirrorIsBetter(const mono& m);
 
+		void NullIfIllegal();
 		mono DerivPm(const unsigned int targetParticle) const;
 		mono DerivPt(const unsigned int targetParticle) const;
 		mono DerivPp(const unsigned int targetParticle) const;
@@ -103,12 +103,20 @@ class mono {
 		mono MultPt(const unsigned int targetParticle) const;
 		mono MultPp(const unsigned int targetParticle) const;
 
-		// K on specific particle
+		// K on specific particle WITHOUT EoM
 		std::array<mono, 4> K1(const unsigned int targetParticle,
 				const coeff_class delta) const;
 		std::array<mono, 5> K2(const unsigned int targetParticle,
 				const coeff_class delta) const;
 		std::array<mono, 4> K3(const unsigned int targetParticle,
+				const coeff_class delta) const;
+
+		// K on specific particle WITH EoM
+		std::array<mono, 1> K1_EoM(const unsigned int targetParticle,
+				const coeff_class delta) const;
+		std::array<mono, 3> K2_EoM(const unsigned int targetParticle,
+				const coeff_class delta) const;
+		std::array<mono, 4> K3_EoM(const unsigned int targetParticle,
 				const coeff_class delta) const;
 
 		// K on entire mono
@@ -134,6 +142,32 @@ template<typename T>
 inline std::vector<int> mono::IdentifyNodes(T (*value)(particle)) const{
 	return IdentifyNodes([this, value](unsigned int i){return value(this->particles[i]);},
 			NParticles());
+}
+
+// specialization of vector ostream template
+template<>
+inline std::ostream& operator<<(std::ostream& os, const std::vector<mono>& out){
+	os << "{ ";
+	int written = 0;
+	for(auto& element : out){
+		if(element.Coeff() == 0) continue;
+		if(element.Coeff() > 0) os << " ";
+		os << element.HumanReadable() << ", ";
+		++written;
+	}
+	if(written > 0) os << "\b\b ";
+	return os << "\b }";
+}
+
+// partial specialization of array ostream template
+template<int N>
+inline std::ostream& operator<<(std::ostream& os, const std::array<mono,N>& out){
+	os << "{ ";
+	for(auto& element : out){
+		if(element.Coeff() > 0) os << " ";
+		if(element.Coeff() != 0) os << element.HumanReadable() << ", ";
+	}
+	return os << "\b }";
 }
 
 #endif

@@ -11,8 +11,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& out){
 		if(element >= 0) os << " ";
 		os << element << ",";
 	}
-	os << "\b }";
-	return os;
+	return os << "\b }";
 }
 
 // specialization of above template which "transposes" particle vectors
@@ -35,6 +34,16 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<particle>& o
 	}
 	os << "\b }";
 	return os;
+}
+
+template<typename T, int N>
+inline std::ostream& operator<<(std::ostream& os, const std::array<T,N>& out){
+	os << "{";
+	for(auto& element : out){
+		if(element >= 0) os << " ";
+		os << element << ",";
+	}
+	return os << "\b }";
 }
 
 #endif

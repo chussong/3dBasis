@@ -9,13 +9,18 @@
 
 // a basis is anything which claims that it can express monomials and
 // polynomials as vectors on itself. It can contain monos or polys as needed.
+// * Can be accessed with [] like an array and iterated through with begin()
+// and end().
+// * Has a stream operator, which outputs all the basis vectors on new lines.
+// * Most important function is ExpressPoly, which takes a polynomial and
+// expresses it as a vector in this basis's space.
+template<class T> class Basis;
+template<class T> std::ostream& operator<<(std::ostream& os, const Basis<T>& out);
+
 template<class T>
 class Basis {
 	std::vector<T> basisVectors;
 
-	/*static std::vector<std::vector<int>> CfgsFromNodePartition(
-			const std::vector<int> nodes,
-			std::vector<std::vector<int>> nodeEnergies);*/
 	static bool PpDominant(const mono& m);
 
 	public:
@@ -38,10 +43,10 @@ class Basis {
 		//virtual void DeleteAsymm();
 		//void SortBasis();
 
-		const T& operator[](size_t i) const;
-		friend std::ostream& operator<<(std::ostream& os, const Basis<T>& out);
+		const T& operator[](size_t i) const { return basisVectors[i]; }
+		friend std::ostream& operator<<<T>(std::ostream& os, const Basis<T>& out);
 
-		std::size_t size() const;
+		std::size_t size() const { return basisVectors.size(); }
 		typename std::vector<T>::const_iterator		begin() const noexcept
 				{ return basisVectors.begin(); }
 		typename std::vector<T>::iterator			begin() noexcept
@@ -56,91 +61,7 @@ class Basis {
 		std::list<Triplet> ExpressPoly(const poly& toExpress, 
 				const int column, const int rowOffset) const;
 
-		/*std::vector<std::vector<int>> CfgsFromNodes(const int remainingEnergy,
-				const std::vector<int>& nodes, const bool exact);
-		std::vector<std::vector<particle>> CombinedCfgs(
-				const std::vector<particle>& baseCfg,
-				const std::vector<std::vector<int>>& newCfgs,
-				const int componentToChange);*/
 };
-
-// a set of all ordered monomials of the given degree and number of particles
-// * Can be accessed with [] like an array and iterated through with begin()
-// and end().
-// * Has a stream operator, which outputs all the component monos on new lines.
-// * Most important function is ExpressPoly, which takes a polynomial and
-// expresses it as a vector in this basis's space.
-/*template<>
-class monoBasis : public basis {
-	std::vector<mono> basisMonos;
-
-	public:
-		explicit monoBasis(const std::vector<mono> basisMonos): basisMonos(basisMonos) {}
-		monoBasis(const int numP, const int degree, const int options);
-
-		unsigned int FindInBasis(const std::vector<int>& pm, 
-				const std::vector<int>& pt, const std::vector<int>& pp) const;
-		unsigned int FindInBasis(const mono& wildMono) const;
-		void DeleteOdd();
-		void DeleteEven();
-		void DeleteSymm();
-		void DeleteAsymm();
-
-		const	mono& operator[](size_t i)	const	{return basisMonos[i];     }
-		friend std::ostream& operator<<(std::ostream& os, const monoBasis& out);
-
-		std::size_t size()					const	{return basisMonos.size(); }
-		std::vector<mono>::const_iterator	begin() const noexcept
-				{ return basisMonos.begin(); }
-		std::vector<mono>::iterator			begin() noexcept
-				{ return basisMonos.begin(); }
-		std::vector<mono>::const_iterator	end()	const noexcept
-				{ return basisMonos.end(); }
-		std::vector<mono>::iterator			end()	noexcept
-				{ return basisMonos.end(); }
-
-
-		Triplet ExpressMono(const mono& toExpress, const int column,
-				const int rowOffset) const;
-		std::list<Triplet> ExpressPoly(const poly& toExpress, 
-				const int column, const int rowOffset) const;
-};
-
-class polyBasis : public basis {
-	std::vector<poly> basisPolys;
-
-	public:
-		explicit polyBasis(const std::vector<poly> basisPolys): basisPolys(basisPolys) {}
-		polyBasis(const int numP, const int degree, const int options);
-
-		unsigned int FindInBasis(const std::vector<int>& pm, 
-				const std::vector<int>& pt, const std::vector<int>& pp) const;
-		unsigned int FindInBasis(const mono& wildMono) const;
-		unsigned int FindInBasis(const poly& wildPoly) const;
-		void DeleteOdd();
-		void DeleteEven();
-		void DeleteSymm();
-		void DeleteAsymm();
-
-		const	poly& operator[](size_t i)	const	{return basisPolys[i];     }
-		friend std::ostream& operator<<(std::ostream& os, const polyBasis& out);
-
-		std::size_t size()					const	{return basisPolys.size(); }
-		std::vector<poly>::const_iterator	begin() const noexcept
-				{ return basisPolys.begin(); }
-		std::vector<poly>::iterator			begin() noexcept
-				{ return basisPolys.begin(); }
-		std::vector<poly>::const_iterator	end()	const noexcept
-				{ return basisPolys.end(); }
-		std::vector<poly>::iterator			end()	noexcept
-				{ return basisPolys.end(); }
-
-
-		Triplet ExpressMono(const mono& toExpress, const int column,
-				const int rowOffset) const;
-		std::list<Triplet> ExpressPoly(const poly& toExpress, 
-				const int column, const int rowOffset) const;
-};*/
 
 // Contains two bases and intelligently decides which one to use for various
 // requests. Because this is in two pieces, it can not be iterated through.
@@ -201,13 +122,6 @@ class mBasis {
 
 // state generation -----------------------------------------------------------
 
-/*std::vector<std::vector<int>> Permute(const std::vector<std::vector<int>> ordered);
-std::vector<std::vector<int>> GetStatesByDegree(const int numP, const int deg,
-		const bool exact, const int min);
-std::vector<std::vector<int>> GetStatesUpToDegree(const int numP, const int deg,
-		const int M = 0);
-std::vector<std::vector<int>> GetStatesAtDegree(const int numP, const int deg,
-		const int M = 0);*/
 bool EoMAllowed(const std::vector<particle>& cfg);
 
 template<class T>
@@ -291,16 +205,6 @@ inline std::list<Triplet> Basis<T>::ExpressPoly(const poly&, const int, const in
 	return {{Triplet(-1, -1, coeff_class(0))}};
 }
 
-/*template<>
-inline unsigned int Basis<mono>::FindInBasis(const mono& wildMono) const{
-	for(auto i = 0u; i < basisVectors.size(); ++i){
-		if(basisVectors[i] == wildMono) return i;
-	}
-	std::cout << "Warning! Failed to find the following mono in our basis: "
-		<< wildMono << std::endl;
-	return -1u;
-}*/
-
 template<class T>
 inline unsigned int Basis<T>::FindInBasis(const T& wildVector) const{
 	for(auto i = 0u; i < basisVectors.size(); ++i){
@@ -316,15 +220,6 @@ inline unsigned int Basis<mono>::FindInBasis(const std::vector<int>& pm,
 		const std::vector<int>& pt, const std::vector<int>& pp) const{
 	return FindInBasis(mono(pm, pt, pp));
 }
-
-/*std::array<basis,2> Basis<mono>::ParitySplit() const{
-	std::array<basis,2> ret = {{*this, *this}};
-	for(int i = 0; i < 2; ++i){
-		ret[i].basisVectors.erase(std::remove_if(ret[i].begin(), ret[i].end(), 
-				[i](mono& m){ return m.TotalPt()%2 == i; } ));
-	}
-	return ret;
-}*/
 
 template<>
 inline void Basis<mono>::DeleteOdd(){
@@ -357,19 +252,6 @@ inline void Basis<mono>::DeleteAsymm(){
 				splitBasis<mono>::IsAsymm), basisVectors.end());
 }
 
-/*void Basis<mono>::SortBasis(){
-	std::sort(basisVectors.begin(), basisVectors.end(), mono::MonoPrecedence);
-	std::cout << "Sorted basis to this:" << std::endl;
-	for(auto i = 0u; i < basisVectors.size()/2; ++i){
-		std::cout << basisVectors[i] << std::endl;
-	}
-	std::cout << "----- half way pt -----" << std::endl;
-	for(auto i = basisVectors.size()/2; i < basisVectors.size(); ++i){
-		std::cout << basisVectors[i] << std::endl;
-	}
-	std::cout << "-------------------" << std::endl;
-}*/
-
 template<class T>
 inline std::ostream& operator<<(std::ostream& os, const Basis<T>& out){
 	os << "{ ";
@@ -377,19 +259,13 @@ inline std::ostream& operator<<(std::ostream& os, const Basis<T>& out){
 	return os << "\b\b }";
 }
 
-/*template<>
-inline std::ostream& operator<<(std::ostream& os, const Basis<mono>& out){
-	os << "{ ";
-	for(auto& m : out.basisVectors) os << m.HumanReadable() << ", ";
-	return os << "\b\b }";
-}*/
-
 template<>
 inline Triplet Basis<mono>::ExpressMono(const mono& toExpress, const int column,
 		const int rowOffset) const{
 	for(auto i = 0u; i < basisVectors.size(); ++i){
 		if(toExpress == basisVectors[i])
-			return Triplet(rowOffset+i, column, toExpress.Coeff());
+			return Triplet(rowOffset+i, column, 
+					toExpress.Coeff()/basisVectors[i].Coeff());
 	}
 	std::cerr << "Error: tried to express the monomial " << toExpress
 	<< " on the given basis but was not able to identify it." << std::endl;
@@ -404,13 +280,20 @@ inline std::list<Triplet> Basis<mono>::ExpressPoly(const poly& toExpress,
 	unsigned int hits = 0u;
 	for(auto i = 0u; i < basisVectors.size(); ++i){
 		for(auto& term : toExpress){
+			/*if(std::abs(term.Coeff()) < EPSILON){
+				++zeros;
+				std::cout << "Zero get: " << term.Coeff() << ". Now have "
+					<< zeros << "." << std::endl;
+				continue;
+			} it should not actually be possible for a poly to have coeff = 0*/
 			if(term == basisVectors[i]){
-				ret.emplace_front(rowOffset+i, column, term.Coeff());
+				ret.emplace_front(rowOffset+i, column, 
+						term.Coeff()/basisVectors[i].Coeff());
 				++hits;
 				break;
 			}
 		}
-		if(hits == toExpress.size()) break;
+		if(hits == toExpress.size()) break; // right??
 	}
 	if(hits < toExpress.size()){
 		std::cerr << "Error: tried to express the polynomial " << toExpress
@@ -422,26 +305,6 @@ inline std::list<Triplet> Basis<mono>::ExpressPoly(const poly& toExpress,
 	return ret;
 }
 
-/*inline unsigned int Basis<poly>::FindInBasis(const poly& wildPoly) const{
-	for(auto i = 0u; i < basisVectors.size(); ++i){
-		if(basisVectors[i] == wildPoly) return i;
-	}
-	std::cout << "Warning! Failed to find the following poly in our basis: "
-		<< wildPoly << std::endl;
-	return -1u;
-}
-
-template<>
-inline unsigned int Basis<poly>::FindInBasis(const mono& wildMono) const{
-	return FindInBasis(poly(wildMono));
-}
-
-template<>
-inline unsigned int Basis<poly>::FindInBasis(const std::vector<int>& pm, 
-		const std::vector<int>& pt, const std::vector<int>& pp) const{
-	return FindInBasis(mono(pm, pt, pp));
-}*/
-
 // This does not attempt to find a linear combination of known polynomials
 // which would reproduce toExpress. Obviously it would be more correct if it
 // did attempt to do so.
@@ -451,7 +314,8 @@ inline Triplet Basis<poly>::ExpressMono(const mono& toExpress, const int column,
 	poly polyForm(toExpress);
 	for(auto i = 0u; i < basisVectors.size(); ++i){
 		if(polyForm == basisVectors[i])
-			return Triplet(rowOffset+i, column, toExpress.Coeff());
+			return Triplet(rowOffset+i, column, 
+					toExpress.Coeff()/basisVectors[i][0].Coeff());
 	}
 	std::cerr << "Error: tried to express the monomial " << toExpress
 	<< " on the given basis but was not able to identify it." << std::endl;
@@ -468,7 +332,7 @@ inline std::list<Triplet> Basis<poly>::ExpressPoly(const poly& toExpress,
 		if(toExpress == basisVectors[i])
 			return {{Triplet(rowOffset+i, column, 1)}};
 	}
-	std::cerr << "Error: tried to express the monomial " << toExpress
+	std::cerr << "Error: tried to express the plynomial " << toExpress
 	<< " on the given basis but was not able to identify it." << std::endl;
 	return {{Triplet(-1, -1, 0)}};
 }
@@ -525,11 +389,6 @@ inline void splitBasis<T>::DeleteAsymm(){
 	oddBasis.DeleteAsymm();
 	evenBasis.DeleteAsymm();
 }
-
-// create a copy of this basis which is symmetrized by adding mirror operators
-// to all member monomials
-//splitPolyBasis AdditiveSymmetrization(){
-//}
 
 template<class T>
 inline std::list<Triplet> splitBasis<T>::ExpressPoly(const poly& toExpress, 

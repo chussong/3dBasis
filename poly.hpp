@@ -38,6 +38,14 @@ class poly {
 		bool operator==(const poly& other) const;
 		bool operator!=(const poly& other) const { return !(*this == other); }
 
+		template<typename T>
+			friend poly operator*(poly x, const T&    y);
+		template<typename T>
+			friend poly operator/(poly x, const T&    y);
+		template<typename T>
+			friend poly operator*(const T& x,    poly y) { return y*x; }
+		poly operator-() const;
+
 		const	mono& operator[](size_t i)	const	{ return terms[i]; }
 				mono& operator[](size_t i)			{ return terms[i]; }
 		size_t	size()						const	{return terms.size(); }
@@ -69,7 +77,25 @@ class poly {
 		static poly K3(const mono& inputMono, const coeff_class delta);
 };
 
-// specialization of above template for vectors of polynomials
+template<typename T>
+poly operator*(poly x, const T& y){
+	poly ret(x);
+	for(mono& m : ret){
+		m *= y;
+	}
+	return ret;
+}
+
+template<typename T>
+poly operator/(poly x, const T& y){
+	poly ret(x);
+	for(mono& m : ret){
+		m /= y;
+	}
+	return ret;
+}
+
+// specialization of vector output template for vectors of polynomials
 template<>
 inline std::ostream& operator<<(std::ostream& os, const std::vector<poly>& out){
 	if(out.size() == 0) return os << "{ }";

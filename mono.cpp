@@ -40,7 +40,7 @@ bool mono::operator==(const mono& other) const{
 }
 
 std::ostream& operator<<(std::ostream& os, const mono& out){
-	if(out.coeff == 1) return os << out.particles;
+	if(std::abs(out.coeff - 1) < EPSILON) return os << out.particles;
 	return os << out.coeff << " * " << out.particles;
 }
 
@@ -66,6 +66,7 @@ std::ostream& operator<<(std::ostream& os, const mono& out){
 
 std::string mono::HumanReadable() const{
 	std::ostringstream os;
+	if(std::abs(Coeff() - 1) > EPSILON) os << Coeff() << "*";
 	for(auto& p : particles){
 		if(p.pm != 0){
 			os << "M";
@@ -151,12 +152,15 @@ void mono::Order(){
 	if(usingEoM){
 		for(auto& p : particles){
 			if(p.pp > 0){
+				//std::cout << "Reordering " << HumanReadable();
 				coeff /= std::pow(2,p.pp); // no bit shift in case coeff < 0
 				p.pm -= p.pp;
 				p.pt += 2*p.pp;
 				p.pp = 0;
+				//std::cout << " to " << HumanReadable() << "." << std::endl;
 			}
 		}
+		NullIfIllegal(); // I'm suspicious about this; should we be doing it?
 	}
 	std::sort(particles.begin(), particles.end(), ParticlePrecedence);
 }
@@ -242,6 +246,15 @@ void mono::MirrorPM(){
 	Order();
 }
 
+void mono::NullIfIllegal(){
+	for(particle& p : particles){
+		if(2*p.pm + p.pt < 0){
+			// this is not actually a legal state, just throw it out?
+			coeff = 0;
+		}
+	}
+}
+
 // NOTE! These break ordering, so you have to re-order when you're done!
 mono mono::DerivPm(const unsigned int part) const{
 	if(part >= particles.size()){
@@ -323,8 +336,9 @@ mono mono::MultPt(const unsigned int particle) const{
 mono mono::MultPp(const unsigned int particle) const{
 	mono ret(*this);
 	if(usingEoM){
-		ret.Pm(particle) -= 1;
 		ret.Pt(particle) += 2;
+		ret.Pm(particle) -= 1;
+		ret.Coeff() /= 2;
 	} else {
 		ret.Pp(particle) += 1;
 	}
@@ -333,56 +347,97 @@ mono mono::MultPp(const unsigned int particle) const{
 
 std::array<mono, 4> mono::K1(const unsigned int particle,
 		const coeff_class delta) const{
-	std::array<mono, 4> ret({{
+	return std::array<mono, 4> ({{
 			2*this->DerivPp(particle).DerivPp(particle).MultPp(particle),
 			2*this->DerivPt(particle).DerivPp(particle).MultPt(particle),
 			2*delta*this->DerivPp(particle),
 			this->DerivPt(particle).DerivPt(particle).MultPm(particle)}});
-	return ret;
 }
 
 std::array<mono, 5> mono::K2(const unsigned int particle,
 		const coeff_class delta) const{
-	std::array<mono, 5> ret({{
+	return std::array<mono, 5> ({{
 			-2*this->DerivPt(particle).DerivPp(particle).MultPp(particle),
 			-2*this->DerivPt(particle).DerivPm(particle).MultPm(particle),
 			-this->DerivPt(particle).DerivPt(particle).MultPt(particle),
 			-2*delta*this->DerivPt(particle),
 			-2*this->DerivPm(particle).DerivPp(particle).MultPt(particle)}});
-	return ret;
 }
 
 std::array<mono, 4> mono::K3(const unsigned int particle,
 		const coeff_class delta) const{
-	std::array<mono, 4> ret({{
+	return std::array<mono, 4> ({{
 			2*this->DerivPm(particle).DerivPm(particle).MultPm(particle),
 			2*this->DerivPt(particle).DerivPm(particle).MultPt(particle),
 			2*delta*this->DerivPm(particle),
 			this->DerivPt(particle).DerivPt(particle).MultPp(particle)}});
-	return ret;
+}
+
+std::array<mono, 1> mono::K1_EoM(const unsigned int particle,
+		const coeff_class) const{
+	return std::array<mono, 1> ({{
+			this->DerivPt(particle).DerivPt(particle).MultPm(particle)}});
+}
+
+std::array<mono, 3> mono::K2_EoM(const unsigned int particle,
+		const coeff_class delta) const{
+	return std::array<mono, 3> ({{
+			-2*this->DerivPm(particle).DerivPt(particle).MultPm(particle),
+			-this->DerivPt(particle).DerivPt(particle).MultPt(particle),
+			-2*delta*this->DerivPt(particle)}});
+}
+
+std::array<mono, 4> mono::K3_EoM(const unsigned int particle,
+		const coeff_class delta) const{
+	return std::array<mono, 4> ({{
+			2*this->DerivPm(particle).DerivPm(particle).MultPm(particle),
+			2*this->DerivPm(particle).DerivPt(particle).MultPt(particle),
+			2*delta*this->DerivPm(particle),
+			this->DerivPt(particle).DerivPt(particle).MultPp(particle)}});
 }
 
 std::vector<mono> mono::K1(const coeff_class delta) const{
 	std::vector<mono> ret;
 	for(unsigned int i = 0; i < NParticles(); ++i){
-		for(auto& outMono : this->K1(i, delta)) ret.push_back(outMono.OrderCopy());
+		if(usingEoM){
+			auto oneParticleK = K1_EoM(i, delta);
+			for(auto& outMono : oneParticleK) ret.push_back(outMono.OrderCopy());
+		} else {
+			auto oneParticleK = K1(i, delta);
+			for(auto& outMono : oneParticleK) ret.push_back(outMono.OrderCopy());
+		}
 	}
+	//std::cout << "Action of K1 on " << HumanReadable() << ": " << ret << std::endl;
 	return ret;
 }
 
 std::vector<mono> mono::K2(const coeff_class delta) const{
 	std::vector<mono> ret;
 	for(unsigned int i = 0; i < NParticles(); ++i){
-		for(auto& outMono : this->K2(i, delta)) ret.push_back(outMono.OrderCopy());
+		if(usingEoM){
+			auto oneParticleK = K2_EoM(i, delta);
+			for(auto& outMono : oneParticleK) ret.push_back(outMono.OrderCopy());
+		} else {
+			auto oneParticleK = K2(i, delta);
+			for(auto& outMono : oneParticleK) ret.push_back(outMono.OrderCopy());
+		}
 	}
+	//std::cout << "Action of K2 on " << HumanReadable() << ": " << ret << std::endl;
 	return ret;
 }
 
 std::vector<mono> mono::K3(const coeff_class delta) const{
 	std::vector<mono> ret;
 	for(unsigned int i = 0; i < NParticles(); ++i){
-		for(auto& outMono : this->K3(i, delta)) ret.push_back(outMono.OrderCopy());
+		if(usingEoM){
+			auto oneParticleK = K3_EoM(i, delta);
+			for(auto& outMono : oneParticleK) ret.push_back(outMono.OrderCopy());
+		} else {
+			auto oneParticleK = K3(i, delta);
+			for(auto& outMono : oneParticleK) ret.push_back(outMono.OrderCopy());
+		}
 	}
+	//std::cout << "Action of K3 on " << HumanReadable() << ": " << ret << std::endl;
 	return ret;
 }
 
