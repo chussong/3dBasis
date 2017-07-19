@@ -25,7 +25,7 @@ class Basis {
 
 	public:
 		explicit Basis(const std::vector<T> basisVectors): basisVectors(basisVectors) {}
-		Basis(const int numP, const int degree, const int options);
+		Basis(const int numP, int degree, const int options);
 
 		unsigned int FindInBasis(const std::vector<int>& pm,
 				const std::vector<int>& pt, const std::vector<int>& pp) const;
@@ -128,7 +128,7 @@ class mBasis {
 bool EoMAllowed(const std::vector<particle>& cfg);
 
 template<class T>
-inline Basis<T>::Basis(const int, const int, const int) {
+inline Basis<T>::Basis(const int, int, const int) {
 	std::cerr << "Error: ordered to construct a basis by degree for an "
 		<< "underlying type which has not been specialized. Please construct "
 		<< "with a different type or write a specialization for this type."
@@ -136,7 +136,7 @@ inline Basis<T>::Basis(const int, const int, const int) {
 }
 
 template<>
-Basis<mono>::Basis(const int numP, const int degree, const int options) {
+Basis<mono>::Basis(const int numP, int degree, const int options) {
 	// 1: generate all possibilities for P_-
 	// 2: identify nodes in P_-, generate possible distributions of P_\perp to
 	// 		the nodes and then P_\perp within each node, adding each at top level
@@ -146,6 +146,18 @@ Basis<mono>::Basis(const int numP, const int degree, const int options) {
 	// NOTE: this does not make any use of the symmetries between the components
 	// 		in constructing the basis; for instance, the states where every
 	// 		pm = 0 are followed by a copy of the earlier parts of the basis
+	if(options & OPT_DIRICHLET) degree -= numP;
+	if(degree <= 0){
+		if(options & OPT_DIRICHLET){
+			std::cout << "Error: there are no Dirichlet states with degree "
+				<< "<= the number of particles." << std::endl;
+		}
+		if(degree < 0 && !(options & OPT_DIRICHLET)){
+			std::cout << "Error: a basis was requested with a negative degree; "
+				<< "this is obviously impossible." << std::endl;
+		}
+		return;
+	}
 	const bool useEoM = (options & OPT_EQNMOTION) != 0;
 	std::vector<std::vector<int>> minus = GetStatesUpToDegree(numP, degree);
 	std::vector<std::vector<particle>> particleCfgs;
@@ -169,14 +181,21 @@ Basis<mono>::Basis(const int numP, const int degree, const int options) {
 	}
 
 	particleCfgs.clear();
-	for(auto& cfg : newCfgs){
-		nodes = IdentifyNodes(cfg);
-		int remainingEnergy = degree;
-		for(auto& part : cfg) remainingEnergy -= part.pm + part.pt;
-		std::vector<std::vector<int>> plus(CfgsFromNodes(remainingEnergy, nodes,
-															true));
-		for(auto& newCfg : CombinedCfgs(cfg, plus, 3)){
-			if(!useEoM || EoMAllowed(newCfg)) particleCfgs.push_back(newCfg);
+	if(options & OPT_DIRICHLET){
+		for(auto& cfg : newCfgs){
+			for(auto& part : cfg) ++part.pm;
+			particleCfgs.push_back(cfg);
+		}
+	} else {
+		for(auto& cfg : newCfgs){
+			nodes = IdentifyNodes(cfg);
+			int remainingEnergy = degree;
+			for(auto& part : cfg) remainingEnergy -= part.pm + part.pt;
+			std::vector<std::vector<int>> plus(CfgsFromNodes(remainingEnergy, nodes,
+																true));
+			for(auto& newCfg : CombinedCfgs(cfg, plus, 3)){
+				if(!useEoM || EoMAllowed(newCfg)) particleCfgs.push_back(newCfg);
+			}
 		}
 	}
 

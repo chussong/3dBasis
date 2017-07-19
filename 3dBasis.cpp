@@ -55,10 +55,14 @@ int FindPrimaries(const arguments& args){
 		<< " elements." << std::endl;
 
 	// - create matrix of K acting on each element of startingBasis
-	Matrix evenKActionA(KMatrix(startingBasisA.EvenBasis(), targetBasis, delta));
-	Matrix oddKActionA (KMatrix(startingBasisA.OddBasis() , targetBasis, delta));
-	Matrix evenKActionS(KMatrix(startingBasisS.EvenBasis(), targetBasis, delta));
-	Matrix oddKActionS (KMatrix(startingBasisS.OddBasis() , targetBasis, delta));
+	Matrix evenKActionA(KMatrix(startingBasisA.EvenBasis(), targetBasis, delta,
+				options));
+	Matrix oddKActionA (KMatrix(startingBasisA.OddBasis() , targetBasis, delta,
+				options));
+	Matrix evenKActionS(KMatrix(startingBasisS.EvenBasis(), targetBasis, delta,
+				options));
+	Matrix oddKActionS (KMatrix(startingBasisS.OddBasis() , targetBasis, delta,
+				options));
 
 	// - find kernel of above matrix and output
 
@@ -73,8 +77,9 @@ int FindPrimaries(const arguments& args){
 
 	std::cout << "Found a total of " 
 		<< 2*evenKernelA.size() + 2*oddKernelA.size()\
-			+ evenKernelS.size() + oddKernelS.size()
-		<< " primaries." << std::endl;
+			+ evenKernelS.size() + oddKernelS.size();
+	if(options & OPT_DIRICHLET) std::cout << " Dirichlet";
+	std::cout << " primaries." << std::endl;
 
 	/*std::cout << "Even asymmetric:" << std::endl;
 	for(auto& kernelVec : evenKernelA) std::cout << kernelVec << std::endl;
@@ -112,16 +117,19 @@ int FindPrimariesParityOnly(const arguments& args){
 		std::cout << targetBasis << std::endl;
 	}
 
-	Matrix evenKAction(KMatrix(startingBasis.EvenBasis(), targetBasis, delta));
-	Matrix oddKAction (KMatrix(startingBasis.OddBasis() , targetBasis, delta));
+	Matrix evenKAction(KMatrix(startingBasis.EvenBasis(), targetBasis, delta,
+				options));
+	Matrix oddKAction (KMatrix(startingBasis.OddBasis() , targetBasis, delta,
+				options));
 
 	std::vector<poly> evenKernel = Kernel(evenKAction, startingBasis.EvenBasis(),
 			options & OPT_DEBUG);
 	std::vector<poly> oddKernel  = Kernel(oddKAction , startingBasis.OddBasis(),
 			options & OPT_DEBUG);
 
-	std::cout << "Found a total of " << evenKernel.size() + oddKernel.size() 
-		<< " primaries." << std::endl;
+	std::cout << "Found a total of " << evenKernel.size() + oddKernel.size();
+	if(options & OPT_DIRICHLET) std::cout << " Dirichlet";
+	std::cout << " primaries." << std::endl;
 	if(options & OPT_DEBUG){
 		std::cout << "Even:" << std::endl;
 		for(auto& kernelVec : evenKernel){
@@ -158,7 +166,7 @@ int FindPrimariesBruteForce(const arguments& args){
 	}
 
 	// - create matrix of K acting on each element of startingBasis
-	Matrix kAction(KMatrix(startingBasis, targetBasis, delta));
+	Matrix kAction(KMatrix(startingBasis, targetBasis, delta, options));
 
 	// - find kernel of above matrix and output
 
@@ -169,7 +177,9 @@ int FindPrimariesBruteForce(const arguments& args){
 			<< std::endl;
 		for(auto& kernelVec : kernel) std::cout << kernelVec.HumanReadable() << std::endl;
 	} else {
-		std::cout << "Found " << kernel.size() << " primary operators." << std::endl;
+		std::cout << "Found " << kernel.size();
+		if(options & OPT_DIRICHLET) std::cout << " Dirichlet";
+		std::cout << " primary operators." << std::endl;
 	}
 	
 	return EXIT_SUCCESS;
@@ -303,6 +313,10 @@ int ParseOptions(std::vector<std::string> options){
 			continue;
 		}
 		if(opt.compare(0, 2, "-d") == 0){
+			ret = ret | OPT_DEBUG;
+			continue;
+		}
+		if(opt.compare(0, 2, "-D") == 0){
 			ret = ret | OPT_DIRICHLET;
 			continue;
 		}
@@ -521,14 +535,14 @@ bool EoMAllowed(const std::vector<particle>& cfg){
 }*/
 
 Matrix KMatrix(const Basis<mono>& startingBasis, const Basis<mono>& targetBasis,
-		const coeff_class delta){
+		const coeff_class delta, const int options){
 	//std::cout << "Constructing polynomials of K actions..." << std::endl;
 	if(startingBasis.size() == 0) return Matrix(0, 0);
 	std::vector<poly> K1Actions, K2Actions, K3Actions;
 	for(auto& basisMono : startingBasis){
 		K1Actions.emplace_back(basisMono.K1(delta));
 		K2Actions.emplace_back(basisMono.K2(delta));
-		K3Actions.emplace_back(basisMono.K3(delta));
+		if(!(options & OPT_DIRICHLET)) K3Actions.emplace_back(basisMono.K3(delta));
 	}
 
 	//std::cout << "Converting K actions to triplets..." << std::endl;

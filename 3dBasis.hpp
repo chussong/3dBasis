@@ -10,7 +10,7 @@
 #include <utility>		// std::pair
 #include <algorithm>	// std::remove_if
 
-constexpr char VERSION[] = "0.4.5";
+constexpr char VERSION[] = "0.5.0";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"
@@ -38,7 +38,7 @@ unsigned int AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis
 // functions interfacing with Eigen ------------------------------------------
 
 Matrix KMatrix(const Basis<mono>& startingBasis, const Basis<mono>& targetBasis,
-		const coeff_class delta);
+		const coeff_class delta, const int options);
 Matrix K13Matrix(const Basis<mono>& startingBasis, const Basis<mono>& targetBasis,
 		const coeff_class delta);
 Matrix K2Matrix(const Basis<mono>& startingBasis, const Basis<mono>& targetBasis,
