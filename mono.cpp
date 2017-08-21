@@ -24,6 +24,38 @@ mono::mono(const std::vector<int>& pm, const std::vector<int>& pt,
 	if(usingEoM) Order();
 }
 
+const int& mono::Pm(const int i) const{
+	return particles[i].pm;
+}
+
+int& mono::Pm(const int i){
+	return particles[i].pm;
+}
+
+const int& mono::Pt(const int i) const{
+	return particles[i].pt;
+}
+
+int& mono::Pt(const int i){
+	return particles[i].pt;
+}
+
+const int& mono::Pp(const int i) const{
+	if(usingEoM){
+		std::cerr << "Warning: someone has requested Pp(" << i << ") from a "
+			<< "monomial with the EoM enabled." << std::endl;
+	}
+	return particles[i].pp;
+}
+
+int& mono::Pp(const int i){
+	if(usingEoM){
+		std::cerr << "Warning: someone has requested Pp(" << i << ") from a "
+			<< "monomial with the EoM enabled." << std::endl;
+	}
+	return particles[i].pp;
+}
+
 // note: like all operations on completed monos, this assumes both are ordered
 bool mono::operator==(const mono& other) const{
 	if(particles.size() != other.particles.size()){
@@ -130,6 +162,27 @@ int mono::MaxPp() const{
 	return max;
 }
 
+/*std::vector<unsigned int> mono::IdenticalParticles() const{
+	bool std::vector<particle>::Contains(const particle pA) const {
+		for(auto& pB : *this) if(pA == pB) return true;
+		return false;
+	}
+
+	std::vector<unsigned int> ret;
+	std::vector<particle> seen;
+	for(auto i = 0u; i < particles.size(); ++i){
+		if(!seen.Contains(particles[i])){
+			auto count = 1u;
+			for(auto j = i+1; j < particles.size(); ++j){
+				if(particles[i] == particles[j]) ++count;
+			}
+			ret.push_back(count);
+			seen.push_back(p);
+		}
+	}
+	return ret;
+}*/
+
 // The following two functions might actually work just as well as old Order():
 bool mono::ParticlePrecedence(const particle& a, const particle& b){
 	if(a.pm != b.pm) return a.pm > b.pm;
@@ -150,7 +203,7 @@ void mono::Order(){
 			}
 		}
 	}*/
-	// this variant eliminates + completely, turning it into Pt^2/(2Pm)
+	// this variant eliminates Pp completely, turning it into Pt^2/(2Pm)
 	if(usingEoM){
 		for(auto& p : particles){
 			if(p.pp != 0){
@@ -162,7 +215,7 @@ void mono::Order(){
 				//std::cout << " to " << HumanReadable() << "." << std::endl;
 			}
 		}
-		NullIfIllegal(); // I'm suspicious about this; should we be doing it?
+		//NullIfIllegal(); // I'm suspicious about this; should we be doing it?
 	}
 	std::sort(particles.begin(), particles.end(), ParticlePrecedence);
 }
@@ -251,14 +304,25 @@ mono mono::MirrorPM() const{
 	return ret;
 }
 
-void mono::NullIfIllegal(){
+bool mono::IsDirichlet() const{
+	for(auto& p : particles){
+		if(p.pm < 1){
+			/*std::cout << "Found that " << HumanReadable() << " is non-Dirichlet"
+				<< "." << std::endl;*/
+			return false;
+		}
+	}
+	return true;
+}
+
+/*void mono::NullIfIllegal(){
 	for(particle& p : particles){
 		if(2*p.pm + p.pt < 0){
 			// this is not actually a legal state, just throw it out?
 			coeff = 0;
 		}
 	}
-}
+}*/
 
 // NOTE! These break ordering, so you have to re-order when you're done!
 mono mono::DerivPm(const unsigned int part) const{
@@ -484,3 +548,249 @@ std::vector<mono> mono::L3() const{
 	return ret;
 }
 
+bool mono::IPPermutationCheck(const std::vector<int>& vec){
+	for(auto i = 0u; i < vec.size()-1; i += 2){
+		if(vec[i] > vec[i+1]) return false;
+	}
+	for(auto i = 0u; i < vec.size()-2; i += 2){
+		if(vec[i] > vec[i+2]) return false;
+	}
+	return true;
+}
+
+std::tuple<coeff_class, int, int> mono::IPPairData(const mono& A, const mono& B,
+		const unsigned int index1, const unsigned int index2){
+	const bool index1InB = index1 >= A.NParticles();
+	const bool index2InB = index2 >= A.NParticles();
+	const int a1 = index1InB ? B.Pm(index1 - A.NParticles()) : A.Pm(index1);
+	const int a2 = index2InB ? B.Pm(index2 - A.NParticles()) : A.Pm(index2);
+	const int b1 = index1InB ? B.Pt(index1 - A.NParticles()) : A.Pt(index1);
+	const int b2 = index2InB ? B.Pt(index2 - A.NParticles()) : A.Pt(index2);
+
+	coeff_class coeff {1};
+	const int totalPm {a1+a2};
+	const int totalPt {b1+b2};
+
+	if((a1 + b2)%2 == 1) coeff = -coeff;
+	coeff *= Pochhammer(0.5, totalPm);
+	coeff *= Pochhammer(2*totalPm + 1, totalPt);
+	coeff *= 1 << totalPm;
+
+	return std::make_tuple(coeff, totalPm, totalPt);
+}
+
+coeff_class mono::InnerProduct(const mono& A, const mono& B){
+	return IPZuhair(A, B);
+}
+
+// Return true if a full cycle has been completed, otherwise return false.
+// If we were using degeneracies we could reset kVector[i] = kVector[i-1], maybe
+bool mono::IPMIncrementK(std::vector<int>& kVector, const std::vector<int>& totalPt){
+	if(kVector.size() != totalPt.size()){
+		std::cout << "kVector: " << kVector << "; totalPt: " << totalPt 
+			<< std::endl;
+		throw std::runtime_error("IP: kVector & totalPt size mismatch");
+	}
+	++kVector.back();
+	for(unsigned int i = kVector.size()-1; i < kVector.size(); --i){
+		if(kVector[i] > totalPt[i]/2){ // maybe (totalPt[i]+1)/2?
+			if(i == 0) return true;
+			++kVector[i-1];
+			kVector[i] = 0;
+		}
+	}
+	return false;
+}
+
+// this attempts to implement Matt's formulation of the inner product
+coeff_class mono::IPMatt(const mono& A, const mono& B){
+	// if perp parity doesn't match, it has to be zero
+	if((A.TotalPt() + B.TotalPt()) % 2 == 1) return 0;
+
+	std::cout << "Inner product of " << A << " with " << B << ":" << std::endl;
+
+	unsigned int totalParticles = A.NParticles() + B.NParticles();
+	// generate all permutations of (1,2,3,4,...,N) where two adjacent elements
+	// represent a contraction, e.g. 1 with 2, 3 with 4, etc. Avoid overcounting
+	// by demanding that each pair (i,j) have i < j and that i1 < i2 < i3 < ...
+	
+	// This is the dumbest possible way to do that.
+	std::vector<std::vector<int>> permutations;
+	std::vector<int> candidate;
+	for(auto i = 0u; i < totalParticles; ++i) candidate.push_back(i);
+	do {
+		if(IPPermutationCheck(candidate)) permutations.push_back(candidate);
+	} while(std::next_permutation(candidate.begin(), candidate.end()));
+
+	// This method does not take advantage of the numerous degeneracies.
+
+	coeff_class total {0};
+	std::vector<int> kVector;
+	for(auto& p : permutations){
+		coeff_class coeff = 1;
+		std::vector<int> totalPm;
+		std::vector<int> totalPt;
+		for(auto i = 0u; i < p.size() - 1; i += 2){
+			auto pairData = IPPairData(A, B, p[i], p[i+1]);
+			coeff *= std::get<0>(pairData);
+			totalPm.push_back(std::get<1>(pairData));
+			totalPt.push_back(std::get<2>(pairData));
+		}
+		std::cout << "Permutation: " << p << std::endl;
+		std::cout << "Total Pm: " << totalPm << std::endl;
+		std::cout << "Total Pt: " << totalPt << std::endl;
+		kVector.clear();
+		kVector.resize(p.size()/2, 0);
+		coeff_class kSum {0};
+		do{
+			coeff_class kCoeff {1};
+			int a {0};
+			int b {0};
+			int c {0};
+			int n {0};
+			for(auto i = 0u; i < kVector.size(); ++i){
+				kCoeff *= Binomial(totalPt[i], 2*kVector[i]);
+				kCoeff *= Pochhammer(0.5, kVector[i]);
+				kCoeff /= Pochhammer(totalPm[i] + 1, kVector[i]);
+				kCoeff *= 1 << kVector[i];
+
+				a += totalPm[i] + kVector[i];
+				b += kVector[i];
+				c += totalPt[i]/2 - kVector[i];
+				n += 1;
+			}
+			std::cout << "(a, b, c, n): (" << a << ", " << b << ", " << c
+				<< ", " << n << ")" << std::endl;
+			kCoeff *= IPFourier(a, b, c, n);
+			std::cout << "Fourier result: " << IPFourier(a, b, c, n) << std::endl;
+			std::cout << "Final kCoeff: " << kCoeff << std::endl;
+			kSum += kCoeff;
+		} while(!IPMIncrementK(kVector, totalPt));
+		std::cout << "Coefficient of this permutation: " << coeff << std::endl;
+		std::cout << "Final kSum: " << kSum << std::endl;
+		std::cout << "Total from this permutation: " << coeff*kSum << std::endl;
+		total += coeff * kSum;
+	}
+
+
+	return total;
+}
+
+// this is (5.9) from Matt's Revisiting3D.pdf except for the \mu and P_- terms
+coeff_class mono::IPFourier(const int a, const int b, const int c, const int n){
+	coeff_class A = static_cast<coeff_class>(a);
+	coeff_class B = static_cast<coeff_class>(b);
+	coeff_class C = static_cast<coeff_class>(c);
+	coeff_class N = (static_cast<coeff_class>(n)-1)/2;
+	coeff_class ret = 1;
+	if(c % 2 == 1) ret = -ret;
+	ret *= 1 << (a+2);	// a.k.a. 2^(a+2)
+	ret *= M_PI * M_PI;
+	ret *= Pochhammer(C + 1, c);
+	ret *= Pochhammer(A + B + C + N, c);
+
+	coeff_class logGamma = 2*std::lgamma(A + B + C + N);
+	logGamma -= std::lgamma(A + C + N);
+	logGamma -= std::lgamma(B + C + N);
+	logGamma -= std::lgamma(2*A + 2*B + 4*C + 2*N);
+	ret *= std::exp(logGamma);
+	return ret;
+}
+
+// this attempts to implement Zuhair's formulation of the inner product. Note:
+// it requires both monomials to have the same number of particles.
+coeff_class mono::IPZuhair(const mono& A, const mono& B){
+	int totalPm = 0;
+	int totalPt = 0;
+	for(auto i = 0u; i < A.NParticles(); ++i){
+		totalPm += A.Pm(i);
+		totalPt += A.Pt(i);
+	}
+	for(auto i = 0u; i < B.NParticles(); ++i){
+		totalPm += B.Pm(i);
+		totalPt += B.Pt(i);
+	}
+	if(A.NParticles() != B.NParticles() || totalPt % 2 == 1) return 0;
+	coeff_class n = A.NParticles();
+
+	coeff_class prefactor = 1;
+	prefactor *= M_PI*M_PI;
+	prefactor /= std::pow(4*M_PI, n);
+	prefactor /= std::pow(2, 2*totalPm + totalPt + n - 4);
+
+	coeff_class gammaLogs = 0;
+	gammaLogs -= std::lgamma(totalPm + totalPt + n/2);
+	gammaLogs -= std::lgamma((totalPt + n - 1)/2);
+	gammaLogs -= std::lgamma(totalPm + (totalPt + n - 1)/2);
+	prefactor *= std::exp(gammaLogs);
+	//std::cout << "Prefactor: " << prefactor << std::endl;
+
+	/*auto degeneracy = 1u;
+	for(auto particleGroup : B.IdenticalParticles()) degeneracy *= particleGroup;
+	coeff_class multiplicity = Factorial(degeneracy);
+	std::cout << "Multiplicity: " << multiplicity << std::endl;*/
+
+	std::vector<size_t> perm(B.NParticles());
+	for(auto i = 0u; i < B.NParticles(); ++i) perm[i] = i;
+
+	coeff_class sum = 0;
+	coeff_class totalKPrefactor;
+	for(int totalK = 0; totalK <= totalPt/2; ++totalK){
+		//std::cout << "TotalK: " << totalK << std::endl;
+		totalKPrefactor = std::lgamma(totalPm + (totalPt + n - 1)/2 + totalK);
+		totalKPrefactor += std::lgamma((totalPt + 1.0)/2 - totalK);
+		totalKPrefactor = std::exp(totalKPrefactor);
+		totalKPrefactor /= 1 << 2*totalK;
+		if((totalPt/2-totalK) % 2 == 1) totalKPrefactor = -totalKPrefactor;
+
+		// - permute monomial B
+		// - sum over all kVectors whose total is totalK and where each entry
+		//   kVector[i] <= totalPp[i] (noting that totalPp[i] changes with perm)
+
+		do{ // for each permutation of B
+			// for each kVector whose total is totalK
+			//std::cout << "Permutation: " << perm << std::endl;
+			for(const auto& kVector : VectorsAtK(totalK, perm, A, B, 0)){
+				//std::cout << "k vector: " << kVector << std::endl;
+				coeff_class logProduct = 0;
+				for(auto i = 0u; i < A.NParticles(); ++i){
+					auto pm = A.Pm(i) + B.Pm(perm[i]);
+					auto pt = A.Pt(i) + B.Pt(perm[i]);
+					logProduct += std::lgamma(2*pm + pt + 1);
+					logProduct += std::lgamma(pt + 1);
+					logProduct -= std::lgamma(kVector[i] + 1);
+					logProduct -= std::lgamma(pm + kVector[i] + 1);
+					logProduct -= std::lgamma(pt - 2*kVector[i] + 1);
+				}
+				//std::cout << "Contribution from this permutation and kVector: "
+					//<< std::exp(logProduct) << std::endl;
+				sum += totalKPrefactor*std::exp(logProduct);
+			}
+		}while(std::next_permutation(perm.begin(), perm.end()));
+	}
+	return prefactor*sum;
+}
+
+// return a vector of all the vectors of length A.size() whose total is totalK,
+// subject to the constraint that kVector[i] <= (A.Pt(i) + B.Pt(perm[i]))/2
+std::vector<std::vector<int>> mono::VectorsAtK(const int totalK, 
+		const std::vector<size_t>& perm, const mono& A, const mono& B,
+		const size_t start){
+	//std::cout << "VectorsAtK(" << totalK << ", " << perm << ", " << A << ", "
+		//<< B << ", " << start << "):" << std::endl;
+	std::vector<std::vector<int>> ret;
+
+	if(start >= A.NParticles()) return ret;
+	const int maxK = (A.Pt(start) + B.Pt(perm[start]))/2;
+	if(start == A.NParticles()-1 && totalK > maxK) return ret;
+	if(start == A.NParticles()-1 && totalK <= maxK) return {{totalK}};
+
+	for(int thisK = 0; thisK <= std::min(maxK, totalK); ++thisK){
+		for(const auto& kv : VectorsAtK(totalK - thisK, perm, A, B, start+1)){
+			ret.push_back(kv);
+			ret.back().insert(ret.back().begin(), thisK);
+		}
+	}
+	//for(auto& r : ret) std::cout << r << std::endl;
+	return ret;
+}

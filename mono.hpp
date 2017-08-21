@@ -5,6 +5,8 @@
 #include <array>
 #include <vector>
 #include <ostream>
+#include <cmath>		// lgamma
+#include <algorithm>	// next_permutation
 
 #include "constants.hpp"
 #include "construction.hpp"
@@ -49,12 +51,12 @@ class mono {
 		unsigned int NParticles() const { return particles.size(); }
 		bool UsingEoM() const { return usingEoM; }
 
-		int Pm(const int i) const 	{ return particles[i].pm; }
-		int& Pm(const int i) 		{ return particles[i].pm; }
-		int Pt(const int i) const 	{ return particles[i].pt; }
-		int& Pt(const int i) 		{ return particles[i].pt; }
-		int Pp(const int i) const 	{ return particles[i].pp; }
-		int& Pp(const int i) 	 	{ return particles[i].pp; }
+		const int& Pm(const int i) const;
+		int& Pm(const int i);
+		const int& Pt(const int i) const;
+		int& Pt(const int i);
+		const int& Pp(const int i) const;
+		int& Pp(const int i);
 		int TotalPm() const;
 		int TotalPt() const;
 		int TotalPp() const;
@@ -62,6 +64,7 @@ class mono {
 		int MaxPt() const;
 		int MaxPp() const;
 		int Degree() const { return TotalPm() + TotalPt() + TotalPp(); }
+		//std::vector<unsigned int> IdenticalParticles() const;
 
 		mono& operator*=(const coeff_class& x)	 { coeff *= x; return *this; }
 		template<typename T>
@@ -91,7 +94,9 @@ class mono {
 		mono MirrorPM() const;
 		static bool MirrorIsBetter(const mono& m);
 
+		bool IsDirichlet() const;
 		void NullIfIllegal();
+
 		mono DerivPm(const unsigned int targetParticle) const;
 		mono DerivPt(const unsigned int targetParticle) const;
 		mono DerivPp(const unsigned int targetParticle) const;
@@ -134,7 +139,20 @@ class mono {
 		std::vector<mono> L2() const;
 		std::vector<mono> L3() const;
 
+		static coeff_class InnerProduct(const mono& A, const mono& B);
 
+		static coeff_class IPMatt(const mono& A, const mono& B);
+		static bool IPPermutationCheck(const std::vector<int>& vec);
+		static std::tuple<coeff_class, int, int> IPPairData(const mono& A, 
+				const mono& B, const unsigned index1, const unsigned index2);
+		static bool IPMIncrementK(std::vector<int>& kVector, 
+				const std::vector<int>& totalPt);
+		static coeff_class IPFourier(const int a, const int b, const int c, const int n);
+
+		static coeff_class IPZuhair(const mono& A, const mono& B);
+		static std::vector<std::vector<int>> VectorsAtK(const int totalK, 
+				const std::vector<size_t>& perm, const mono& A, const mono& B,
+				const size_t start);
 };
 
 // calls the generic IdentifyNodes using the class's particles and (*value)

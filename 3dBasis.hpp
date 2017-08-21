@@ -9,8 +9,9 @@
 #include <list>
 #include <utility>		// std::pair
 #include <algorithm>	// std::remove_if
+#include <type_traits>	// std::is_same
 
-constexpr char VERSION[] = "0.5.0";
+constexpr char VERSION[] = "0.5.3";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"
@@ -33,7 +34,10 @@ int FindPrimariesBruteForce(const arguments& args);
 int FindPrimariesByM(const arguments& args);
 unsigned int AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis,
 		const unsigned int L, std::vector<poly>& primaries, 
-		const coeff_class delta);
+		const coeff_class delta, const int options);
+int InnerProductTest(const arguments& args);
+
+int Orthogonalize(const std::vector<poly>& inputStates);
 
 // functions interfacing with Eigen ------------------------------------------
 
@@ -58,6 +62,8 @@ poly ColumnToPoly(const Matrix& kernelMatrix, const Eigen::Index col,
 poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col, 
 		const Basis<mono>& startBasis);
 
+//DMatrix ExtractQMatrix(const DQRSolver& solver, const int dimension);
+//DMatrix GramMatrix(const Basis<mono>& basis);
 
 // templates -----------------------------------------------------------------
 
@@ -127,10 +133,12 @@ inline poly VectorToPoly(const DVector& kernelVector, const Basis<T>& startBasis
 
 template<class T>
 inline std::vector<poly> Kernel(const Matrix& KActions, const Basis<T>& startBasis,
-		const bool outputKernel){
+		const int options, const bool outputKernel){
 	if(KActions.rows() == 0 || KActions.cols() == 0) return std::vector<poly>();
-	//std::cout << "Computing kernel from K matrix..." << std::endl;
-	//std::cout << KActions << std::endl;
+	if(options & OPT_DEBUG){
+		std::cout << "Computing kernel from below matrix..." << std::endl;
+		std::cout << KActions << std::endl;
+	}
 	QRSolver solver;
 	solver.setPivotThreshold(EPSILON); // norms smaller than this are zero
 	solver.compute(KActions.transpose());
@@ -150,12 +158,88 @@ inline std::vector<poly> Kernel(const Matrix& KActions, const Basis<T>& startBas
 		projector(solver.rank() + col-1) = 0;
 		projector(solver.rank() + col) = 1;
 		kernelVector = solver.matrixQ()*projector;
-		//std::cout << "Projecting out with this: " << projector << std::endl;
-		//std::cout << kernelVector << "\n----------" << std::endl;
+		if(options & OPT_DEBUG){
+			std::cout << "Projecting out with this: " << projector << std::endl;
+			std::cout << kernelVector << "\n----------" << std::endl;
+		}
 		ret[col] = VectorToPoly(kernelVector, startBasis);
 	}
 
 	return ret;
+}
+
+template<class T>
+DMatrix GramMatrix(const Basis<T>& basis){
+	std::vector<Triplet> entries;
+	for(auto row = 0u; row < basis.size(); ++row){
+		for(auto col = row; col < basis.size(); ++col){
+			entries.emplace_back(row, col, 
+					T::InnerProduct(basis[row], basis[col]));
+			if(row != col){
+				entries.emplace_back(col, row, 
+						T::InnerProduct(basis[row], basis[col]));
+			}
+		}
+	}
+	Matrix gram(basis.size(), basis.size());
+	gram.setFromTriplets(entries.begin(), entries.end());
+	return gram;
+}
+
+template<class T>
+DMatrix GramMatrix(const std::vector<Basis<T>>& allBases){
+	// could also do this by defining some kind of super iterator that traverses 
+	// a vector of bases?
+	std::vector<Triplet> entries;
+	auto row = 0u;
+	size_t totalSize = 0;
+	for(auto& basisA : allBases){
+		for(auto& elementA : basisA){
+			auto col = 0u;
+			for(auto& basisB : allBases){
+				for(auto& elementB : basisB){
+					coeff_class product = T::InnerProduct(elementA, elementB);
+					entries.emplace_back(row, col, product);
+					if(row != col) entries.emplace_back(col, row, product);
+					++col;
+					if(col > row) break;
+				}
+				if(col > row) break;
+			}
+			++row;
+		}
+		totalSize += basisA.size();
+	}
+	Matrix gram(totalSize, totalSize);
+	gram.setFromTriplets(entries.begin(), entries.end());
+	return gram;
+}
+
+template<typename T> struct ValidQSolver { static constexpr bool value = false; };
+template<> struct ValidQSolver<Eigen::FullPivHouseholderQR<DMatrix>> { 
+	static constexpr bool value = true;
+};
+template<> struct ValidQSolver<Eigen::ColPivHouseholderQR<DMatrix>> { 
+	static constexpr bool value = true;
+};
+
+template<class T>
+inline DMatrix ExtractQMatrix(const T&, const int){
+	static_assert(ValidQSolver<T>::value, "Solver must be set to one of the "
+			"properly handled types enumerated in 3dBasis.hpp.");
+	return DMatrix();
+}
+
+template<>
+inline DMatrix ExtractQMatrix(const Eigen::FullPivHouseholderQR<DMatrix>& solver, 
+		               const int){
+	return solver.matrixQ();
+}
+
+template<>
+inline DMatrix ExtractQMatrix(const Eigen::ColPivHouseholderQR<DMatrix>& solver, 
+		               const int dimension){
+	return solver.householderQ()*DMatrix::Identity(dimension, dimension);
 }
 
 #endif

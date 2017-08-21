@@ -146,19 +146,26 @@ Basis<mono>::Basis(const int numP, int degree, const int options) {
 	// NOTE: this does not make any use of the symmetries between the components
 	// 		in constructing the basis; for instance, the states where every
 	// 		pm = 0 are followed by a copy of the earlier parts of the basis
+
 	if(options & OPT_DIRICHLET) degree -= numP;
-	if(degree <= 0){
+	if(degree < 0){
 		if(options & OPT_DIRICHLET){
 			std::cout << "Error: there are no Dirichlet states with degree "
 				<< "<= the number of particles." << std::endl;
-		}
-		if(degree < 0 && !(options & OPT_DIRICHLET)){
+		} else {
 			std::cout << "Error: a basis was requested with a negative degree; "
 				<< "this is obviously impossible." << std::endl;
 		}
 		return;
 	}
 	const bool useEoM = (options & OPT_EQNMOTION) != 0;
+	if(degree == 0){
+		std::vector<particle> onlyMono;
+		onlyMono.resize(numP);
+		for(auto& part : onlyMono) part.pm = 1;
+		basisVectors.emplace_back(onlyMono, useEoM);
+		return;
+	}
 	std::vector<std::vector<int>> minus = GetStatesUpToDegree(numP, degree);
 	std::vector<std::vector<particle>> particleCfgs;
 	for(auto& minusCfg : minus){
@@ -167,6 +174,7 @@ Basis<mono>::Basis(const int numP, int degree, const int options) {
 		particleCfgs.push_back(newCfg);
 	}
 
+	const bool exact = options & OPT_DIRICHLET;
 	std::vector<int> nodes;
 	std::vector<std::vector<particle>> newCfgs;
 	for(auto& configuration : particleCfgs){
@@ -174,7 +182,7 @@ Basis<mono>::Basis(const int numP, int degree, const int options) {
 		int remainingEnergy = degree;
 		for(auto& part : configuration) remainingEnergy -= part.pm;
 		std::vector<std::vector<int>> perp(CfgsFromNodes(remainingEnergy, nodes,
-															false));
+															exact));
 		for(auto& newCfg : CombinedCfgs(configuration, perp, 2)){
 			newCfgs.push_back(newCfg);
 		}

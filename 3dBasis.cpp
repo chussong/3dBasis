@@ -17,9 +17,14 @@ int main(int argc, char* argv[]) {
 
 	if(std::abs(args.delta) < EPSILON) args.delta = 0.5;
 
+	if(args.options & OPT_IPTEST){
+		return InnerProductTest(args);
+	}
+
 	if(args.options & OPT_MSORTING){
 		args.options = args.options | OPT_EQNMOTION;
-		return FindPrimariesByM(args);
+		FindPrimariesByM(args);
+		// basis = Orthogonalize(primaries);
 	}
 
 	if(args.options & OPT_BRUTE){
@@ -67,13 +72,13 @@ int FindPrimaries(const arguments& args){
 	// - find kernel of above matrix and output
 
 	std::vector<poly> evenKernelA = Kernel(evenKActionA, startingBasisA.EvenBasis(),
-			false);
+			options, false);
 	std::vector<poly> oddKernelA  = Kernel(oddKActionA , startingBasisA.OddBasis(),
-			false);
+			options, false);
 	std::vector<poly> evenKernelS = Kernel(evenKActionS, startingBasisS.EvenBasis(),
-			false);
+			options, false);
 	std::vector<poly> oddKernelS  = Kernel(oddKActionS , startingBasisS.OddBasis(),
-			false);
+			options, false);
 
 	std::cout << "Found a total of " 
 		<< 2*evenKernelA.size() + 2*oddKernelA.size()\
@@ -106,14 +111,16 @@ int FindPrimariesParityOnly(const arguments& args){
 		<< startingBasis.EvenBasis().size()
 		<< " even elements and " << startingBasis.OddBasis().size()
 		<< " odd elements." << std::endl;
-	if(options & OPT_DEBUG){
+	if(options & OPT_OUTPUT){
 		std::cout << startingBasis.EvenBasis() << std::endl;
 		std::cout << startingBasis.OddBasis() << std::endl;
 	}
+	//WARNING: BELOW LINE IS TEMPORARY ONLY
+	options = options & (~OPT_DIRICHLET);
 	Basis<mono> targetBasis(numP, degree-1, options);
 	std::cout << "Constructed a target basis with " << targetBasis.size()
 		<< " elements." << std::endl;
-	if(options & OPT_DEBUG){
+	if(options & OPT_OUTPUT){
 		std::cout << targetBasis << std::endl;
 	}
 
@@ -123,22 +130,25 @@ int FindPrimariesParityOnly(const arguments& args){
 				options));
 
 	std::vector<poly> evenKernel = Kernel(evenKAction, startingBasis.EvenBasis(),
-			options & OPT_DEBUG);
+			options, options & OPT_OUTPUT);
 	std::vector<poly> oddKernel  = Kernel(oddKAction , startingBasis.OddBasis(),
-			options & OPT_DEBUG);
+			options, options & OPT_OUTPUT);
 
-	std::cout << "Found a total of " << evenKernel.size() + oddKernel.size();
+	std::cout << "Found a total of " << evenKernel.size() << " even and "
+		<< oddKernel.size() << " odd ";
 	if(options & OPT_DIRICHLET) std::cout << " Dirichlet";
-	std::cout << " primaries." << std::endl;
-	if(options & OPT_DEBUG){
+	std::cout << "primaries." << std::endl;
+	if(options & OPT_OUTPUT){
 		std::cout << "Even:" << std::endl;
-		for(auto& kernelVec : evenKernel){
+		std::cout << evenKernel << std::endl;
+		/*for(auto& kernelVec : evenKernel){
 			std::cout << kernelVec.HumanReadable() << std::endl;
-		}
+		}*/
 		std::cout << "Odd:" << std::endl;
-		for(auto& kernelVec : oddKernel){
+		std::cout << oddKernel << std::endl;
+		/*for(auto& kernelVec : oddKernel){
 			std::cout << kernelVec.HumanReadable() << std::endl;
-		}
+		}*/
 	}
 
 	return EXIT_SUCCESS;
@@ -170,7 +180,8 @@ int FindPrimariesBruteForce(const arguments& args){
 
 	// - find kernel of above matrix and output
 
-	std::vector<poly> kernel = Kernel(kAction, startingBasis, options & OPT_DEBUG);
+	std::vector<poly> kernel = Kernel(kAction, startingBasis, options,
+			options & OPT_DEBUG);
 
 	if(options & OPT_DEBUG){
 		std::cout << "Found the following " << kernel.size() << "-dimensional kernel:"
@@ -193,7 +204,8 @@ int FindPrimariesByM(const arguments& args){
 	unsigned int primCount = 0u;
 	// I think this is supposed to be -= 2, but maybe -= 1 is needed
 	for(int L = args.degree; L >= 0; L -= 1){
-		primCount += AddPrimariesAtL(startBasis, targetBasis, L, primaries, args.delta);
+		primCount += AddPrimariesAtL(startBasis, targetBasis, L, primaries,
+				args.options, args.delta);
 	}
 
 	std::cout << primCount << " primaries identified: " << primaries
@@ -204,7 +216,7 @@ int FindPrimariesByM(const arguments& args){
 
 unsigned int AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis,
 		const unsigned int L, std::vector<poly>& primaries, 
-		const coeff_class delta){
+		const coeff_class delta, const int options){
 	//std::cout << "Constructing polynomials of L=" << L << " actions..." << std::endl;
 	std::vector<poly> K1Actions, K2Actions, K3Actions;
 	for(auto& topState : startBasis.TopStates(L)){
@@ -245,12 +257,89 @@ unsigned int AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis
 
 	std::cout << "Computing kernel of K matrix at level " << L << "." << std::endl;
 	std::vector<poly> kernel = Kernel(matrixK, 
-			Basis<poly>(startBasis.TopStates(L)), false);
+			Basis<poly>(startBasis.TopStates(L)), options, false);
 	for(auto& newPrimary : kernel) primaries.push_back(std::move(newPrimary));
 	// if the pushing back is slow, can easily resize and fill in
 	//std::cout << "Kernel:" << std::endl;
 	//std::cout << kernel << std::endl;
 	return kernel.size()*(2*L+1);
+}
+
+int InnerProductTest(const arguments& args){
+	int numP = args.numP;
+	int degree = args.degree;
+	//coeff_class delta = args.delta;
+	int options = args.options;
+
+	//options = options | OPT_DEBUG;
+
+	std::cout << "Beginning inner product test with N=" << numP << ", L="
+		<< degree << "." << std::endl;
+	splitBasis<mono> basis(numP, degree, options);
+	std::cout << "Even with even: " << std::endl;
+	for(auto& monoA : basis.EvenBasis()){
+		for(auto& monoB : basis.EvenBasis()){
+			std::cout << monoA << " x " << monoB << " = " 
+				<< mono::InnerProduct(monoA, monoB) << std::endl;
+		}
+	}
+	/*std::cout << "Even with odd: " << std::endl;
+	for(auto& monoA : basis.EvenBasis()){
+		for(auto& monoB : basis.OddBasis()){
+			std::cout << monoA << " x " << monoB << " = " 
+				<< mono::InnerProduct(monoA, monoB) << std::endl;
+		}
+	}
+	std::cout << "Odd with even: " << std::endl;
+	for(auto& monoA : basis.OddBasis()){
+		for(auto& monoB : basis.EvenBasis()){
+			std::cout << monoA << " x " << monoB << " = " 
+				<< mono::InnerProduct(monoA, monoB) << std::endl;
+		}
+	}*/
+	std::cout << "Odd with odd: " << std::endl;
+	for(auto& monoA : basis.OddBasis()){
+		for(auto& monoB : basis.OddBasis()){
+			std::cout << monoA << " x " << monoB << " = " 
+				<< mono::InnerProduct(monoA, monoB) << std::endl;
+		}
+	}
+
+	std::vector<Basis<mono>> allEvenBases;
+	for(int deg = 2; deg <= degree; ++deg){
+		splitBasis<mono> degBasis(numP, deg, options);
+		allEvenBases.push_back(degBasis.EvenBasis());
+	}
+	std::cout << "EVEN STATE ORTHOGONALIZATION" << std::endl;
+	DMatrix gram = GramMatrix(allEvenBases);
+	//DMatrix gram = GramMatrix(basis.EvenBasis());
+	std::cout << "Gram matrix:" << std::endl << gram << std::endl;
+
+	DQRSolver solver;
+	solver.setThreshold(EPSILON);
+	solver.compute(gram);
+	DMatrix QMatrix = ExtractQMatrix(solver, gram.rows());
+	std::cout << "Q matrix: " << std::endl << QMatrix << std::endl;
+	//std::cout << "QR matrix: " << std::endl << solver.matrixQR() << std::endl;
+	std::cout << "Rank, i.e. number of independent operators: " << solver.rank() 
+		<< std::endl;
+	// the columns of matrixQ are a set of orthogonal vectors with the same span
+	// as the input matrix. There should be N of these for an input with rank N;
+	// to the right of that I believe all columns should be zero.
+	return EXIT_SUCCESS;
+}
+
+int Orthogonalize(const std::vector<poly>& inputStates){
+	// 1: construct dense matrix of inner products with other states
+	//    use Wick contractions?
+	// 2: orthogonalize this matrix (matrixQ from QR?)
+
+	// Use Wick contraction to compute inner products -- i.e. do Fourier
+	// transforms of position space wavefunctions, which are the conformally
+	// required denominator times the number you get from pulling the derivatives
+	// out (which are Pochhammers). Even with operators having more than 2
+	// particle number, they're still just two operators, so it's still a 2PF.
+	return inputStates.size();
 }
 
 arguments ParseArguments(int argc, char* argv[]){
@@ -314,10 +403,20 @@ int ParseOptions(std::vector<std::string> options){
 		}
 		if(opt.compare(0, 2, "-d") == 0){
 			ret = ret | OPT_DEBUG;
+			ret = ret | OPT_OUTPUT;
 			continue;
 		}
 		if(opt.compare(0, 2, "-D") == 0){
 			ret = ret | OPT_DIRICHLET;
+			ret = ret | OPT_EQNMOTION;
+			continue;
+		}
+		if(opt.compare(0, 2, "-o") == 0){
+			ret = ret | OPT_OUTPUT;
+			continue;
+		}
+		if(opt.compare(0, 2, "-i") == 0){
+			ret = ret | OPT_IPTEST;
 			continue;
 		}
 	}
@@ -357,7 +456,7 @@ mBasis::mBasis(const int numP, const int degree, const int options){
 	std::vector<poly> L3Kernel;
 	for(int M = 0; M < degree; ++M){
 		L3Actions = L3Matrix(*Level(M), *Level(M+1));
-		L3Kernel = Kernel(L3Actions, *Level(M), true);
+		L3Kernel = Kernel(L3Actions, *Level(M), options, true);
 		//std::cout << "States at the top of the L=" << M << " multiplet: " 
 			//<< L3Kernel << std::endl;
 
@@ -542,7 +641,11 @@ Matrix KMatrix(const Basis<mono>& startingBasis, const Basis<mono>& targetBasis,
 	for(auto& basisMono : startingBasis){
 		K1Actions.emplace_back(basisMono.K1(delta));
 		K2Actions.emplace_back(basisMono.K2(delta));
-		if(!(options & OPT_DIRICHLET)) K3Actions.emplace_back(basisMono.K3(delta));
+		if(options & OPT_DIRICHLET){
+			K3Actions.push_back(poly::DeleteNonDirichlet(basisMono.K3(delta)));
+		} else {
+			K3Actions.emplace_back(basisMono.K3(delta));
+		}
 	}
 
 	//std::cout << "Converting K actions to triplets..." << std::endl;
@@ -748,3 +851,19 @@ poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col,
 	return ret;
 }
 
+/*DMatrix GramMatrix(const Basis<mono>& basis){
+	std::vector<Triplet> entries;
+	for(auto row = 0u; row < basis.size(); ++row){
+		for(auto col = row; col < basis.size(); ++col){
+			entries.emplace_back(row, col, 
+					mono::InnerProduct(basis[row], basis[col]));
+			if(row != col){
+				entries.emplace_back(col, row, 
+						mono::InnerProduct(basis[row], basis[col]));
+			}
+		}
+	}
+	Matrix gram(basis.size(), basis.size());
+	gram.setFromTriplets(entries.begin(), entries.end());
+	return gram;
+}*/

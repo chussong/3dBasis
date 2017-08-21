@@ -116,7 +116,7 @@ std::string poly::HumanReadable() const{
 	if(terms[0].Coeff() < 0) os << "  ";
 	for(auto& term : terms){
 		if(term.Coeff() < 0) os << "\b\b- ";
-		if(std::abs(term.Coeff()) != 1) os << std::abs(term.Coeff());
+		//if(std::abs(term.Coeff()) != 1) os << std::abs(term.Coeff());
 		os << term.HumanReadable() << " + ";
 	}
 	os << "\b\b \b\b"; // this will leave a '+' around if <2 more chars are written
@@ -147,3 +147,28 @@ poly poly::K3(const coeff_class delta) const{
 	return ret;
 }
 
+poly poly::DeleteNonDirichlet(const poly& inputPoly){
+	poly ret;
+	for(auto& term : inputPoly){
+		if(term.IsDirichlet()) ret += term;
+	}
+	return ret;
+}
+
+poly poly::DeleteNonDirichlet(const std::vector<mono>& inputMonos){
+	poly ret;
+	for(auto& term : inputMonos){
+		if(term.IsDirichlet()) ret += term;
+	}
+	return ret;
+}
+
+coeff_class poly::InnerProduct(const poly& A, const poly& B){
+	coeff_class ret = 0;
+	for(auto& monoA : A){
+		for(auto& monoB : B){
+			ret += mono::InnerProduct(monoA, monoB);
+		}
+	}
+	return ret;
+}

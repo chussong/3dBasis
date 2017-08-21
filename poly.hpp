@@ -75,6 +75,11 @@ class poly {
 		static poly K1(const mono& inputMono, const coeff_class delta);
 		static poly K2(const mono& inputMono, const coeff_class delta);
 		static poly K3(const mono& inputMono, const coeff_class delta);
+
+		static poly DeleteNonDirichlet(const poly& inputPoly);
+		static poly DeleteNonDirichlet(const std::vector<mono>& inputMonos);
+
+		static coeff_class InnerProduct(const poly& A, const poly& B);
 };
 
 template<typename T>
