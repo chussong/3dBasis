@@ -20,6 +20,7 @@ constexpr char RELEASE_DATE[] = __DATE__;
 #include "poly.hpp"
 #include "basis.hpp"
 #include "io.hpp"
+#include "timer.hpp"
 
 std::ostream& operator<<(std::ostream& os, const Triplet& out);
 
@@ -37,7 +38,7 @@ unsigned int AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis
 		const coeff_class delta, const int options);
 int InnerProductTest(const arguments& args);
 
-int Orthogonalize(const std::vector<poly>& inputStates);
+int Orthogonalize(const std::vector<Basis<mono>>& inputBases);
 
 // functions interfacing with Eigen ------------------------------------------
 
@@ -62,7 +63,10 @@ poly ColumnToPoly(const Matrix& kernelMatrix, const Eigen::Index col,
 poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col, 
 		const Basis<mono>& startBasis);
 
-//DMatrix ExtractQMatrix(const DQRSolver& solver, const int dimension);
+DMatrix ExtractQMatrix(const Eigen::FullPivHouseholderQR<DMatrix>& solver, 
+		               const int dimension);
+DMatrix ExtractQMatrix(const Eigen::ColPivHouseholderQR<DMatrix>& solver, 
+		               const int dimension);
 //DMatrix GramMatrix(const Basis<mono>& basis);
 
 // templates -----------------------------------------------------------------
@@ -215,7 +219,7 @@ DMatrix GramMatrix(const std::vector<Basis<T>>& allBases){
 	return gram;
 }
 
-template<typename T> struct ValidQSolver { static constexpr bool value = false; };
+/*template<typename T> struct ValidQSolver { static constexpr bool value = false; };
 template<> struct ValidQSolver<Eigen::FullPivHouseholderQR<DMatrix>> { 
 	static constexpr bool value = true;
 };
@@ -240,6 +244,15 @@ template<>
 inline DMatrix ExtractQMatrix(const Eigen::ColPivHouseholderQR<DMatrix>& solver, 
 		               const int dimension){
 	return solver.householderQ()*DMatrix::Identity(dimension, dimension);
+}*/
+
+template<class T>
+inline size_t TotalSize(const std::vector<T>& vectorOfContainers){
+	size_t totalSize = 0;
+	for(const T& element : vectorOfContainers){
+		totalSize += element.size();
+	}
+	return totalSize;
 }
 
 #endif

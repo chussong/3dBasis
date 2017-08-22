@@ -64,7 +64,7 @@ class mono {
 		int MaxPt() const;
 		int MaxPp() const;
 		int Degree() const { return TotalPm() + TotalPt() + TotalPp(); }
-		//std::vector<unsigned int> IdenticalParticles() const;
+		std::vector<size_t> CountIdentical() const;
 
 		mono& operator*=(const coeff_class& x)	 { coeff *= x; return *this; }
 		template<typename T>

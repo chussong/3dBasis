@@ -162,26 +162,24 @@ int mono::MaxPp() const{
 	return max;
 }
 
-/*std::vector<unsigned int> mono::IdenticalParticles() const{
-	bool std::vector<particle>::Contains(const particle pA) const {
-		for(auto& pB : *this) if(pA == pB) return true;
-		return false;
-	}
-
-	std::vector<unsigned int> ret;
-	std::vector<particle> seen;
-	for(auto i = 0u; i < particles.size(); ++i){
-		if(!seen.Contains(particles[i])){
-			auto count = 1u;
-			for(auto j = i+1; j < particles.size(); ++j){
-				if(particles[i] == particles[j]) ++count;
+// return a vector containing one entry per distinguishable particle in *this.
+// Each entry is the number of those particles contained.
+std::vector<size_t> mono::CountIdentical() const{
+	std::vector<size_t> ret;
+	std::vector<bool> counted(NParticles(), false);
+	for(auto i = 0u; i < NParticles(); ++i){
+		if(counted[i]) continue;
+		int count = 1;
+		for(auto j = i+1; j < NParticles(); ++j){
+			if(particles[i] == particles[j]){
+				++count;
+				counted[j] = true;
 			}
-			ret.push_back(count);
-			seen.push_back(p);
 		}
+		ret.push_back(count);
 	}
 	return ret;
-}*/
+}
 
 // The following two functions might actually work just as well as old Order():
 bool mono::ParticlePrecedence(const particle& a, const particle& b){
@@ -725,10 +723,9 @@ coeff_class mono::IPZuhair(const mono& A, const mono& B){
 	prefactor *= std::exp(gammaLogs);
 	//std::cout << "Prefactor: " << prefactor << std::endl;
 
-	/*auto degeneracy = 1u;
-	for(auto particleGroup : B.IdenticalParticles()) degeneracy *= particleGroup;
-	coeff_class multiplicity = Factorial(degeneracy);
-	std::cout << "Multiplicity: " << multiplicity << std::endl;*/
+	coeff_class multiplicity = 1;
+	for(auto& count : B.CountIdentical()) multiplicity *= Factorial(count);
+	//std::cout << "Multiplicity: " << multiplicity << std::endl;
 
 	std::vector<size_t> perm(B.NParticles());
 	for(auto i = 0u; i < B.NParticles(); ++i) perm[i] = i;
@@ -745,7 +742,7 @@ coeff_class mono::IPZuhair(const mono& A, const mono& B){
 
 		// - permute monomial B
 		// - sum over all kVectors whose total is totalK and where each entry
-		//   kVector[i] <= totalPp[i] (noting that totalPp[i] changes with perm)
+		//   kVector[i] <= totalPt[i] (noting that totalPt[i] changes with perm)
 
 		do{ // for each permutation of B
 			// for each kVector whose total is totalK
@@ -768,7 +765,7 @@ coeff_class mono::IPZuhair(const mono& A, const mono& B){
 			}
 		}while(std::next_permutation(perm.begin(), perm.end()));
 	}
-	return prefactor*sum;
+	return prefactor*multiplicity*sum;
 }
 
 // return a vector of all the vectors of length A.size() whose total is totalK,

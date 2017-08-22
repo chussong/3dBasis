@@ -30,7 +30,8 @@ all:  | lib
 $(EXECUTABLE): $(OBJECTS)
 	$(CXX) $+ $(LDFLAGS) -o $@
 
-3dBasis.o: 3dBasis.cpp 3dBasis.hpp mono.hpp poly.hpp basis.hpp lib/libspqr.so
+3dBasis.o: 3dBasis.cpp 3dBasis.hpp mono.hpp poly.hpp basis.hpp lib/libspqr.so \
+	timer.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 mono.o: mono.cpp mono.hpp io.hpp constants.hpp construction.hpp

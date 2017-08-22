@@ -276,13 +276,13 @@ int InnerProductTest(const arguments& args){
 	std::cout << "Beginning inner product test with N=" << numP << ", L="
 		<< degree << "." << std::endl;
 	splitBasis<mono> basis(numP, degree, options);
-	std::cout << "Even with even: " << std::endl;
+	/*std::cout << "Even with even: " << std::endl;
 	for(auto& monoA : basis.EvenBasis()){
 		for(auto& monoB : basis.EvenBasis()){
 			std::cout << monoA << " x " << monoB << " = " 
 				<< mono::InnerProduct(monoA, monoB) << std::endl;
 		}
-	}
+	}*/
 	/*std::cout << "Even with odd: " << std::endl;
 	for(auto& monoA : basis.EvenBasis()){
 		for(auto& monoB : basis.OddBasis()){
@@ -297,49 +297,56 @@ int InnerProductTest(const arguments& args){
 				<< mono::InnerProduct(monoA, monoB) << std::endl;
 		}
 	}*/
-	std::cout << "Odd with odd: " << std::endl;
+	/*std::cout << "Odd with odd: " << std::endl;
 	for(auto& monoA : basis.OddBasis()){
 		for(auto& monoB : basis.OddBasis()){
 			std::cout << monoA << " x " << monoB << " = " 
 				<< mono::InnerProduct(monoA, monoB) << std::endl;
 		}
-	}
+	}*/
 
 	std::vector<Basis<mono>> allEvenBases;
-	for(int deg = 2; deg <= degree; ++deg){
+	std::vector<Basis<mono>> allOddBases;
+	for(int deg = numP; deg <= degree; ++deg){
 		splitBasis<mono> degBasis(numP, deg, options);
 		allEvenBases.push_back(degBasis.EvenBasis());
+		allOddBases.push_back(degBasis.OddBasis());
 	}
-	std::cout << "EVEN STATE ORTHOGONALIZATION" << std::endl;
-	DMatrix gram = GramMatrix(allEvenBases);
-	//DMatrix gram = GramMatrix(basis.EvenBasis());
-	std::cout << "Gram matrix:" << std::endl << gram << std::endl;
 
-	DQRSolver solver;
-	solver.setThreshold(EPSILON);
-	solver.compute(gram);
-	DMatrix QMatrix = ExtractQMatrix(solver, gram.rows());
-	std::cout << "Q matrix: " << std::endl << QMatrix << std::endl;
-	//std::cout << "QR matrix: " << std::endl << solver.matrixQR() << std::endl;
-	std::cout << "Rank, i.e. number of independent operators: " << solver.rank() 
-		<< std::endl;
-	// the columns of matrixQ are a set of orthogonal vectors with the same span
-	// as the input matrix. There should be N of these for an input with rank N;
-	// to the right of that I believe all columns should be zero.
+	std::cout << "EVEN STATE ORTHOGONALIZATION" << std::endl;
+	Orthogonalize(allEvenBases);
+
+	std::cout << "ODD STATE ORTHOGONALIZATION" << std::endl;
+	Orthogonalize(allOddBases);
+
 	return EXIT_SUCCESS;
 }
 
-int Orthogonalize(const std::vector<poly>& inputStates){
-	// 1: construct dense matrix of inner products with other states
-	//    use Wick contractions?
-	// 2: orthogonalize this matrix (matrixQ from QR?)
+int Orthogonalize(const std::vector<Basis<mono>>& inputBases){
+	Timer timer;
+	DMatrix gram = GramMatrix(inputBases);
+	std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()
+		<< "." << std::endl;
+	if(TotalSize(inputBases) <= 7){
+		std::cout << gram << std::endl;
+	}
 
-	// Use Wick contraction to compute inner products -- i.e. do Fourier
-	// transforms of position space wavefunctions, which are the conformally
-	// required denominator times the number you get from pulling the derivatives
-	// out (which are Pochhammers). Even with operators having more than 2
-	// particle number, they're still just two operators, so it's still a 2PF.
-	return inputStates.size();
+	timer.Start();
+	DQRSolver solver;
+	// it's possible there's a smarter way to set the threshold than this,
+	// which could possibly take a long time? We multiply our custom epsilon by
+	// the largest coefficient of gram's component-wise absolute value
+	solver.setThreshold(EPSILON*gram.cwiseAbs().maxCoeff());
+	solver.compute(gram);
+	DMatrix QMatrix = ExtractQMatrix(solver, gram.rows());
+	std::cout << "Q matrix found in " << timer.TimeElapsedInWords() << "."
+		<< std::endl;
+	if(TotalSize(inputBases) <= 7){
+		std::cout << QMatrix << std::endl;
+	}
+	std::cout << "Rank, i.e. number of independent operators: " << solver.rank() 
+		<< std::endl;
+	return solver.rank();
 }
 
 arguments ParseArguments(int argc, char* argv[]){
@@ -849,6 +856,16 @@ poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col,
 	for(auto& term : ret) smallestCoeff = std::min(std::abs(term.Coeff()), smallestCoeff);
 	for(auto& term : ret) term /= smallestCoeff;
 	return ret;
+}
+
+DMatrix ExtractQMatrix(const Eigen::FullPivHouseholderQR<DMatrix>& solver, 
+		               const int){
+	return solver.matrixQ();
+}
+
+DMatrix ExtractQMatrix(const Eigen::ColPivHouseholderQR<DMatrix>& solver, 
+		               const int dimension){
+	return solver.householderQ()*DMatrix::Identity(dimension, dimension);
 }
 
 /*DMatrix GramMatrix(const Basis<mono>& basis){
