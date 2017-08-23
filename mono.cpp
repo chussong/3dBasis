@@ -577,8 +577,9 @@ std::tuple<coeff_class, int, int> mono::IPPairData(const mono& A, const mono& B,
 	return std::make_tuple(coeff, totalPm, totalPt);
 }
 
-coeff_class mono::InnerProduct(const mono& A, const mono& B){
-	return IPZuhair(A, B);
+coeff_class mono::InnerProduct(const mono& A, const mono& B, 
+		const GammaCache& cache){
+	return IPZuhair(A, B, cache);
 }
 
 // Return true if a full cycle has been completed, otherwise return false.
@@ -697,7 +698,7 @@ coeff_class mono::IPFourier(const int a, const int b, const int c, const int n){
 
 // this attempts to implement Zuhair's formulation of the inner product. Note:
 // it requires both monomials to have the same number of particles.
-coeff_class mono::IPZuhair(const mono& A, const mono& B){
+coeff_class mono::IPZuhair(const mono& A, const mono& B, const GammaCache& cache){
 	int totalPm = 0;
 	int totalPt = 0;
 	for(auto i = 0u; i < A.NParticles(); ++i){
@@ -709,20 +710,9 @@ coeff_class mono::IPZuhair(const mono& A, const mono& B){
 		totalPt += B.Pt(i);
 	}
 	if(A.NParticles() != B.NParticles() || totalPt % 2 == 1) return 0;
-	coeff_class n = A.NParticles();
 
-	coeff_class prefactor = 1;
-	prefactor *= M_PI*M_PI;
-	prefactor /= std::pow(4*M_PI, n);
-	prefactor /= std::pow(2, 2*totalPm + totalPt + n - 4);
-
-	coeff_class gammaLogs = 0;
-	gammaLogs -= std::lgamma(totalPm + totalPt + n/2);
-	gammaLogs -= std::lgamma((totalPt + n - 1)/2);
-	gammaLogs -= std::lgamma(totalPm + (totalPt + n - 1)/2);
-	prefactor *= std::exp(gammaLogs);
-	//std::cout << "Prefactor: " << prefactor << std::endl;
-
+	// weirdly, I'm getting results that disagree with zuhair's when I turn
+	// this multiplicity on, even though his code definitely uses it.
 	coeff_class multiplicity = 1;
 	for(auto& count : B.CountIdentical()) multiplicity *= Factorial(count);
 	//std::cout << "Multiplicity: " << multiplicity << std::endl;
@@ -731,14 +721,10 @@ coeff_class mono::IPZuhair(const mono& A, const mono& B){
 	for(auto i = 0u; i < B.NParticles(); ++i) perm[i] = i;
 
 	coeff_class sum = 0;
-	coeff_class totalKPrefactor;
 	for(int totalK = 0; totalK <= totalPt/2; ++totalK){
-		//std::cout << "TotalK: " << totalK << std::endl;
-		totalKPrefactor = std::lgamma(totalPm + (totalPt + n - 1)/2 + totalK);
-		totalKPrefactor += std::lgamma((totalPt + 1.0)/2 - totalK);
-		totalKPrefactor = std::exp(totalKPrefactor);
-		totalKPrefactor /= 1 << 2*totalK;
-		if((totalPt/2-totalK) % 2 == 1) totalKPrefactor = -totalKPrefactor;
+		coeff_class totalKPrefactor = cache.Middle(totalPm, totalPt, totalK);
+		//std::cout << "Middle coefficient @ (" << totalPm << ", " << totalPt
+			//<< ", " << totalK << "): " << totalKPrefactor << std::endl;
 
 		// - permute monomial B
 		// - sum over all kVectors whose total is totalK and where each entry
@@ -749,27 +735,24 @@ coeff_class mono::IPZuhair(const mono& A, const mono& B){
 			//std::cout << "Permutation: " << perm << std::endl;
 			for(const auto& kVector : VectorsAtK(totalK, perm, A, B, 0)){
 				//std::cout << "k vector: " << kVector << std::endl;
-				coeff_class logProduct = 0;
+				coeff_class logOfProduct = 0;
 				for(auto i = 0u; i < A.NParticles(); ++i){
-					auto pm = A.Pm(i) + B.Pm(perm[i]);
-					auto pt = A.Pt(i) + B.Pt(perm[i]);
-					logProduct += std::lgamma(2*pm + pt + 1);
-					logProduct += std::lgamma(pt + 1);
-					logProduct -= std::lgamma(kVector[i] + 1);
-					logProduct -= std::lgamma(pm + kVector[i] + 1);
-					logProduct -= std::lgamma(pt - 2*kVector[i] + 1);
+					logOfProduct += cache.Inner(A.Pm(i) + B.Pm(perm[i]),
+							A.Pt(i) + B.Pt(perm[i]), kVector[i]);
 				}
 				//std::cout << "Contribution from this permutation and kVector: "
-					//<< std::exp(logProduct) << std::endl;
-				sum += totalKPrefactor*std::exp(logProduct);
+					//<< std::exp(logOfProduct) << std::endl;
+				sum += totalKPrefactor*std::exp(logOfProduct);
 			}
 		}while(std::next_permutation(perm.begin(), perm.end()));
 	}
-	return prefactor*multiplicity*sum;
+	return cache.Prefactor(totalPm, totalPt)*multiplicity*sum;
 }
 
 // return a vector of all the vectors of length A.size() whose total is totalK,
-// subject to the constraint that kVector[i] <= (A.Pt(i) + B.Pt(perm[i]))/2
+// subject to the constraint that kVector[i] <= (A.Pt(i) + B.Pt(perm[i]))/2.
+// This version operates by recursively calling itself on the remaining part
+// of the vector until it reaches the end.
 std::vector<std::vector<int>> mono::VectorsAtK(const int totalK, 
 		const std::vector<size_t>& perm, const mono& A, const mono& B,
 		const size_t start){
@@ -791,3 +774,16 @@ std::vector<std::vector<int>> mono::VectorsAtK(const int totalK,
 	//for(auto& r : ret) std::cout << r << std::endl;
 	return ret;
 }
+
+// return a vector of all the vectors of length A.size() whose total is totalK,
+// subject to the constraint that kVector[i] <= (A.Pt(i) + B.Pt(perm[i]))/2.
+// This version operates by starting at the beginning and adding new elements
+// until it runs out of K.
+/*std::vector<std::vector<int>> mono::VectorsAtK(const int totalK,
+		const std::vector<size_t>& perm, const mono& A, const mono& B,
+		const size_t start){
+	std::vector<std::vector<int>> ret(1,std::vector<int>(1, totalK));
+	for(auto pos = 0u; pos < A.NParticles(); ++pos){
+	}
+	return ret;
+}*/

@@ -11,7 +11,7 @@
 #include <algorithm>	// std::remove_if
 #include <type_traits>	// std::is_same
 
-constexpr char VERSION[] = "0.5.3";
+constexpr char VERSION[] = "0.6.1";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"
@@ -21,6 +21,7 @@ constexpr char RELEASE_DATE[] = __DATE__;
 #include "basis.hpp"
 #include "io.hpp"
 #include "timer.hpp"
+#include "cache.hpp"
 
 std::ostream& operator<<(std::ostream& os, const Triplet& out);
 
@@ -38,7 +39,8 @@ unsigned int AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis
 		const coeff_class delta, const int options);
 int InnerProductTest(const arguments& args);
 
-int Orthogonalize(const std::vector<Basis<mono>>& inputBases);
+int Orthogonalize(const std::vector<Basis<mono>>& inputBases,
+					const GammaCache& cache);
 
 // functions interfacing with Eigen ------------------------------------------
 
@@ -173,15 +175,15 @@ inline std::vector<poly> Kernel(const Matrix& KActions, const Basis<T>& startBas
 }
 
 template<class T>
-DMatrix GramMatrix(const Basis<T>& basis){
+DMatrix GramMatrix(const Basis<T>& basis, const GammaCache& cache){
 	std::vector<Triplet> entries;
 	for(auto row = 0u; row < basis.size(); ++row){
 		for(auto col = row; col < basis.size(); ++col){
 			entries.emplace_back(row, col, 
-					T::InnerProduct(basis[row], basis[col]));
+					T::InnerProduct(basis[row], basis[col], cache));
 			if(row != col){
 				entries.emplace_back(col, row, 
-						T::InnerProduct(basis[row], basis[col]));
+						T::InnerProduct(basis[row], basis[col], cache));
 			}
 		}
 	}
@@ -191,9 +193,11 @@ DMatrix GramMatrix(const Basis<T>& basis){
 }
 
 template<class T>
-DMatrix GramMatrix(const std::vector<Basis<T>>& allBases){
+DMatrix GramMatrix(const std::vector<Basis<T>>& allBases,
+					const GammaCache& cache){
 	// could also do this by defining some kind of super iterator that traverses 
 	// a vector of bases?
+
 	std::vector<Triplet> entries;
 	auto row = 0u;
 	size_t totalSize = 0;
@@ -202,7 +206,8 @@ DMatrix GramMatrix(const std::vector<Basis<T>>& allBases){
 			auto col = 0u;
 			for(auto& basisB : allBases){
 				for(auto& elementB : basisB){
-					coeff_class product = T::InnerProduct(elementA, elementB);
+					coeff_class product = T::InnerProduct(elementA, elementB,
+															cache);
 					entries.emplace_back(row, col, product);
 					if(row != col) entries.emplace_back(col, row, product);
 					++col;

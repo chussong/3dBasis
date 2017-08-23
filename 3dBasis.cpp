@@ -305,6 +305,11 @@ int InnerProductTest(const arguments& args){
 		}
 	}*/
 
+	//std::cout << "Testing gamma cache construction." << std::endl;
+	GammaCache cache(numP, 2*degree, 2*(degree-numP));
+	//std::cout << "A coefficient from it: " << cache.Middle(degree-2, 2, 1)
+		//<< std::endl;
+
 	std::vector<Basis<mono>> allEvenBases;
 	std::vector<Basis<mono>> allOddBases;
 	for(int deg = numP; deg <= degree; ++deg){
@@ -314,17 +319,18 @@ int InnerProductTest(const arguments& args){
 	}
 
 	std::cout << "EVEN STATE ORTHOGONALIZATION" << std::endl;
-	Orthogonalize(allEvenBases);
+	Orthogonalize(allEvenBases, cache);
 
 	std::cout << "ODD STATE ORTHOGONALIZATION" << std::endl;
-	Orthogonalize(allOddBases);
+	Orthogonalize(allOddBases, cache);
 
 	return EXIT_SUCCESS;
 }
 
-int Orthogonalize(const std::vector<Basis<mono>>& inputBases){
+int Orthogonalize(const std::vector<Basis<mono>>& inputBases,
+					const GammaCache& cache){
 	Timer timer;
-	DMatrix gram = GramMatrix(inputBases);
+	DMatrix gram = GramMatrix(inputBases, cache);
 	std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()
 		<< "." << std::endl;
 	if(TotalSize(inputBases) <= 7){

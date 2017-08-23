@@ -10,6 +10,7 @@
 
 #include "constants.hpp"
 #include "construction.hpp"
+#include "cache.hpp"
 
 // a mono(mial) with coefficient. It should be impossible for an instance of
 // this class to be out of order, so hopefully that's true!
@@ -139,7 +140,8 @@ class mono {
 		std::vector<mono> L2() const;
 		std::vector<mono> L3() const;
 
-		static coeff_class InnerProduct(const mono& A, const mono& B);
+		static coeff_class InnerProduct(const mono& A, const mono& B,
+										const GammaCache& cache);
 
 		static coeff_class IPMatt(const mono& A, const mono& B);
 		static bool IPPermutationCheck(const std::vector<int>& vec);
@@ -149,7 +151,8 @@ class mono {
 				const std::vector<int>& totalPt);
 		static coeff_class IPFourier(const int a, const int b, const int c, const int n);
 
-		static coeff_class IPZuhair(const mono& A, const mono& B);
+		static coeff_class IPZuhair(const mono& A, const mono& B,
+									const GammaCache& cache);
 		static std::vector<std::vector<int>> VectorsAtK(const int totalK, 
 				const std::vector<size_t>& perm, const mono& A, const mono& B,
 				const size_t start);

@@ -5,6 +5,7 @@
 #include <string>
 #include "mono.hpp"
 #include "io.hpp"
+#include "cache.hpp"
 
 // all monos in a poly(nomial) should be guaranteed to be ordered correctly!
 // Notes on arithmetic:
@@ -79,7 +80,8 @@ class poly {
 		static poly DeleteNonDirichlet(const poly& inputPoly);
 		static poly DeleteNonDirichlet(const std::vector<mono>& inputMonos);
 
-		static coeff_class InnerProduct(const poly& A, const poly& B);
+		static coeff_class InnerProduct(const poly& A, const poly& B,
+										const GammaCache& cache);
 };
 
 template<typename T>

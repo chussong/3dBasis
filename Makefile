@@ -10,8 +10,8 @@ CXXFLAGS = -IEigen -ISuiteSparse/include -Wall -Wextra -pedantic -O3 -g -c -std=
 LDFLAGS = -L$(BASEDIR)/lib -Wl,-rpath=$(BASEDIR)/lib -lspqr -lcholmod -lmetis -lopenblas
 EXECUTABLE = 3dBasis
 
-SOURCES = mono.cpp poly.cpp 3dBasis.cpp
-OBJECTS = mono.o poly.o 3dBasis.o
+SOURCES = mono.cpp poly.cpp 3dBasis.cpp cache.cpp
+OBJECTS = mono.o poly.o 3dBasis.o cache.o
 
 default: $(EXECUTABLE)
 
@@ -31,13 +31,16 @@ $(EXECUTABLE): $(OBJECTS)
 	$(CXX) $+ $(LDFLAGS) -o $@
 
 3dBasis.o: 3dBasis.cpp 3dBasis.hpp mono.hpp poly.hpp basis.hpp lib/libspqr.so \
-	timer.hpp
+	timer.hpp cache.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 mono.o: mono.cpp mono.hpp io.hpp constants.hpp construction.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 poly.o: poly.cpp poly.hpp mono.hpp io.hpp constants.hpp
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+cache.o: cache.cpp cache.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 lib/libspqr.so: lib/liblapack.a lib/libopenblas.a
