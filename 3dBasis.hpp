@@ -10,8 +10,9 @@
 #include <utility>		// std::pair
 #include <algorithm>	// std::remove_if
 #include <type_traits>	// std::is_same
+#include <thread>
 
-constexpr char VERSION[] = "0.6.1";
+constexpr char VERSION[] = "0.6.3";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"
@@ -40,7 +41,7 @@ unsigned int AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis
 int InnerProductTest(const arguments& args);
 
 int Orthogonalize(const std::vector<Basis<mono>>& inputBases,
-					const GammaCache& cache);
+					const GammaCache& cache, const KVectorCache& kCache);
 
 // functions interfacing with Eigen ------------------------------------------
 
@@ -69,6 +70,7 @@ DMatrix ExtractQMatrix(const Eigen::FullPivHouseholderQR<DMatrix>& solver,
 		               const int dimension);
 DMatrix ExtractQMatrix(const Eigen::ColPivHouseholderQR<DMatrix>& solver, 
 		               const int dimension);
+void ClearZeros(DMatrix* toClear);
 //DMatrix GramMatrix(const Basis<mono>& basis);
 
 // templates -----------------------------------------------------------------
@@ -175,15 +177,16 @@ inline std::vector<poly> Kernel(const Matrix& KActions, const Basis<T>& startBas
 }
 
 template<class T>
-DMatrix GramMatrix(const Basis<T>& basis, const GammaCache& cache){
+DMatrix GramMatrix(const Basis<T>& basis, const GammaCache& cache,
+		const KVectorCache& kCache){
 	std::vector<Triplet> entries;
 	for(auto row = 0u; row < basis.size(); ++row){
 		for(auto col = row; col < basis.size(); ++col){
 			entries.emplace_back(row, col, 
-					T::InnerProduct(basis[row], basis[col], cache));
+					T::InnerProduct(basis[row], basis[col], cache, kCache));
 			if(row != col){
 				entries.emplace_back(col, row, 
-						T::InnerProduct(basis[row], basis[col], cache));
+						T::InnerProduct(basis[row], basis[col], cache, kCache));
 			}
 		}
 	}
@@ -194,7 +197,7 @@ DMatrix GramMatrix(const Basis<T>& basis, const GammaCache& cache){
 
 template<class T>
 DMatrix GramMatrix(const std::vector<Basis<T>>& allBases,
-					const GammaCache& cache){
+					const GammaCache& cache, const KVectorCache& kCache){
 	// could also do this by defining some kind of super iterator that traverses 
 	// a vector of bases?
 
@@ -207,7 +210,7 @@ DMatrix GramMatrix(const std::vector<Basis<T>>& allBases,
 			for(auto& basisB : allBases){
 				for(auto& elementB : basisB){
 					coeff_class product = T::InnerProduct(elementA, elementB,
-															cache);
+															cache, kCache);
 					entries.emplace_back(row, col, product);
 					if(row != col) entries.emplace_back(col, row, product);
 					++col;

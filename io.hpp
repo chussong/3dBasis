@@ -36,6 +36,16 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<particle>& o
 	return os;
 }
 
+template<>
+inline std::ostream& operator<<(std::ostream& os, const std::vector<char>& out){
+	os << "{";
+	for(auto& element : out){
+		if(element >= 0) os << " ";
+		os << static_cast<int>(element) << ",";
+	}
+	return os << "\b }";
+}
+
 template<typename T, int N>
 inline std::ostream& operator<<(std::ostream& os, const std::array<T,N>& out){
 	os << "{";

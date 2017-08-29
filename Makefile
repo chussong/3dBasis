@@ -34,13 +34,13 @@ $(EXECUTABLE): $(OBJECTS)
 	timer.hpp cache.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-mono.o: mono.cpp mono.hpp io.hpp constants.hpp construction.hpp
+mono.o: mono.cpp mono.hpp io.hpp constants.hpp construction.hpp cache.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 poly.o: poly.cpp poly.hpp mono.hpp io.hpp constants.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-cache.o: cache.cpp cache.hpp
+cache.o: cache.cpp cache.hpp constants.hpp io.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 lib/libspqr.so: lib/liblapack.a lib/libopenblas.a

@@ -66,6 +66,7 @@ class mono {
 		int MaxPp() const;
 		int Degree() const { return TotalPm() + TotalPt() + TotalPp(); }
 		std::vector<size_t> CountIdentical() const;
+		std::vector<size_t> PermutationVector() const;
 
 		mono& operator*=(const coeff_class& x)	 { coeff *= x; return *this; }
 		template<typename T>
@@ -141,7 +142,8 @@ class mono {
 		std::vector<mono> L3() const;
 
 		static coeff_class InnerProduct(const mono& A, const mono& B,
-										const GammaCache& cache);
+										const GammaCache& cache,
+										const KVectorCache& kCache);
 
 		static coeff_class IPMatt(const mono& A, const mono& B);
 		static bool IPPermutationCheck(const std::vector<int>& vec);
@@ -152,7 +154,8 @@ class mono {
 		static coeff_class IPFourier(const int a, const int b, const int c, const int n);
 
 		static coeff_class IPZuhair(const mono& A, const mono& B,
-									const GammaCache& cache);
+									const GammaCache& cache,
+									const KVectorCache& kCache);
 		static std::vector<std::vector<int>> VectorsAtK(const int totalK, 
 				const std::vector<size_t>& perm, const mono& A, const mono& B,
 				const size_t start);

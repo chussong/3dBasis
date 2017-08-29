@@ -307,6 +307,7 @@ int InnerProductTest(const arguments& args){
 
 	//std::cout << "Testing gamma cache construction." << std::endl;
 	GammaCache cache(numP, 2*degree, 2*(degree-numP));
+	KVectorCache kCache(numP, 2*(degree-numP)); // maxPt might be half this?
 	//std::cout << "A coefficient from it: " << cache.Middle(degree-2, 2, 1)
 		//<< std::endl;
 
@@ -319,18 +320,22 @@ int InnerProductTest(const arguments& args){
 	}
 
 	std::cout << "EVEN STATE ORTHOGONALIZATION" << std::endl;
-	Orthogonalize(allEvenBases, cache);
+	Orthogonalize(allEvenBases, cache, kCache);
 
 	std::cout << "ODD STATE ORTHOGONALIZATION" << std::endl;
-	Orthogonalize(allOddBases, cache);
+	Orthogonalize(allOddBases, cache, kCache);
 
 	return EXIT_SUCCESS;
 }
 
 int Orthogonalize(const std::vector<Basis<mono>>& inputBases,
-					const GammaCache& cache){
+					const GammaCache& cache, const KVectorCache& kCache){
 	Timer timer;
-	DMatrix gram = GramMatrix(inputBases, cache);
+	DMatrix gram = GramMatrix(inputBases, cache, kCache);
+	
+	// WARNING: this can potentially delete real information! Use with caution!
+	//ClearZeros(&gram);
+
 	std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()
 		<< "." << std::endl;
 	if(TotalSize(inputBases) <= 7){
@@ -343,6 +348,8 @@ int Orthogonalize(const std::vector<Basis<mono>>& inputBases,
 	// which could possibly take a long time? We multiply our custom epsilon by
 	// the largest coefficient of gram's component-wise absolute value
 	solver.setThreshold(EPSILON*gram.cwiseAbs().maxCoeff());
+	//std::cout << "Matrix threshold set to " << EPSILON*gram.cwiseAbs().maxCoeff()
+		//<< "." << std::endl;
 	solver.compute(gram);
 	DMatrix QMatrix = ExtractQMatrix(solver, gram.rows());
 	std::cout << "Q matrix found in " << timer.TimeElapsedInWords() << "."
@@ -872,6 +879,22 @@ DMatrix ExtractQMatrix(const Eigen::FullPivHouseholderQR<DMatrix>& solver,
 DMatrix ExtractQMatrix(const Eigen::ColPivHouseholderQR<DMatrix>& solver, 
 		               const int dimension){
 	return solver.householderQ()*DMatrix::Identity(dimension, dimension);
+}
+
+void ClearZeros(DMatrix* toClear) {
+	if(!toClear){
+		std::cerr << "Error: asked to clear the zeros from a nullptr instead of"
+			<< " a matrix." << std::endl;
+		return;
+	}
+	coeff_class threshold = EPSILON*toClear->cwiseAbs().maxCoeff();
+	for(Eigen::Index row = 0; row < toClear->rows(); ++row){
+		for(Eigen::Index col = 0; col < toClear->cols(); ++col){
+			if(std::abs((*toClear)(row, col)) < threshold){
+				(*toClear)(row, col) = 0;
+			}
+		}
+	}
 }
 
 /*DMatrix GramMatrix(const Basis<mono>& basis){

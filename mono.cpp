@@ -181,6 +181,24 @@ std::vector<size_t> mono::CountIdentical() const{
 	return ret;
 }
 
+// return a sorted vector with one entry per particle, each entry being the 
+// location within this monomial of the FIRST particle which is identical to it
+std::vector<size_t> mono::PermutationVector() const {
+	std::vector<size_t> ret;
+	std::vector<bool> counted(NParticles(), false);
+	for(auto i = 0u; i < NParticles(); ++i){
+		if(counted[i]) continue;
+		ret.push_back(i);
+		for(auto j = i+1; j < NParticles(); ++j){
+			if(particles[i] == particles[j]){
+				counted[j] = true;
+				ret.push_back(i);
+			}
+		}
+	}
+	return ret;
+}
+
 // The following two functions might actually work just as well as old Order():
 bool mono::ParticlePrecedence(const particle& a, const particle& b){
 	if(a.pm != b.pm) return a.pm > b.pm;
@@ -578,8 +596,8 @@ std::tuple<coeff_class, int, int> mono::IPPairData(const mono& A, const mono& B,
 }
 
 coeff_class mono::InnerProduct(const mono& A, const mono& B, 
-		const GammaCache& cache){
-	return IPZuhair(A, B, cache);
+		const GammaCache& cache, const KVectorCache& kCache){
+	return IPZuhair(A, B, cache, kCache);
 }
 
 // Return true if a full cycle has been completed, otherwise return false.
@@ -698,7 +716,11 @@ coeff_class mono::IPFourier(const int a, const int b, const int c, const int n){
 
 // this attempts to implement Zuhair's formulation of the inner product. Note:
 // it requires both monomials to have the same number of particles.
-coeff_class mono::IPZuhair(const mono& A, const mono& B, const GammaCache& cache){
+coeff_class mono::IPZuhair(const mono& A, const mono& B, 
+		const GammaCache& cache, const KVectorCache& kCache){
+
+	constexpr bool debug = false;
+
 	int totalPm = 0;
 	int totalPt = 0;
 	for(auto i = 0u; i < A.NParticles(); ++i){
@@ -711,20 +733,28 @@ coeff_class mono::IPZuhair(const mono& A, const mono& B, const GammaCache& cache
 	}
 	if(A.NParticles() != B.NParticles() || totalPt % 2 == 1) return 0;
 
-	// weirdly, I'm getting results that disagree with zuhair's when I turn
-	// this multiplicity on, even though his code definitely uses it.
 	coeff_class multiplicity = 1;
 	for(auto& count : B.CountIdentical()) multiplicity *= Factorial(count);
-	//std::cout << "Multiplicity: " << multiplicity << std::endl;
 
-	std::vector<size_t> perm(B.NParticles());
-	for(auto i = 0u; i < B.NParticles(); ++i) perm[i] = i;
+	if(debug){
+	std::cout << "--------------------" << std::endl;
+	std::cout << "Inner product " << A << " x " << B << std::endl;
+	std::cout << "Prefactor: " << cache.Prefactor(totalPm, totalPt) <<std::endl;
+	std::cout << "Multiplicity: " << multiplicity << std::endl;
+	}
+
+	//std::vector<size_t> perm(B.NParticles());
+	//for(auto i = 0u; i < B.NParticles(); ++i) perm[i] = i;
+	std::vector<size_t> perm(B.PermutationVector());
 
 	coeff_class sum = 0;
+	std::vector<char> ptVector(A.NParticles());
 	for(int totalK = 0; totalK <= totalPt/2; ++totalK){
 		coeff_class totalKPrefactor = cache.Middle(totalPm, totalPt, totalK);
-		//std::cout << "Middle coefficient @ (" << totalPm << ", " << totalPt
-			//<< ", " << totalK << "): " << totalKPrefactor << std::endl;
+		if(debug){
+		std::cout << "Middle coefficient @ (" << totalPm << ", " << totalPt
+			<< ", " << totalK << "): " << totalKPrefactor << std::endl;
+		}
 
 		// - permute monomial B
 		// - sum over all kVectors whose total is totalK and where each entry
@@ -732,18 +762,42 @@ coeff_class mono::IPZuhair(const mono& A, const mono& B, const GammaCache& cache
 
 		do{ // for each permutation of B
 			// for each kVector whose total is totalK
-			//std::cout << "Permutation: " << perm << std::endl;
-			for(const auto& kVector : VectorsAtK(totalK, perm, A, B, 0)){
-				//std::cout << "k vector: " << kVector << std::endl;
+			if(debug) std::cout << "Permutation: " << perm << std::endl;
+			for(auto i = 0u; i < ptVector.size(); ++i){
+				ptVector[i] = static_cast<char>((A.Pt(i) + B.Pt(perm[i]))/2);
+			}
+			const KVectorBundle& kVectors = kCache.FromPt(ptVector, totalK);
+			for(size_t startPt = 0; startPt < kVectors.size(); startPt += A.NParticles()){
+				if(debug){
+					std::cout << "k vector: "
+					<< std::vector<char>(kVectors.begin() + startPt, 
+							kVectors.begin() + startPt + A.NParticles())
+					<< std::endl;
+				}
+				coeff_class logOfProduct = 0;
+				for(auto i = 0u; i < A.NParticles(); ++i){
+					logOfProduct += cache.Inner(A.Pm(i) + B.Pm(perm[i]),
+							A.Pt(i) + B.Pt(perm[i]), kVectors[startPt + i]);
+				}
+				if(debug){
+				std::cout << "Contribution from this permutation and kVector: "
+					<< std::exp(logOfProduct) << std::endl;
+				}
+				sum += totalKPrefactor*std::exp(logOfProduct);
+			}
+			/*for(const auto& kVector : VectorsAtK(totalK, perm, A, B, 0)){
+				if(debug) std::cout << "k vector: " << kVector << std::endl;
 				coeff_class logOfProduct = 0;
 				for(auto i = 0u; i < A.NParticles(); ++i){
 					logOfProduct += cache.Inner(A.Pm(i) + B.Pm(perm[i]),
 							A.Pt(i) + B.Pt(perm[i]), kVector[i]);
 				}
-				//std::cout << "Contribution from this permutation and kVector: "
-					//<< std::exp(logOfProduct) << std::endl;
+				if(debug){
+				std::cout << "Contribution from this permutation and kVector: "
+					<< std::exp(logOfProduct) << std::endl;
+				}
 				sum += totalKPrefactor*std::exp(logOfProduct);
-			}
+			}*/
 		}while(std::next_permutation(perm.begin(), perm.end()));
 	}
 	return cache.Prefactor(totalPm, totalPt)*multiplicity*sum;
@@ -779,11 +833,31 @@ std::vector<std::vector<int>> mono::VectorsAtK(const int totalK,
 // subject to the constraint that kVector[i] <= (A.Pt(i) + B.Pt(perm[i]))/2.
 // This version operates by starting at the beginning and adding new elements
 // until it runs out of K.
+// WARNING: THIS DOESN'T ACTUALLY WORK RIGHT NOW. I'M NOT PLANNING TO FINISH IT
+// BECAUSE IT SEEMS TO BE NO FASTER THAN THE RECURSIVE ONE, WHICH WORKS ALREADY.
 /*std::vector<std::vector<int>> mono::VectorsAtK(const int totalK,
 		const std::vector<size_t>& perm, const mono& A, const mono& B,
-		const size_t start){
-	std::vector<std::vector<int>> ret(1,std::vector<int>(1, totalK));
-	for(auto pos = 0u; pos < A.NParticles(); ++pos){
+		const size_t){
+	std::vector<std::vector<int>> kVectors(1,std::vector<int>(1, totalK));
+	std::vector<int> remainingK;
+	int runningCount = 0;
+	for(auto pos = A.NParticles()-1; pos < -1u; --pos){
+		runningCount += (A.Pt(pos) + B.Pt(perm[pos]))/2;
+		remainingK.insert(remainingK.begin(), runningCount);
 	}
-	return ret;
+	for(auto pos = 0u; pos < A.NParticles() - 1; ++pos){
+		std::vector<std::vector<int>> newKVectors;
+		int maxK = (A.Pt(pos) + B.Pt(perm[pos]))/2;
+		for(auto& partialVector : kVectors){
+			for(int newK = 0; newK <= partialVector.back() && newK <= maxK
+					&& partialVector.back() - newK < remainingK[pos]; ++newK){
+				newKVectors.push_back(partialVector);
+				newKVectors.back().back() = newK;
+				newKVectors.back().push_back(partialVector.back() - newK);
+			}
+		}
+		std::swap(newKVectors, kVectors);
+	}
+	//std::cout << kVectors.size() << " k vectors." << std::endl;
+	return kVectors;
 }*/

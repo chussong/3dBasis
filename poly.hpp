@@ -81,7 +81,7 @@ class poly {
 		static poly DeleteNonDirichlet(const std::vector<mono>& inputMonos);
 
 		static coeff_class InnerProduct(const poly& A, const poly& B,
-										const GammaCache& cache);
+						const GammaCache& cache, const KVectorCache& kCache);
 };
 
 template<typename T>

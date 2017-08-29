@@ -151,3 +151,123 @@ coeff_class& GammaCache::Inner(const int pm, const int pt, const int k) {
 		+ ( (pt-1)/2 + ((pt-1)/2)*((pt-1)/2) )/2 + (pt/2 + (pt/2)*(pt/2))/2
 		+ k];
 }
+
+// creates an empty KVectorBundle to represent an illegal configuration
+KVectorBundle::KVectorBundle() {
+}
+
+// cfgVector is a vector of (Pt[i] + Pt[j])/2 for each contracted pair (i,j),
+// except that its last entry is the totalK to be used
+KVectorBundle::KVectorBundle(const std::vector<char>& cfgVector) {
+	//std::cout << "cfgVector: " << cfgVector << std::endl;
+	//std::cout << "Abbreviated cfgVector: "
+		//<< std::vector<char>(cfgVector.begin(), cfgVector.end()-1) << std::endl;
+	kVectors = Generate(cfgVector.back(), 
+			std::vector<char>(cfgVector.begin(), cfgVector.end()-1), 0);
+	//std::cout << kVectors.size() << " entries in kVectors:" << std::endl;
+	//for(auto it = kVectors.begin(); it != kVectors.end(); it += cfgVector.size()-1){
+		//std::cout << std::vector<char>(it, it+cfgVector.size()-1) << std::endl;
+	//}
+}
+
+// cfgVector contains the (Pt[i] + Pt[j])/2 for each contraction, representing
+// the maximum possible K that can be put there. The former final entry 
+// containing totalK has been removed and passed separately.
+std::vector<char> KVectorBundle::Generate(const char totalK, 
+		const std::vector<char>& cfgVector, const size_t start) {
+	std::vector<char> ret;
+	if(start >= cfgVector.size()) return ret;
+	const char maxK = cfgVector[start];
+	// if we're filling the last spot, return empty if we can't fit totalK in it
+	if(start == cfgVector.size()-1 && totalK >  maxK) return ret;
+	if(start == cfgVector.size()-1 && totalK <= maxK) return {totalK};
+
+	for(char thisK = 0; thisK <= std::min(maxK, totalK); ++thisK){
+		std::vector<char> remainingCfgs = Generate(totalK - thisK, cfgVector, 
+				start+1);
+		size_t remainingSize = cfgVector.size() - start - 1;
+		if(remainingCfgs.size() % remainingSize != 0){
+			std::cerr << "Error: KVectorBundle::Generate has the wrong "
+				<< "remainingSize (" << remainingSize << "), which conflicts "
+				<< "with the size of next level's vector (" 
+				<< remainingCfgs.size() <<")." << std::endl;
+			return ret;
+		}
+		// if this is slow, we can resize ret beforehand and then fill instead
+		// of pushing back and inserting
+		for(auto it = remainingCfgs.begin(); it != remainingCfgs.end(); 
+													it += remainingSize){
+			ret.push_back(thisK);
+			ret.insert(ret.end(), it, it + remainingSize);
+		}
+	}
+	return ret;
+}
+
+char KVectorBundle::operator[] (const size_t index) const {
+	return kVectors[index];
+}
+
+// totalPt is the total (Pt[i] + Pt[j])/2 of the configuration; the cfgVector
+// is the arrangement of (Pt[i] + Pt[j])/2, except for the last entry which is
+// totalK.
+KVectorCache::KVectorCache(const int particleNumber, const int maxPt) {
+	for(char totalPt = 0; totalPt <= maxPt; ++totalPt){
+		for(int totalK = 0; totalK <= totalPt; ++totalK){
+			std::vector<char> cfgVector(particleNumber + 1, 0);
+			cfgVector[0] = totalPt;
+			cfgVector[particleNumber] = totalK;
+			do{
+				bundles.emplace_front(cfgVector);
+				do{
+					bundleMap.emplace(cfgVector, bundles.front());
+				}while(std::prev_permutation(cfgVector.begin(), cfgVector.end()-1));
+			}while(NextSortedCfg(cfgVector));
+		}
+	}
+}
+
+// the last entry contains the totalK and should not be changed
+bool KVectorCache::NextSortedCfg(std::vector<char>& cfgVector){
+	for(size_t pos = cfgVector.size()-2; pos > 0; --pos){
+		if(cfgVector[pos-1] >= cfgVector[pos] + 2){
+			--cfgVector[pos-1];
+			++cfgVector[pos];
+			return true;
+		}
+	}
+	for(size_t pos = 1u; pos < cfgVector.size()-1; ++pos){
+		cfgVector[0] += cfgVector[pos];
+		cfgVector[pos] = 0;
+	}
+	return false;
+}
+
+// ptVector is a vector containing the (Pt[i] + Pt[j])/2 for each contraction
+const KVectorBundle& KVectorCache::FromPt(std::vector<char> ptVector,
+		const char totalK) const {
+	int maxK = 0;
+	for(char contraction : ptVector) maxK += contraction;
+	if(maxK < totalK) return nullBundle;
+
+	ptVector.push_back(totalK);
+	if(bundleMap.find(ptVector) == bundleMap.end()){
+		std::cerr << "Error: attempted to look up ptVector = " << ptVector 
+			<< ", but found nothing." << std::endl;
+		throw std::runtime_error("KVectorCache::FromPt");
+	}
+	return bundleMap.find(ptVector)->second;
+}
+
+// compare two vectors of ints, returning true if A is "less than" B in a sense	
+// equivalent to if A and B were written as digits of a number in base infinity,
+// where A.front() is the most significant and A.back() is the least significant
+bool KVectorCache::CfgLessThan::operator() (const std::vector<char>& A, 
+		const std::vector<char>& B) const {
+	if(A.size() != B.size()) throw std::runtime_error("CfgLessThan size error");
+	for(size_t i = 0; i < A.size(); ++i){
+		if(A[i] == B[i]) continue;
+		return A[i] < B[i];
+	}
+	return false; // they're equal, so A is not less than B
+}

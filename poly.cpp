@@ -164,11 +164,11 @@ poly poly::DeleteNonDirichlet(const std::vector<mono>& inputMonos){
 }
 
 coeff_class poly::InnerProduct(const poly& A, const poly& B, 
-								const GammaCache& cache){
+		const GammaCache& cache, const KVectorCache& kCache){
 	coeff_class ret = 0;
 	for(auto& monoA : A){
 		for(auto& monoB : B){
-			ret += mono::InnerProduct(monoA, monoB, cache);
+			ret += mono::InnerProduct(monoA, monoB, cache, kCache);
 		}
 	}
 	return ret;
