@@ -48,24 +48,25 @@ inline std::vector<std::vector<int>> Permute(const std::vector<std::vector<int>>
 	return ret;
 }
 
-inline std::vector<std::vector<int>> GetStatesByDegree(const int numP, 
-		const int deg, const bool exact, const int min){
-	std::vector<std::vector<int>> ret;
+template<typename T>
+inline std::vector<std::vector<T>> GetStatesByDegree(const T numP, 
+		const T deg, const bool exact, const T min){
+	std::vector<std::vector<T>> ret;
 	if(numP == 0 || deg == 0){
 		ret.resize(1);
 		ret[0].resize(numP, 0);
 		return ret;
 	}
-	int lowerBound;
+	T lowerBound;
 	if(exact){
 		lowerBound = deg/numP;
 		if(deg % numP == 0) lowerBound--;
 	} else {
 		lowerBound = -1;
 	}
-	lowerBound = std::max(lowerBound, min/numP + (min%numP!=0) - 1 - (min<0));
-	for(int i = deg; i > lowerBound; --i){
-		std::vector<std::vector<int>> candidates = GetStatesByDegree(numP-1,
+	lowerBound = std::max<T>(lowerBound, min/numP + (min%numP!=0) - 1 - (min<0));
+	for(T i = deg; i > lowerBound; --i){
+		std::vector<std::vector<T>> candidates = GetStatesByDegree<T>(numP-1,
 				deg-i, exact, min-i);
 		for(auto& cand : candidates){
 			if(cand.size() == 0 || cand[0] <= i){
@@ -77,14 +78,16 @@ inline std::vector<std::vector<int>> GetStatesByDegree(const int numP,
 	return ret;
 }
 
-inline std::vector<std::vector<int>> GetStatesUpToDegree(const int numP,
-		const int deg, const int M = 0){
-	return GetStatesByDegree(numP, deg, false, M);
+template<typename T>
+inline std::vector<std::vector<T>> GetStatesUpToDegree(const T numP,
+		const T deg, const T M = 0){
+	return GetStatesByDegree<T>(numP, deg, false, M);
 }
 
-inline std::vector<std::vector<int>> GetStatesAtDegree(const int numP,
-		const int deg, const int M = 0){
-	return GetStatesByDegree(numP, deg, true, M);
+template<typename T>
+inline std::vector<std::vector<T>> GetStatesAtDegree(const T numP,
+		const T deg, const T M = 0){
+	return GetStatesByDegree<T>(numP, deg, true, M);
 }
 
 inline std::vector<std::vector<particle>> CombinedCfgs(
@@ -150,7 +153,7 @@ inline std::vector<std::vector<int>> CfgsFromNodePartition(
 		std::vector<std::vector<std::vector<int>>> nodePoss;
 		nodePoss.resize(nodes.size());
 		for(unsigned int i = 0; i < nodes.size(); ++i){
-			nodePoss[i] = GetStatesAtDegree(nodes[i], possibility[i]);
+			nodePoss[i] = GetStatesAtDegree<int>(nodes[i], possibility[i]);
 		}
 		std::vector<unsigned int> cfgSpec;
 		cfgSpec.resize(nodes.size(), 0);
@@ -184,7 +187,7 @@ inline std::vector<std::vector<int>> CfgsFromNodePartition(
 inline std::vector<std::vector<int>> CfgsFromNodes(const int remainingEnergy,
 		const std::vector<int>& nodes, const bool exact){
 	std::vector<std::vector<int>> ret;
-	std::vector<std::vector<int>> nodeEnergies(GetStatesByDegree(nodes.size(),
+	std::vector<std::vector<int>> nodeEnergies(GetStatesByDegree<int>(nodes.size(),
 				remainingEnergy, exact, 0));
 	nodeEnergies = Permute(nodeEnergies);
 	std::vector<std::vector<int>> perpCfgs(CfgsFromNodePartition(nodes, 

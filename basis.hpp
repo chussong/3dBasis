@@ -166,7 +166,7 @@ Basis<mono>::Basis(const int numP, int degree, const int options) {
 		basisVectors.emplace_back(onlyMono, useEoM);
 		return;
 	}
-	std::vector<std::vector<int>> minus = GetStatesUpToDegree(numP, degree);
+	std::vector<std::vector<int>> minus = GetStatesUpToDegree<int>(numP, degree);
 	std::vector<std::vector<particle>> particleCfgs;
 	for(auto& minusCfg : minus){
 		std::vector<particle> newCfg(minusCfg.size());

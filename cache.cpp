@@ -211,30 +211,52 @@ char KVectorBundle::operator[] (const size_t index) const {
 // totalPt is the total (Pt[i] + Pt[j])/2 of the configuration; the cfgVector
 // is the arrangement of (Pt[i] + Pt[j])/2, except for the last entry which is
 // totalK.
-KVectorCache::KVectorCache(const int particleNumber, const int maxPt) {
-	for(char totalPt = 0; totalPt <= maxPt; ++totalPt){
-		for(int totalK = 0; totalK <= totalPt; ++totalK){
+KVectorCache::KVectorCache(const int particleNumber, const int maxPt):
+	nullBundle(), zeroBundle(std::vector<char>(particleNumber+1, 0)) {
+	/*for(char totalPt = 0; totalPt <= maxPt; ++totalPt){
+		for(int totalK = 1; totalK <= totalPt; ++totalK){
 			std::vector<char> cfgVector(particleNumber + 1, 0);
 			cfgVector[0] = totalPt;
 			cfgVector[particleNumber] = totalK;
 			do{
+				//std::cout << "Bundle get: " << cfgVector << std::endl;
 				bundles.emplace_front(cfgVector);
-				do{
+				//do{
 					bundleMap.emplace(cfgVector, bundles.front());
-				}while(std::prev_permutation(cfgVector.begin(), cfgVector.end()-1));
+				//}while(std::prev_permutation(cfgVector.begin(), cfgVector.end()-1));
 			}while(NextSortedCfg(cfgVector));
+		}
+	}*/
+	for(auto& state : GetStatesUpToDegree<char>(particleNumber, maxPt/2)){
+		char totalPt = 0;
+		for(auto contraction : state) totalPt += contraction;
+		state.push_back(0);
+		for(char totalK = 1; totalK <= totalPt; ++totalK){
+			state.back() = totalK;
+			//std::cout << "Bundle get: " << state << " -> ";
+			bundles.emplace_front(state);
+			//std::cout << std::vector<char>(bundles.front().begin(), 
+					//bundles.front().end()) << std::endl;
+			bundleMap.emplace(state, bundles.front());
 		}
 	}
 }
 
 // the last entry contains the totalK and should not be changed
 bool KVectorCache::NextSortedCfg(std::vector<char>& cfgVector){
-	for(size_t pos = cfgVector.size()-2; pos > 0; --pos){
-		if(cfgVector[pos-1] >= cfgVector[pos] + 2){
-			--cfgVector[pos-1];
-			++cfgVector[pos];
-			return true;
-		}
+	for(unsigned int i = cfgVector.size()-2; i > 0; --i){
+		unsigned int j = i - 1;
+		do{
+			if(cfgVector[j] >= cfgVector[i] + 2){
+				--cfgVector[j];
+				++cfgVector[i];
+				return true;
+			} else if(cfgVector[j] == cfgVector[i] + 1) {
+				--j;
+			} else {
+				break;
+			}
+		}while(j < -1u);
 	}
 	for(size_t pos = 1u; pos < cfgVector.size()-1; ++pos){
 		cfgVector[0] += cfgVector[pos];
@@ -246,6 +268,8 @@ bool KVectorCache::NextSortedCfg(std::vector<char>& cfgVector){
 // ptVector is a vector containing the (Pt[i] + Pt[j])/2 for each contraction
 const KVectorBundle& KVectorCache::FromPt(std::vector<char> ptVector,
 		const char totalK) const {
+	if(totalK == 0) return zeroBundle;
+
 	int maxK = 0;
 	for(char contraction : ptVector) maxK += contraction;
 	if(maxK < totalK) return nullBundle;
@@ -255,6 +279,27 @@ const KVectorBundle& KVectorCache::FromPt(std::vector<char> ptVector,
 		std::cerr << "Error: attempted to look up ptVector = " << ptVector 
 			<< ", but found nothing." << std::endl;
 		throw std::runtime_error("KVectorCache::FromPt");
+	}
+	return bundleMap.find(ptVector)->second;
+}
+
+const KVectorBundle& KVectorCache::FromCont(
+		std::vector<std::array<char,2>> contractions, const char totalK) const {
+	if(totalK == 0) return zeroBundle;
+
+	int maxK = 0;
+	for(auto& contraction : contractions) maxK += contraction[1]/2;
+	if(maxK < totalK) return nullBundle;
+
+	std::vector<char> ptVector(contractions.size() + 1);
+	for(size_t i = 0; i < contractions.size(); ++i){
+		ptVector[i] = contractions[i][1]/2;
+	}
+	ptVector.back() = totalK;
+	if(bundleMap.find(ptVector) == bundleMap.end()){
+		std::cerr << "Error: attempted to look up ptVector = " << ptVector 
+			<< ", but found nothing." << std::endl;
+		throw std::runtime_error("KVectorCache::FromCont");
 	}
 	return bundleMap.find(ptVector)->second;
 }

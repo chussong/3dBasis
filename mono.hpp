@@ -156,7 +156,7 @@ class mono {
 		static coeff_class IPZuhair(const mono& A, const mono& B,
 									const GammaCache& cache,
 									const KVectorCache& kCache);
-		static std::vector<std::vector<int>> VectorsAtK(const int totalK, 
+		static std::vector<std::vector<char>> VectorsAtK(const char totalK, 
 				const std::vector<size_t>& perm, const mono& A, const mono& B,
 				const size_t start);
 };

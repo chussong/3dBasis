@@ -12,7 +12,7 @@
 #include <type_traits>	// std::is_same
 #include <thread>
 
-constexpr char VERSION[] = "0.6.3";
+constexpr char VERSION[] = "0.6.4";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"
@@ -176,32 +176,139 @@ inline std::vector<poly> Kernel(const Matrix& KActions, const Basis<T>& startBas
 	return ret;
 }
 
+// both GramMatrix functions construct a dense matrix containing the inner 
+// product of every basis element with every other basis element. They split the
+// inner products up among (up to) MAX_THREADS different threads, as defined in
+// constants.hpp, with each thread doing approximately the same number of 
+// elements.
+template<class T>
+void ThreadFillGram(const Basis<T>& basis, const GammaCache& cache,
+		const KVectorCache& kCache, std::vector<Triplet>* output, 
+		const size_t startRow, const size_t endRow) {
+	for(size_t row = startRow; row < endRow; ++row){
+		for(size_t col = row; col < basis.size(); ++col){
+			output->at(basis.size()*row + col) = T::InnerProduct(basis[row], 
+					basis[col], cache, kCache);
+			if(row != col){
+				output->at(basis.size()*col + row) = output->at(
+						basis.size()*row + col);
+			}
+		}
+	}
+}
+
 template<class T>
 DMatrix GramMatrix(const Basis<T>& basis, const GammaCache& cache,
 		const KVectorCache& kCache){
-	std::vector<Triplet> entries;
-	for(auto row = 0u; row < basis.size(); ++row){
-		for(auto col = row; col < basis.size(); ++col){
+	unsigned int numThreads = std::min(MAX_THREADS, basis.size()/2);
+	std::vector<std::thread> threads(numThreads);
+	std::vector<Triplet> entries(basis.size() * basis.size());
+	size_t entryCount = 0;
+	size_t totalCount = (basis.size() * (basis.size() + 1) )/2;
+	size_t startRow = 0;
+	for(size_t row = 0; row < basis.size(); ++row){
+		entryCount += basis.size() - row;
+		if(entryCount > totalCount/numThreads || row == basis.size()-1){
+			threads.emplace_back(ThreadFillGram, std::cref(basis), 
+					std::cref(cache), std::cref(kCache), &entries, startRow, row);
+			entryCount = 0;
+			startRow = row + 1;
+		}
+		/*for(auto col = row; col < basis.size(); ++col){
 			entries.emplace_back(row, col, 
 					T::InnerProduct(basis[row], basis[col], cache, kCache));
 			if(row != col){
 				entries.emplace_back(col, row, 
 						T::InnerProduct(basis[row], basis[col], cache, kCache));
 			}
-		}
+		}*/
 	}
+	for(auto& thread : threads) thread.join();
 	Matrix gram(basis.size(), basis.size());
 	gram.setFromTriplets(entries.begin(), entries.end());
 	return gram;
 }
 
 template<class T>
+const T& Get(const std::vector<Basis<T>>& multipleBases, size_t index){
+	for(const auto& basis : multipleBases){
+		if(index < basis.size()){
+			return basis[index];
+		} else {
+			index -= basis.size();
+		}
+	}
+	throw std::runtime_error("out of range error in Get(vector<Basis>)");
+}
+
+template<class T>
+void ThreadFillGramFromVec(const std::vector<Basis<T>>& bases, 
+		const GammaCache& cache, const KVectorCache& kCache, 
+		std::vector<Triplet>* output, const size_t startRow, 
+		const size_t endRow) {
+	size_t totalSize = 0;
+	for(const auto& basis : bases) totalSize += basis.size();
+	for(size_t row = startRow; row <= endRow; ++row){
+		for(size_t col = row; col < totalSize; ++col){
+			output->at(totalSize*row + col) = Triplet(row, col, 
+					T::InnerProduct(Get(bases, row), Get(bases, col), 
+						cache, kCache) );
+			if(row != col){
+				output->at(totalSize*col + row) = Triplet(col, row, 
+						output->at(totalSize*row + col).value());
+			}
+		}
+	}
+}
+
+/*template<class T>
+std::function<void()> ThreadMainFunction(const std::vector<Basis<T>>& bases, 
+		const GammaCache& cache, const KVectorCache& kCache, 
+		std::vector<Triplet>* output, const size_t startRow, const size_t endRow) {
+	return std::bind(ThreadFillGramFromVec<T>, std::cref(bases), std::cref(cache), 
+			std::cref(kCache), output, startRow, endRow);
+}*/
+
+// note: this function spawns a bunch of threads, but it should do part of the
+// computation on its own as well instead of just waiting around.
+template<class T>
 DMatrix GramMatrix(const std::vector<Basis<T>>& allBases,
 					const GammaCache& cache, const KVectorCache& kCache){
 	// could also do this by defining some kind of super iterator that traverses 
 	// a vector of bases?
+	size_t totalSize = 0;
+	for(auto& basis : allBases) totalSize += basis.size();
+	unsigned int numThreads = std::min(static_cast<unsigned long>(MAX_THREADS), 
+			totalSize/2);
+	std::vector<std::thread> threads;
+	std::vector<Triplet> entries(totalSize * totalSize);
+	size_t entryCount = 0;
+	size_t totalCount = (totalSize * (totalSize + 1) )/2;
+	size_t startRow = 0;
 
-	std::vector<Triplet> entries;
+	numThreads = 1;
+
+	for(size_t row = 0; row < totalSize; ++row){
+		entryCount += totalSize - row;
+		if(entryCount > totalCount/numThreads/* || row == totalSize-1*/){
+			threads.emplace_back(ThreadFillGramFromVec<T>, std::cref(allBases), 
+					std::cref(cache), std::cref(kCache), &entries, startRow, row);
+			entryCount = 0;
+			startRow = row + 1;
+		}
+		/*for(auto col = row; col < basis.size(); ++col){
+			entries.emplace_back(row, col, 
+					T::InnerProduct(basis[row], basis[col], cache, kCache));
+			if(row != col){
+				entries.emplace_back(col, row, 
+						T::InnerProduct(basis[row], basis[col], cache, kCache));
+			}
+		}*/
+	}
+	// the main thread fills in the last batch on its own
+	ThreadFillGramFromVec<T>(allBases, cache, kCache, &entries, startRow, 
+			totalSize-1);
+	/*std::vector<Triplet> entries;
 	auto row = 0u;
 	size_t totalSize = 0;
 	for(auto& basisA : allBases){
@@ -221,7 +328,9 @@ DMatrix GramMatrix(const std::vector<Basis<T>>& allBases,
 			++row;
 		}
 		totalSize += basisA.size();
-	}
+	}*/
+	for(auto& thread : threads) thread.join();
+	//for(auto& entry : entries) std::cout << entry << std::endl;
 	Matrix gram(totalSize, totalSize);
 	gram.setFromTriplets(entries.begin(), entries.end());
 	return gram;

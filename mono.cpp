@@ -749,6 +749,7 @@ coeff_class mono::IPZuhair(const mono& A, const mono& B,
 
 	coeff_class sum = 0;
 	std::vector<char> ptVector(A.NParticles());
+	std::vector<std::array<char,2>> contractions(A.NParticles());;
 	for(int totalK = 0; totalK <= totalPt/2; ++totalK){
 		coeff_class totalKPrefactor = cache.Middle(totalPm, totalPt, totalK);
 		if(debug){
@@ -763,9 +764,11 @@ coeff_class mono::IPZuhair(const mono& A, const mono& B,
 		do{ // for each permutation of B
 			// for each kVector whose total is totalK
 			if(debug) std::cout << "Permutation: " << perm << std::endl;
-			for(auto i = 0u; i < ptVector.size(); ++i){
+			/*for(auto i = 0u; i < ptVector.size(); ++i){
 				ptVector[i] = static_cast<char>((A.Pt(i) + B.Pt(perm[i]))/2);
 			}
+			std::sort(ptVector.begin(), ptVector.end(), std::greater<char>());
+			std::cout << "PtVector: " << ptVector << std::endl;
 			const KVectorBundle& kVectors = kCache.FromPt(ptVector, totalK);
 			for(size_t startPt = 0; startPt < kVectors.size(); startPt += A.NParticles()){
 				if(debug){
@@ -778,6 +781,33 @@ coeff_class mono::IPZuhair(const mono& A, const mono& B,
 				for(auto i = 0u; i < A.NParticles(); ++i){
 					logOfProduct += cache.Inner(A.Pm(i) + B.Pm(perm[i]),
 							A.Pt(i) + B.Pt(perm[i]), kVectors[startPt + i]);
+				}
+				if(debug){
+				std::cout << "Contribution from this permutation and kVector: "
+					<< std::exp(logOfProduct) << std::endl;
+				}
+				sum += totalKPrefactor*std::exp(logOfProduct);
+			}*/
+			for(auto i = 0u; i < contractions.size(); ++i){
+				contractions[i][0] = static_cast<char>(A.Pm(i) + B.Pm(perm[i]));
+				contractions[i][1] = static_cast<char>(A.Pt(i) + B.Pt(perm[i]));
+			}
+			std::sort(contractions.begin(), contractions.end(),
+					[](std::array<char,2> a, std::array<char,2> b){
+						return a[1] > b[1];
+					} );
+			const KVectorBundle& kVectors = kCache.FromCont(contractions, totalK);
+			for(size_t startPt = 0; startPt < kVectors.size(); startPt += A.NParticles()){
+				if(debug){
+					std::cout << "k vector: "
+					<< std::vector<char>(kVectors.begin() + startPt, 
+							kVectors.begin() + startPt + A.NParticles())
+					<< std::endl;
+				}
+				coeff_class logOfProduct = 0;
+				for(auto i = 0u; i < A.NParticles(); ++i){
+					logOfProduct += cache.Inner(contractions[i][0],
+							contractions[i][1], kVectors[startPt + i]);
 				}
 				if(debug){
 				std::cout << "Contribution from this permutation and kVector: "
@@ -807,15 +837,15 @@ coeff_class mono::IPZuhair(const mono& A, const mono& B,
 // subject to the constraint that kVector[i] <= (A.Pt(i) + B.Pt(perm[i]))/2.
 // This version operates by recursively calling itself on the remaining part
 // of the vector until it reaches the end.
-std::vector<std::vector<int>> mono::VectorsAtK(const int totalK, 
+std::vector<std::vector<char>> mono::VectorsAtK(const char totalK, 
 		const std::vector<size_t>& perm, const mono& A, const mono& B,
 		const size_t start){
 	//std::cout << "VectorsAtK(" << totalK << ", " << perm << ", " << A << ", "
 		//<< B << ", " << start << "):" << std::endl;
-	std::vector<std::vector<int>> ret;
+	std::vector<std::vector<char>> ret;
 
 	if(start >= A.NParticles()) return ret;
-	const int maxK = (A.Pt(start) + B.Pt(perm[start]))/2;
+	const char maxK = (A.Pt(start) + B.Pt(perm[start]))/2;
 	if(start == A.NParticles()-1 && totalK > maxK) return ret;
 	if(start == A.NParticles()-1 && totalK <= maxK) return {{totalK}};
 

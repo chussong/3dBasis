@@ -47,6 +47,7 @@ typedef Eigen::ColPivHouseholderQR<DMatrix> DQRSolver; // faster, less info
 
 //constexpr coeff_class delta = 0.25;
 constexpr coeff_class EPSILON = 1e-10;
+constexpr unsigned int MAX_THREADS = 8u;
 
 struct arguments{
 	int numP;

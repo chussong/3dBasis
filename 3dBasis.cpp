@@ -498,7 +498,7 @@ Basis<mono> mBasis::BasisAtM(const int numP, const int degree, const int M,
 		const int options){
 	if(options & OPT_DEBUG) 
 		std::cout << "Constructing basis at M = " << M << "." << std::endl;
-	std::vector<std::vector<int>> minusCfgs = GetStatesUpToDegree(numP,
+	std::vector<std::vector<int>> minusCfgs = GetStatesUpToDegree<int>(numP,
 			(degree + M)/2, M);
 	int zeroCount, totalPm;
 	std::vector<std::vector<int>> plusCfgs, perpCfgs;
@@ -518,7 +518,7 @@ Basis<mono> mBasis::BasisAtM(const int numP, const int degree, const int M,
 			}
 		}
 		if(zeroCount == 0 && totalPm > M) continue;
-		plusCfgs = GetStatesAtDegree(zeroCount, totalPm - M);
+		plusCfgs = GetStatesAtDegree<int>(zeroCount, totalPm - M);
 		for(auto& plusCfg : plusCfgs){
 			plusCfg.insert(plusCfg.begin(), numP - plusCfg.size(), 0);
 			if(options & OPT_DEBUG) std::cout << "Minus: " << minusCfg << std::endl;

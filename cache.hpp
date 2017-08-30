@@ -8,6 +8,7 @@
 
 #include "constants.hpp"
 #include "io.hpp"
+#include "construction.hpp"
 
 class GammaCache {
 	public:
@@ -75,6 +76,8 @@ class KVectorCache {
 		KVectorCache(const int particleNumber, const int maxPt);
 		const KVectorBundle& FromPt(std::vector<char> ptVector,
 				const char totalK) const;
+		const KVectorBundle& FromCont(std::vector<std::array<char,2>> 
+				contractions, const char totalK) const;
 	private:
 		struct CfgLessThan {
 			bool operator()(const std::vector<char>& A, 
@@ -86,7 +89,8 @@ class KVectorCache {
 		//int totalPt;
 		std::forward_list<KVectorBundle> bundles;
 		std::map<std::vector<char>, const KVectorBundle&, CfgLessThan> bundleMap;
-		KVectorBundle nullBundle;
+		const KVectorBundle nullBundle;
+		const KVectorBundle zeroBundle;
 
 		static bool NextSortedCfg(std::vector<char>& cfgVector);
 
