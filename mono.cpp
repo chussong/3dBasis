@@ -100,7 +100,7 @@ std::string mono::HumanReadable() const{
 	std::ostringstream os;
 	// WARNING: this assumes that the sign of the coefficient will be accounted
 	// for in the function calling this! Only the absolute value is attached!
-	if(std::abs(Coeff() - 1) > EPSILON) os << std::abs(Coeff()) << "*";
+	if(std::abs(Coeff() - 1) > EPSILON) os << std::abs(Coeff()) << "*{";
 	for(auto& p : particles){
 		if(p.pm != 0){
 			os << "M";
@@ -116,6 +116,7 @@ std::string mono::HumanReadable() const{
 		}
 		os << "Φ";
 	}
+	if(std::abs(Coeff() - 1) > EPSILON) os << "}";
 	return os.str();
 }
 
@@ -320,6 +321,8 @@ mono mono::MirrorPM() const{
 	return ret;
 }
 
+// returns whether or not this is a Dirichlet-compliant monomial, i.e. that each
+// particle has a Pm
 bool mono::IsDirichlet() const{
 	for(auto& p : particles){
 		if(p.pm < 1){
@@ -327,6 +330,24 @@ bool mono::IsDirichlet() const{
 				<< "." << std::endl;*/
 			return false;
 		}
+	}
+	return true;
+}
+
+// returns whether or not this particle will have a zero norm due to being a
+// p-perp descendant; for 2-particle states, this is just everything where both
+// Pm are equal. For higher particle numbers, it's states where each particle is
+// identical except exactly one has 1 higher Pt than the others.
+bool mono::IsNull() const {
+	if (NParticles() < 2 ) {
+		std::cerr << "Error: tried to call IsNull() on a monomial with only " 
+			<< NParticles() << " particles." << std::endl;
+		return false;
+	}
+	if (NParticles() == 2) return (Pm(0) == Pm(1)) && (TotalPt()%2 == 1);
+
+	for (auto i = 1u; i < NParticles(); ++i) {
+		if (Pm(i) != Pm(0) || Pt(i) != Pt(0) - 1) return false;
 	}
 	return true;
 }
@@ -830,7 +851,7 @@ coeff_class mono::IPZuhair(const mono& A, const mono& B,
 			}*/
 		}while(std::next_permutation(perm.begin(), perm.end()));
 	}
-	return cache.Prefactor(totalPm, totalPt)*multiplicity*sum;
+	return A.Coeff()*B.Coeff()*cache.Prefactor(totalPm, totalPt)*multiplicity*sum;
 }
 
 // return a vector of all the vectors of length A.size() whose total is totalK,
@@ -890,4 +911,88 @@ std::vector<std::vector<char>> mono::VectorsAtK(const char totalK,
 	}
 	//std::cout << kVectors.size() << " k vectors." << std::endl;
 	return kVectors;
+}*/
+
+// just like an inner product, but including the intermediate operator "op" in
+// its contractions. as before, all fields inside objects must be contracted 
+// with a field inside a different object.
+/*coeff_class mono::MatrixElement(const mono& A, const mono& B, const mono& op,
+		const GammaCache& cache, const KVectorCache& kCache){
+
+	constexpr bool debug = false;
+
+	// generate (a series of) vector(s) of the Pm and Pt to be found in each
+	// contraction
+
+	int totalPm = 0;
+	int totalPt = 0;
+	for(auto i = 0u; i < A.NParticles(); ++i){
+		totalPm += A.Pm(i);
+		totalPt += A.Pt(i);
+	}
+	for(auto i = 0u; i < B.NParticles(); ++i){
+		totalPm += B.Pm(i);
+		totalPt += B.Pt(i);
+	}
+	if(A.NParticles() != B.NParticles() || totalPt % 2 == 1) return 0;
+
+	coeff_class multiplicity = 1;
+	for(auto& count : B.CountIdentical()) multiplicity *= Factorial(count);
+
+	if(debug){
+	std::cout << "--------------------" << std::endl;
+	std::cout << "Inner product " << A << " x " << B << std::endl;
+	std::cout << "Prefactor: " << cache.Prefactor(totalPm, totalPt) <<std::endl;
+	std::cout << "Multiplicity: " << multiplicity << std::endl;
+	}
+
+	std::vector<size_t> perm(B.PermutationVector());
+
+	coeff_class sum = 0;
+	std::vector<char> ptVector(A.NParticles());
+	std::vector<std::array<char,2>> contractions(A.NParticles());;
+	for(int totalK = 0; totalK <= totalPt/2; ++totalK){
+		coeff_class totalKPrefactor = cache.Middle(totalPm, totalPt, totalK);
+		if(debug){
+		std::cout << "Middle coefficient @ (" << totalPm << ", " << totalPt
+			<< ", " << totalK << "): " << totalKPrefactor << std::endl;
+		}
+
+		// - permute monomial B
+		// - sum over all kVectors whose total is totalK and where each entry
+		//   kVector[i] <= totalPt[i] (noting that totalPt[i] changes with perm)
+
+		do{ // for each permutation of B
+			// for each kVector whose total is totalK
+			if(debug) std::cout << "Permutation: " << perm << std::endl;
+			for(auto i = 0u; i < contractions.size(); ++i){
+				contractions[i][0] = static_cast<char>(A.Pm(i) + B.Pm(perm[i]));
+				contractions[i][1] = static_cast<char>(A.Pt(i) + B.Pt(perm[i]));
+			}
+			std::sort(contractions.begin(), contractions.end(),
+					[](std::array<char,2> a, std::array<char,2> b){
+						return a[1] > b[1];
+					} );
+			const KVectorBundle& kVectors = kCache.FromCont(contractions, totalK);
+			for(size_t startPt = 0; startPt < kVectors.size(); startPt += A.NParticles()){
+				if(debug){
+					std::cout << "k vector: "
+					<< std::vector<char>(kVectors.begin() + startPt, 
+							kVectors.begin() + startPt + A.NParticles())
+					<< std::endl;
+				}
+				coeff_class logOfProduct = 0;
+				for(auto i = 0u; i < A.NParticles(); ++i){
+					logOfProduct += cache.Inner(contractions[i][0],
+							contractions[i][1], kVectors[startPt + i]);
+				}
+				if(debug){
+				std::cout << "Contribution from this permutation and kVector: "
+					<< std::exp(logOfProduct) << std::endl;
+				}
+				sum += totalKPrefactor*std::exp(logOfProduct);
+			}
+		}while(std::next_permutation(perm.begin(), perm.end()));
+	}
+	return cache.Prefactor(totalPm, totalPt)*multiplicity*sum;
 }*/

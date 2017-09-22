@@ -24,8 +24,10 @@ class Basis {
 	static bool PpDominant(const mono& m);
 
 	public:
-		explicit Basis(const std::vector<T> basisVectors): basisVectors(basisVectors) {}
+		explicit Basis(const std::vector<T>& basisVectors): basisVectors(basisVectors) {}
 		Basis(const int numP, int degree, const int options);
+		//explicit Basis(const Basis&) = default;
+		//Basis(Basis&&) = default;
 
 		unsigned int FindInBasis(const std::vector<int>& pm,
 				const std::vector<int>& pt, const std::vector<int>& pp) const;
@@ -147,6 +149,10 @@ Basis<mono>::Basis(const int numP, int degree, const int options) {
 	// 		in constructing the basis; for instance, the states where every
 	// 		pm = 0 are followed by a copy of the earlier parts of the basis
 
+	constexpr bool debug = false;
+	if(debug) std::cout << "***Generating basis at N=" << numP << ", D="
+		<< degree << "***" << std::endl;
+
 	if(options & OPT_DIRICHLET) degree -= numP;
 	if(degree < 0){
 		if(options & OPT_DIRICHLET){
@@ -159,35 +165,56 @@ Basis<mono>::Basis(const int numP, int degree, const int options) {
 		return;
 	}
 	const bool useEoM = (options & OPT_EQNMOTION) != 0;
+
+	// start with all possible configurations of P_-
 	if(degree == 0){
 		std::vector<particle> onlyMono;
 		onlyMono.resize(numP);
-		for(auto& part : onlyMono) part.pm = 1;
+		for(auto& part : onlyMono){
+			(options & OPT_DIRICHLET) ? part.pm = 1 : part.pm = 0;
+		}
 		basisVectors.emplace_back(onlyMono, useEoM);
 		return;
 	}
-	std::vector<std::vector<int>> minus = GetStatesUpToDegree<int>(numP, degree);
+	std::vector<std::vector<int>> minus;
+	if(options & OPT_ALLMINUS){
+		minus = GetStatesAtDegree<int>(numP, degree);
+	} else {
+		minus = GetStatesUpToDegree<int>(numP, degree);
+	}
 	std::vector<std::vector<particle>> particleCfgs;
 	for(auto& minusCfg : minus){
+		if(debug) std::cout << "Here's a configuration of minuses: "
+			<< minusCfg << std::endl;
 		std::vector<particle> newCfg(minusCfg.size());
 		for(auto i = 0u; i < newCfg.size(); ++i) newCfg[i].pm = minusCfg[i];
 		particleCfgs.push_back(newCfg);
 	}
 
+	// for each P_- configuration, generate all possible P_\perp configs
 	const bool exact = options & OPT_DIRICHLET;
 	std::vector<int> nodes;
 	std::vector<std::vector<particle>> newCfgs;
 	for(auto& configuration : particleCfgs){
+		if(options & OPT_ALLMINUS){
+			newCfgs.push_back(configuration);
+			continue;
+		}
 		nodes = IdentifyNodes(configuration);
 		int remainingEnergy = degree;
 		for(auto& part : configuration) remainingEnergy -= part.pm;
 		std::vector<std::vector<int>> perp(CfgsFromNodes(remainingEnergy, nodes,
 															exact));
+		if(debug) std::cout << "COMBINING SUBCONFIGS OF " << configuration 
+			<< std::endl;
 		for(auto& newCfg : CombinedCfgs(configuration, perp, 2)){
+			if(debug) std::cout << "NEW CONFIGURATION: " << newCfg << std::endl;
 			newCfgs.push_back(newCfg);
 		}
 	}
 
+	// finally, generate P_+ configurations for each of the above, or do 
+	// analogous things if P_+ is disabled
 	particleCfgs.clear();
 	if(options & OPT_DIRICHLET){
 		for(auto& cfg : newCfgs){
@@ -207,6 +234,7 @@ Basis<mono>::Basis(const int numP, int degree, const int options) {
 		}
 	}
 
+	//std::cout << "Tick." << std::endl;
 	for(auto& cfg : particleCfgs){
 		basisVectors.emplace_back(cfg, useEoM);
 		//std::cout << cfg << std::endl;
@@ -284,6 +312,7 @@ inline void Basis<mono>::DeleteAsymm(){
 
 template<class T>
 inline std::ostream& operator<<(std::ostream& os, const Basis<T>& out){
+	if(out.size() == 0) return os << "{ }";
 	os << "{ ";
 	for(auto& v : out.basisVectors) os << v.HumanReadable() << ", ";
 	return os << "\b\b }";
@@ -393,12 +422,17 @@ inline bool splitBasis<T>::IsAsymm(const mono& toTest){
 	return !IsSymm(toTest);
 }
 
-// this could definitely be done more intelligently if speed were important
+// this could definitely be done more intelligently if speed were important;
+// even at order 0, we could just generate the basis once and copy it rather
+// than making exactly the same thing twice.
 template<class T>
 inline splitBasis<T>::splitBasis(const int numP, const int degree, const int options): 
-	evenBasis(numP, degree, options), oddBasis(numP, degree, options){
+	evenBasis(numP, degree, options), oddBasis(evenBasis){
+	//std::cout << evenBasis << "----->" << std::endl;
 	evenBasis.DeleteOdd();
+	//std::cout << evenBasis << std::endl;
 	oddBasis.DeleteEven();
+	//std::cout << oddBasis << std::endl;
 }
 
 template<class T>
@@ -433,6 +467,66 @@ inline std::list<Triplet> splitBasis<T>::ExpressPoly(const poly& toExpress,
 		}
 	}
 	return ret;
+}
+
+// Priority for sorting monomials within a basis. The point of this is to get
+// the orthogonalization that we want from Gram-Schmidt, so it favors states 
+// with lower P_\perp, and then states with a lower degree as a tiebreaker.
+inline bool SortPriority(const mono& A, const mono& B) {
+	if (A.TotalPt() != B.TotalPt()) {
+		return A.TotalPt() < B.TotalPt();
+	} else { // i.e. if both have the same totalPt
+		return A.TotalPm() < B.TotalPm();
+	}
+}
+
+//bool SortPriority(const poly& A, const poly& B);
+
+template<class T>
+Basis<T> CombineBases(const std::vector<Basis<T>>& oldBases) {
+	std::vector<T> newBasisVectors;
+	for (auto& oldBasis : oldBases) {
+		for (auto& oldBasisVector : oldBasis) {
+			newBasisVectors.push_back(oldBasisVector);
+		}
+	}
+	std::sort(newBasisVectors.begin(), newBasisVectors.end(), SortPriority);
+	return Basis<T>(newBasisVectors);
+}
+
+// Take a basis and look at every element; if the element has zero norm (within
+// floating point tolerance), delete it, otherwise normalize it.
+template<class T>
+void Normalize(Basis<T>* toNormalize, const GammaCache& cache, 
+		const KVectorCache& kCache) {
+	if (!toNormalize) return;
+
+	// if vector's norm is zero, skip it; otherwise, normalize
+	std::vector<T> newBasisVectors;
+	for (T& basisVector : *toNormalize) {
+		if (basisVector.IsNull()) {
+			std::cout << basisVector.HumanReadable() << " judged to be a null "
+				<< "state." << std::endl;
+			continue;
+		}
+		coeff_class norm = T::InnerProduct(basisVector, basisVector, cache, 
+				kCache);
+		/*std::cout << "Norm of " << basisVector.HumanReadable() << ": " 
+			<< norm << std::endl;
+		std::cout << "Meanwhile, its Kt is: " << basisVector.K2(0.5) << "."
+			<< std::endl;*/
+		// using norm instead of std::abs(norm) because negative norms are zeros
+		//basisVector /= std::sqrt(norm);
+		newBasisVectors.push_back(basisVector);
+		newBasisVectors.back() /= std::sqrt(norm);
+	}
+	Basis<T> newBasis{newBasisVectors};
+	std::swap(*toNormalize, newBasis);
+
+	// delete everything with a zero norm
+	/*toNormalize->erase(std::remove_if(toNormalize->begin(), toNormalize->end(),
+				[](const T& vec){return vec.Coeff() == 0;}), 
+			toNormalize->end());*/
 }
 
 #endif

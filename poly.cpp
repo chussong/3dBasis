@@ -90,9 +90,13 @@ bool poly::operator==(const poly& other) const{
 	return true;
 }
 
-std::ostream& operator<<(std::ostream& os, const poly& out){
+/*std::ostream& operator<<(std::ostream& os, const poly& out){
 	for(auto& component : out) os << component << " + ";
 	return out.size() > 0 ? os << "\b\b \b\b" : os;
+}*/
+
+std::ostream& operator<<(std::ostream& os, const poly& out){
+	return out.size() > 0 ? os << out.HumanReadable() : os;
 }
 
 /*std::string poly::HumanReadable(){

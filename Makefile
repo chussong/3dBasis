@@ -7,8 +7,8 @@ BASEDIR = $(CURDIR)
 CXX = clang++
 
 CXXFLAGS = -IEigen -ISuiteSparse/include -Wall -Wextra -pedantic -O3 -g -c -std=c++14
-LDFLAGS = -L$(BASEDIR)/lib -Wl,-rpath=$(BASEDIR)/lib -lspqr -lcholmod -lmetis \
-		  -lopenblas -lpthread
+LDFLAGS = -L$(BASEDIR)/lib -Wl,-rpath=$(BASEDIR)/lib,-rpath=$(BASEDIR)/SuiteSparse/lib \
+		  -lspqr -lcholmod -lmetis -lopenblas -lpthread
 EXECUTABLE = 3dBasis
 
 SOURCES = mono.cpp poly.cpp 3dBasis.cpp cache.cpp
@@ -26,6 +26,7 @@ all:  | lib
 		BLAS="-lopenblas -lgfortran -lpthread" )
 	( ln -s $(BASEDIR)/SuiteSparse/lib/libspqr.so $(BASEDIR)/lib/libspqr.so )
 	( ln -s $(BASEDIR)/SuiteSparse/lib/libcholmod.so $(BASEDIR)/lib/libcholmod.so )
+	( ln -s $(BASEDIR)/SuiteSparse/lib/libmetis.so $(BASEDIR)/lib/libmetis.so )
 	( $(MAKE) $(EXECUTABLE) )
 
 $(EXECUTABLE): $(OBJECTS)

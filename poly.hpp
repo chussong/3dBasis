@@ -12,6 +12,7 @@
 // * You can add or subtract monos or polys from a poly. If you do, the poly
 // will check if it already has each mono; if it does, it just increases the
 // coefficient, while if it doesn't it appends that mono to terms.
+// * You can multiply and divide by basic arithmetic types but not mono or poly.
 // * Individual component monos can be accessed with [] just like an ordinary
 // array. This can also be iterated through with begin() and end().
 // * The output stream operator std::cout << somePoly prints the poly as a
@@ -39,10 +40,12 @@ class poly {
 		bool operator==(const poly& other) const;
 		bool operator!=(const poly& other) const { return !(*this == other); }
 
+		template<typename T> poly& operator*=(const T& y);
+		template<typename T> poly& operator/=(const T& y);
 		template<typename T>
-			friend poly operator*(poly x, const T&    y);
+			friend poly operator*(poly x, const T&    y) { return x*=y; }
 		template<typename T>
-			friend poly operator/(poly x, const T&    y);
+			friend poly operator/(poly x, const T&    y) { return x/=y; }
 		template<typename T>
 			friend poly operator*(const T& x,    poly y) { return y*x; }
 		poly operator-() const;
@@ -85,22 +88,38 @@ class poly {
 };
 
 template<typename T>
+poly& poly::operator*=(const T& y){
+	for(mono& m : terms){
+		m *= y;
+	}
+	return *this;
+}
+
+template<typename T>
+poly& poly::operator/=(const T& y){
+	for(mono& m : terms){
+		m /= y;
+	}
+	return *this;
+}
+
+/*template<typename T>
 poly operator*(poly x, const T& y){
 	poly ret(x);
 	for(mono& m : ret){
 		m *= y;
 	}
 	return ret;
-}
+}*/
 
-template<typename T>
+/*template<typename T>
 poly operator/(poly x, const T& y){
 	poly ret(x);
 	for(mono& m : ret){
 		m /= y;
 	}
 	return ret;
-}
+}*/
 
 // specialization of vector output template for vectors of polynomials
 template<>

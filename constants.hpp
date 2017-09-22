@@ -38,8 +38,8 @@ typedef Eigen::SPQR<Matrix> QRSolver; // direct interface to SPQR also possible
 /***** Define which solver to use for dense matrix orthogonalization.     *****/
 /******************************************************************************/
 
-typedef Eigen::ColPivHouseholderQR<DMatrix> DQRSolver; // faster, less info
-//typedef Eigen::FullPivHouseholderQR<DMatrix> DQRSolver; // slower, full info
+//typedef Eigen::ColPivHouseholderQR<DMatrix> DQRSolver; // faster, less info
+typedef Eigen::FullPivHouseholderQR<DMatrix> DQRSolver; // slower, full info
 
 /******************************************************************************/
 /***** Constants and struct definitions which should be widely accessible *****/
@@ -68,7 +68,7 @@ struct particle{
 enum options { OPT_BRUTE = 1 << 0, OPT_VERSION = 1 << 1, OPT_DEBUG = 1 << 2,
 				OPT_PARITYONLY = 1 << 3, OPT_EQNMOTION = 1 << 4,
 				OPT_MSORTING = 1 << 5, OPT_DIRICHLET = 1 << 6,
-				OPT_OUTPUT = 1 << 7, OPT_IPTEST = 1 << 8};
+				OPT_OUTPUT = 1 << 7, OPT_IPTEST = 1 << 8, OPT_ALLMINUS = 1 << 9};
 
 /******************************************************************************/
 /***** Compile-time constant math functions                               *****/

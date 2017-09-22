@@ -97,6 +97,7 @@ class mono {
 		static bool MirrorIsBetter(const mono& m);
 
 		bool IsDirichlet() const;
+		bool IsNull() const;
 		void NullIfIllegal();
 
 		mono DerivPm(const unsigned int targetParticle) const;
