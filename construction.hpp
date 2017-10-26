@@ -28,11 +28,11 @@ inline std::vector<int> IdentifyNodes(const T& container){
 			container.size());
 }
 
-// default behavior for a vector of particles; used by mono::IdentifyNodes()
+// default behavior for a vector of particles; used by Mono::IdentifyNodes()
 template<>
 inline std::vector<int> IdentifyNodes(const std::vector<particle>& particles){
 	return IdentifyNodes([particles](unsigned int i){return 
-			std::array<int, 3>({{particles[i].pm, particles[i].pt, particles[i].pp}}); },
+			std::array<int, 2>({{particles[i].pm, particles[i].pt}}); },
 			particles.size());
 }
 
@@ -94,9 +94,9 @@ inline std::vector<std::vector<particle>> CombinedCfgs(
 		const std::vector<particle>& baseCfg,
 		const std::vector<std::vector<int>>& newCfgs, const int componentToChange){
 	std::vector<std::vector<particle>> ret;
-	if(componentToChange < 1 || componentToChange > 3){
+	if(componentToChange < 1 || componentToChange > 2){
 		std::cerr << "Error: asked to change invalid component number "
-			<< componentToChange << "; this number must be in [1,3]." << std::endl;
+			<< componentToChange << "; this number must be in [1,2]." << std::endl;
 		return ret;
 	}
 	std::vector<particle> toAdd;
@@ -109,10 +109,6 @@ inline std::vector<std::vector<particle>> CombinedCfgs(
 		}
 		toAdd = baseCfg;
 		for(auto i = 0u; i < toAdd.size(); ++i){
-			if(componentToChange == 3){
-				toAdd[i].pp = newCfg[i];
-				continue;
-			}
 			if(componentToChange == 2){
 				toAdd[i].pt = newCfg[i];
 				continue;

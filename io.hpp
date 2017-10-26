@@ -28,10 +28,6 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<particle>& o
 		os << p.pt << ",";
 	}
 	os << "\b }{";
-	for(auto& p : out){
-		if(p.pp >= 0) os << " ";
-		os << p.pp << ",";
-	}
 	os << "\b }";
 	return os;
 }

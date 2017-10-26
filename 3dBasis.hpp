@@ -12,7 +12,7 @@
 #include <type_traits>	// std::is_same
 #include <thread>
 
-constexpr char VERSION[] = "0.6.5";
+constexpr char VERSION[] = "0.7.0";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"
@@ -23,6 +23,8 @@ constexpr char RELEASE_DATE[] = __DATE__;
 #include "io.hpp"
 #include "timer.hpp"
 #include "cache.hpp"
+#include "matrix.hpp"
+#include "multinomial.hpp" // only needed for testing, really
 
 std::ostream& operator<<(std::ostream& os, const Triplet& out);
 
@@ -35,56 +37,47 @@ int FindPrimaries(const arguments& args);
 int FindPrimariesParityOnly(const arguments& args);
 int FindPrimariesBruteForce(const arguments& args);
 int FindPrimariesByM(const arguments& args);
-unsigned int AddPrimariesAtL(const mBasis& startBasis, const mBasis& targetBasis,
-		const unsigned int L, std::vector<poly>& primaries, 
-		const coeff_class delta, const int options);
 int InnerProductTest(const arguments& args);
 
-int Orthogonalize(const std::vector<Basis<mono>>& inputBases,
+int Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
 					const GammaCache& cache, const KVectorCache& kCache);
-std::vector<poly> GramSchmidt(const std::vector<Basis<mono>> input,
+std::vector<Poly> GramSchmidt(const std::vector<Basis<Mono>> input,
 		const GammaCache& cache, const KVectorCache& kCache);
-std::vector<poly> GramSchmidt(const Basis<mono> input, const GammaCache& cache, 
+std::vector<Poly> GramSchmidt(const Basis<Mono> input, const GammaCache& cache, 
 		const KVectorCache& kCache);
-std::vector<poly> GramSchmidt_WithMatrix(const std::vector<Basis<mono>> input,
+std::vector<Poly> GramSchmidt_WithMatrix(const std::vector<Basis<Mono>> input,
 		const DMatrix& gramMatrix);
-std::vector<poly> GramSchmidt_WithMatrix(const Basis<mono> input, 
+std::vector<Poly> GramSchmidt_WithMatrix(const Basis<Mono> input, 
 		const DMatrix& gramMatrix);
 DVector GSProjection(const DVector& toProject, const DVector& projectOnto,
 		const DMatrix& gramMatrix);
 coeff_class GSNorm(const DVector& vector, const DMatrix& gramMatrix);
-std::vector<poly> GramSchmidt_MatrixOnly(const DMatrix& input, 
-		const std::vector<Basis<mono>>& inputBases);
+std::vector<Poly> GramSchmidt_MatrixOnly(const DMatrix& input, 
+		const std::vector<Basis<Mono>>& inputBases);
 
 // functions interfacing with Eigen ------------------------------------------
 
-Matrix KMatrix(const Basis<mono>& startingBasis, const Basis<mono>& targetBasis,
-		const coeff_class delta, const int options);
-Matrix K13Matrix(const Basis<mono>& startingBasis, const Basis<mono>& targetBasis,
-		const coeff_class delta);
-Matrix K2Matrix(const Basis<mono>& startingBasis, const Basis<mono>& targetBasis,
-		const coeff_class delta);
-std::array<Matrix,4> KMatrices(const splitBasis<mono>& startingBasis,
-		const splitBasis<mono>& targetBasis, const coeff_class delta);
-std::list<Triplet> ConvertToRows(const std::vector<poly>& polyForms, 
-		const Basis<mono>& targetBasis, const Eigen::Index rowOffset);
-/*std::vector<poly> Kernel(const Matrix& KActions, const Basis<mono>& startBasis,
-		const bool outputKernel);*/
-std::vector<poly> CombineKernels(const std::vector<poly>& kernel1,
-		const std::vector<poly>& kernel2);
-poly VectorToPoly(const Vector& kernelVector, const Basis<mono>& startBasis);
-poly VectorToPoly(const DVector& kernelVector, const Basis<mono>& startBasis);
-poly ColumnToPoly(const Matrix& kernelMatrix, const Eigen::Index col, 
-		const Basis<mono>& startBasis);
-poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col, 
-		const Basis<mono>& startBasis);
+std::list<Triplet> ConvertToRows(const std::vector<Poly>& PolyForms, 
+		const Basis<Mono>& targetBasis, const Eigen::Index rowOffset);
+std::vector<Poly> CombineKernels(const std::vector<Poly>& kernel1,
+		const std::vector<Poly>& kernel2);
+Poly VectorToPoly(const Vector& kernelVector, const Basis<Mono>& startBasis);
+Poly VectorToPoly(const DVector& kernelVector, const Basis<Mono>& startBasis);
+Poly ColumnToPoly(const Matrix& kernelMatrix, const Eigen::Index col, 
+		const Basis<Mono>& startBasis);
+Poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col, 
+		const Basis<Mono>& startBasis);
 
 DMatrix ExtractQMatrix(const Eigen::FullPivHouseholderQR<DMatrix>& solver, 
 		               const int dimension);
 DMatrix ExtractQMatrix(const Eigen::ColPivHouseholderQR<DMatrix>& solver, 
 		               const int dimension);
 void ClearZeros(DMatrix* toClear);
-//DMatrix GramMatrix(const Basis<mono>& basis);
+//DMatrix GramMatrix(const Basis<Mono>& basis);
+
+// miscellaneous -------------------------------------------------------------
+
+Basis<Mono> MinimalBasis(const std::vector<Poly>& polynomials);
 
 // templates -----------------------------------------------------------------
 
@@ -132,8 +125,8 @@ double ReadArg<double>(const std::string& arg){
 }
 
 template<class T>
-inline poly VectorToPoly(const DVector& kernelVector, const Basis<T>& startBasis){
-	poly ret;
+inline Poly VectorToPoly(const DVector& kernelVector, const Basis<T>& startBasis){
+	Poly ret;
 	if(static_cast<size_t>(kernelVector.rows()) != startBasis.size()){
 		std::cerr << "Error: the given Q column has " << kernelVector.rows()
 			<< " rows, " << "but the given basis has " << startBasis.size() 
@@ -153,9 +146,9 @@ inline poly VectorToPoly(const DVector& kernelVector, const Basis<T>& startBasis
 }
 
 template<class T>
-inline std::vector<poly> Kernel(const Matrix& KActions, const Basis<T>& startBasis,
+inline std::vector<Poly> Kernel(const Matrix& KActions, const Basis<T>& startBasis,
 		const int options, const bool outputKernel){
-	if(KActions.rows() == 0 || KActions.cols() == 0) return std::vector<poly>();
+	if(KActions.rows() == 0 || KActions.cols() == 0) return std::vector<Poly>();
 	if(options & OPT_DEBUG){
 		std::cout << "Computing kernel from below matrix..." << std::endl;
 		std::cout << KActions << std::endl;
@@ -170,7 +163,7 @@ inline std::vector<poly> Kernel(const Matrix& KActions, const Basis<T>& startBas
 
 	DVector projector = Eigen::VectorXd::Zero(startBasis.size());
 	DVector kernelVector(startBasis.size());
-	std::vector<poly> ret;
+	std::vector<Poly> ret;
 	ret.resize(startBasis.size() - solver.rank());
 
 	if(!outputKernel) return ret;
@@ -245,46 +238,6 @@ DMatrix GramMatrix(const Basis<T>& basis, const GammaCache& cache,
 	return gram;
 }
 
-/*template<typename T> struct ValidQSolver { static constexpr bool value = false; };
-template<> struct ValidQSolver<Eigen::FullPivHouseholderQR<DMatrix>> { 
-	static constexpr bool value = true;
-};
-template<> struct ValidQSolver<Eigen::ColPivHouseholderQR<DMatrix>> { 
-	static constexpr bool value = true;
-};*/
-
-/*template<class T>
-DMatrix GramMatrix(const Basis<T>& basis, const GammaCache& cache,
-		const KVectorCache& kCache){
-	unsigned int numThreads = std::min(MAX_THREADS, basis.size()/2);
-	std::vector<std::thread> threads(numThreads);
-	std::vector<Triplet> entries(basis.size() * basis.size());
-	size_t entryCount = 0;
-	size_t totalCount = (basis.size() * (basis.size() + 1) )/2;
-	size_t startRow = 0;
-	for(size_t row = 0; row < basis.size(); ++row){
-		entryCount += basis.size() - row;
-		if(entryCount > totalCount/numThreads || row == basis.size()-1){
-			threads.emplace_back(ThreadFillGram, std::cref(basis), 
-					std::cref(cache), std::cref(kCache), &entries, startRow, row);
-			entryCount = 0;
-			startRow = row + 1;
-		}
-		for(auto col = row; col < basis.size(); ++col){
-			entries.emplace_back(row, col, 
-					T::InnerProduct(basis[row], basis[col], cache, kCache));
-			if(row != col){
-				entries.emplace_back(col, row, 
-						T::InnerProduct(basis[row], basis[col], cache, kCache));
-			}
-		}
-	}
-	for(auto& thread : threads) thread.join();
-	Matrix gram(basis.size(), basis.size());
-	gram.setFromTriplets(entries.begin(), entries.end());
-	return gram;
-}*/
-
 template<class T>
 const T& Get(const std::vector<Basis<T>>& multipleBases, size_t index){
 	for(const auto& basis : multipleBases){
@@ -317,14 +270,6 @@ void ThreadFillGramFromVec(const std::vector<Basis<T>>& bases,
 	}
 }
 
-/*template<class T>
-std::function<void()> ThreadMainFunction(const std::vector<Basis<T>>& bases, 
-		const GammaCache& cache, const KVectorCache& kCache, 
-		std::vector<Triplet>* output, const size_t startRow, const size_t endRow) {
-	return std::bind(ThreadFillGramFromVec<T>, std::cref(bases), std::cref(cache), 
-			std::cref(kCache), output, startRow, endRow);
-}*/
-
 // note: this function spawns a bunch of threads, but it should do part of the
 // computation on its own as well instead of just waiting around.
 template<class T>
@@ -353,72 +298,16 @@ DMatrix GramMatrix(const std::vector<Basis<T>>& allBases,
 			entryCount = 0;
 			startRow = row + 1;
 		}
-		/*for(auto col = row; col < basis.size(); ++col){
-			entries.emplace_back(row, col, 
-					T::InnerProduct(basis[row], basis[col], cache, kCache));
-			if(row != col){
-				entries.emplace_back(col, row, 
-						T::InnerProduct(basis[row], basis[col], cache, kCache));
-			}
-		}*/
 	}
 	// the main thread fills in the last batch on its own
 	ThreadFillGramFromVec<T>(allBases, cache, kCache, &entries, startRow, 
 			totalSize-1);
-	/*std::vector<Triplet> entries;
-	auto row = 0u;
-	size_t totalSize = 0;
-	for(auto& basisA : allBases){
-		for(auto& elementA : basisA){
-			auto col = 0u;
-			for(auto& basisB : allBases){
-				for(auto& elementB : basisB){
-					coeff_class product = T::InnerProduct(elementA, elementB,
-															cache, kCache);
-					entries.emplace_back(row, col, product);
-					if(row != col) entries.emplace_back(col, row, product);
-					++col;
-					if(col > row) break;
-				}
-				if(col > row) break;
-			}
-			++row;
-		}
-		totalSize += basisA.size();
-	}*/
 	for(auto& thread : threads) thread.join();
 	//for(auto& entry : entries) std::cout << entry << std::endl;
 	Matrix gram(totalSize, totalSize);
 	gram.setFromTriplets(entries.begin(), entries.end());
 	return gram;
 }
-
-/*template<typename T> struct ValidQSolver { static constexpr bool value = false; };
-template<> struct ValidQSolver<Eigen::FullPivHouseholderQR<DMatrix>> { 
-	static constexpr bool value = true;
-};
-template<> struct ValidQSolver<Eigen::ColPivHouseholderQR<DMatrix>> { 
-	static constexpr bool value = true;
-};
-
-template<class T>
-inline DMatrix ExtractQMatrix(const T&, const int){
-	static_assert(ValidQSolver<T>::value, "Solver must be set to one of the "
-			"properly handled types enumerated in 3dBasis.hpp.");
-	return DMatrix();
-}
-
-template<>
-inline DMatrix ExtractQMatrix(const Eigen::FullPivHouseholderQR<DMatrix>& solver, 
-		               const int){
-	return solver.matrixQ();
-}
-
-template<>
-inline DMatrix ExtractQMatrix(const Eigen::ColPivHouseholderQR<DMatrix>& solver, 
-		               const int dimension){
-	return solver.householderQ()*DMatrix::Identity(dimension, dimension);
-}*/
 
 template<class T>
 inline size_t TotalSize(const std::vector<T>& vectorOfContainers){

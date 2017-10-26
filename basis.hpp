@@ -21,8 +21,6 @@ template<class T>
 class Basis {
 	std::vector<T> basisVectors;
 
-	static bool PpDominant(const mono& m);
-
 	public:
 		explicit Basis(const std::vector<T>& basisVectors): basisVectors(basisVectors) {}
 		Basis(const int numP, int degree, const int options);
@@ -30,20 +28,11 @@ class Basis {
 		//Basis(Basis&&) = default;
 
 		unsigned int FindInBasis(const std::vector<int>& pm,
-				const std::vector<int>& pt, const std::vector<int>& pp) const;
+				const std::vector<int>& pt) const;
 		unsigned int FindInBasis(const T& wildVector) const;
 
 		void DeleteOdd();
 		void DeleteEven();
-		void DeleteSymm();
-		void DeleteAsymm();
-
-		//std::array<basis,2> ParitySplit() const;
-		//virtual void DeleteOdd();
-		//virtual void DeleteEven();
-		//virtual void DeleteSymm();
-		//virtual void DeleteAsymm();
-		//void SortBasis();
 
 		const T& operator[](size_t i) const { return basisVectors[i]; }
 		friend std::ostream& operator<<<T>(std::ostream& os, const Basis<T>& out);
@@ -58,9 +47,9 @@ class Basis {
 		typename std::vector<T>::iterator			end()	noexcept
 				{ return basisVectors.end(); }
 
-		Triplet ExpressMono(const mono& toExpress, const int column,
+		Triplet ExpressMono(const Mono& toExpress, const int column,
 				const int rowOffset) const;
-		std::list<Triplet> ExpressPoly(const poly& toExpress, 
+		std::list<Triplet> ExpressPoly(const Poly& toExpress, 
 				const int column, const int rowOffset) const;
 
 };
@@ -76,53 +65,20 @@ class splitBasis {
 		splitBasis(const int numP, const int degree, const int options);
 
 		std::pair<unsigned int, Basis<T>*> FindInBasis(const std::vector<int>& pm,
-				const std::vector<int>& pt, const std::vector<int>& pp);
-		std::pair<unsigned int, Basis<T>*> FindInBasis(const mono& wildMono);
+				const std::vector<int>& pt);
+		std::pair<unsigned int, Basis<T>*> FindInBasis(const Mono& wildMono);
 
 		Basis<T>& OddBasis() { return oddBasis; }
 		const Basis<T>& OddBasis() const { return oddBasis; }
 		Basis<T>& EvenBasis() { return evenBasis; }
 		const Basis<T>& EvenBasis() const { return evenBasis; }
 
-		splitBasis BecomeAsymmetric();
-		void DeleteSymm();
-		void DeleteAsymm();
-		//splitPolyBasis AdditiveSymmetrization();
-
-		std::list<Triplet> ExpressPoly(const poly& toExpress, const int column,
+		std::list<Triplet> ExpressPoly(const Poly& toExpress, const int column,
 				const int row) const;
 
-		static bool IsOdd (const mono& toTest);
-		static bool IsEven(const mono& toTest);
-		static bool IsSymm(const mono& toTest);
-		static bool IsAsymm(const mono& toTest);
-		static std::pair<poly, poly> OddEvenSplit  (const poly& toSplit);
-		static std::pair<poly, poly> SymmAsymmSplit(const poly& toSplit);
-};
-
-// Basis made of 2D+1 sub-bases stratified by M
-class mBasis {
-	std::vector<Basis<mono>> mLevels;
-	std::vector<std::vector<poly>> topStates; // L eigenstates with M = L = i
-
-	static std::vector<Basis<mono>> MakeNegativeLevels(
-			std::vector<Basis<mono>>& nonNegativeMLevels);
-
-	public:
-		mBasis(const int numP, const int degree, const int options);
-
-		Basis<mono> BasisAtM(const int numP, const int degree, const int M,
-				const int options);
-
-		Matrix L3Matrix(const Basis<mono>& startingMBasis, const Basis<mono>& targetMBasis);
-		std::vector<poly> CompleteMultiplet(const poly& topState);
-
-		const Basis<mono>* Level(const int M) const;
-
-		unsigned int Degree() const { return (mLevels.size()-1)/2; }
-		unsigned int LevelSize(const int L) const;
-		std::vector<poly>& TopStates(const int L) { return topStates[L]; }
-		const std::vector<poly>& TopStates(const int L) const { return topStates[L]; }
+		static bool IsOdd (const Mono& toTest);
+		static bool IsEven(const Mono& toTest);
+		static std::pair<Poly, Poly> OddEvenSplit  (const Poly& toSplit);
 };
 
 // state generation -----------------------------------------------------------
@@ -138,7 +94,7 @@ inline Basis<T>::Basis(const int, int, const int) {
 }
 
 template<>
-Basis<mono>::Basis(const int numP, int degree, const int options) {
+inline Basis<Mono>::Basis(const int numP, int degree, const int options) {
 	// 1: generate all possibilities for P_-
 	// 2: identify nodes in P_-, generate possible distributions of P_\perp to
 	// 		the nodes and then P_\perp within each node, adding each at top level
@@ -153,27 +109,23 @@ Basis<mono>::Basis(const int numP, int degree, const int options) {
 	if(debug) std::cout << "***Generating basis at N=" << numP << ", D="
 		<< degree << "***" << std::endl;
 
-	if(options & OPT_DIRICHLET) degree -= numP;
+	// subtract off the required Dirichlet derivatives
+	degree -= numP;
+
 	if(degree < 0){
-		if(options & OPT_DIRICHLET){
-			std::cout << "Error: there are no Dirichlet states with degree "
-				<< "<= the number of particles." << std::endl;
-		} else {
-			std::cout << "Error: a basis was requested with a negative degree; "
-				<< "this is obviously impossible." << std::endl;
-		}
+		std::cout << "Error: there are no Dirichlet states with degree "
+			<< "<= the number of particles." << std::endl;
 		return;
 	}
-	const bool useEoM = (options & OPT_EQNMOTION) != 0;
 
 	// start with all possible configurations of P_-
 	if(degree == 0){
 		std::vector<particle> onlyMono;
 		onlyMono.resize(numP);
 		for(auto& part : onlyMono){
-			(options & OPT_DIRICHLET) ? part.pm = 1 : part.pm = 0;
+			part.pm = 1;
 		}
-		basisVectors.emplace_back(onlyMono, useEoM);
+		basisVectors.emplace_back(onlyMono);
 		return;
 	}
 	std::vector<std::vector<int>> minus;
@@ -192,7 +144,6 @@ Basis<mono>::Basis(const int numP, int degree, const int options) {
 	}
 
 	// for each P_- configuration, generate all possible P_\perp configs
-	const bool exact = options & OPT_DIRICHLET;
 	std::vector<int> nodes;
 	std::vector<std::vector<particle>> newCfgs;
 	for(auto& configuration : particleCfgs){
@@ -204,7 +155,7 @@ Basis<mono>::Basis(const int numP, int degree, const int options) {
 		int remainingEnergy = degree;
 		for(auto& part : configuration) remainingEnergy -= part.pm;
 		std::vector<std::vector<int>> perp(CfgsFromNodes(remainingEnergy, nodes,
-															exact));
+															true));
 		if(debug) std::cout << "COMBINING SUBCONFIGS OF " << configuration 
 			<< std::endl;
 		for(auto& newCfg : CombinedCfgs(configuration, perp, 2)){
@@ -213,51 +164,37 @@ Basis<mono>::Basis(const int numP, int degree, const int options) {
 		}
 	}
 
-	// finally, generate P_+ configurations for each of the above, or do 
-	// analogous things if P_+ is disabled
+	// finally, add in the required P_- from being Dirichlet
 	particleCfgs.clear();
-	if(options & OPT_DIRICHLET){
-		for(auto& cfg : newCfgs){
-			for(auto& part : cfg) ++part.pm;
-			particleCfgs.push_back(cfg);
-		}
-	} else {
-		for(auto& cfg : newCfgs){
-			nodes = IdentifyNodes(cfg);
-			int remainingEnergy = degree;
-			for(auto& part : cfg) remainingEnergy -= part.pm + part.pt;
-			std::vector<std::vector<int>> plus(CfgsFromNodes(remainingEnergy, nodes,
-																true));
-			for(auto& newCfg : CombinedCfgs(cfg, plus, 3)){
-				if(!useEoM || EoMAllowed(newCfg)) particleCfgs.push_back(newCfg);
-			}
-		}
+	for(auto& cfg : newCfgs){
+		for(auto& part : cfg) ++part.pm;
+		particleCfgs.push_back(cfg);
 	}
 
 	//std::cout << "Tick." << std::endl;
 	for(auto& cfg : particleCfgs){
-		basisVectors.emplace_back(cfg, useEoM);
+		basisVectors.emplace_back(cfg);
 		//std::cout << cfg << std::endl;
 	}
 }
 
 template<class T>
 inline unsigned int Basis<T>::FindInBasis(const std::vector<int>&,
-		const std::vector<int>&, const std::vector<int>&) const{
+		const std::vector<int>&) const{
 	std::cout << "Unspecialized Basis::FindInBasis(vectors) should not be called. "
 		<< "How was this basis object created in the first place?" << std::endl;
 	return -1u;
 }
 
 template<class T>
-inline Triplet Basis<T>::ExpressMono(const mono&, const int, const int) const{
+inline Triplet Basis<T>::ExpressMono(const Mono&, const int, const int) const{
 	std::cout << "Unspecialized Basis::ExpressMono should never be called. "
 		<< "How was a basis object created in the first place?" << std::endl;
 	return Triplet(-1, -1, coeff_class(0));
 }
 
 template<class T>
-inline std::list<Triplet> Basis<T>::ExpressPoly(const poly&, const int, const int) const{
+inline std::list<Triplet> Basis<T>::ExpressPoly(const Poly&, const int, const int) const{
 	std::cout << "basis::ExpressMono should never be called. "
 		<< "How was a basis object created in the first place?" << std::endl;
 	return {{Triplet(-1, -1, coeff_class(0))}};
@@ -274,40 +211,21 @@ inline unsigned int Basis<T>::FindInBasis(const T& wildVector) const{
 }
 
 template<>
-inline unsigned int Basis<mono>::FindInBasis(const std::vector<int>& pm, 
-		const std::vector<int>& pt, const std::vector<int>& pp) const{
-	return FindInBasis(mono(pm, pt, pp));
+inline unsigned int Basis<Mono>::FindInBasis(const std::vector<int>& pm, 
+		const std::vector<int>& pt) const{
+	return FindInBasis(Mono(pm, pt));
 }
 
 template<>
-inline void Basis<mono>::DeleteOdd(){
+inline void Basis<Mono>::DeleteOdd(){
 	basisVectors.erase(std::remove_if(basisVectors.begin(), basisVectors.end(), 
-				splitBasis<mono>::IsOdd), basisVectors.end());
+				splitBasis<Mono>::IsOdd), basisVectors.end());
 }
 
 template<>
-inline void Basis<mono>::DeleteEven(){
+inline void Basis<Mono>::DeleteEven(){
 	basisVectors.erase(std::remove_if(basisVectors.begin(), basisVectors.end(),
-				splitBasis<mono>::IsEven), basisVectors.end());
-}
-
-// this deletes the +/- symmetric elements AND deletes the P+ dominant ones,
-// defined to be those with P+ > P- or max(P+) > max(P-)
-template<>
-inline void Basis<mono>::DeleteSymm(){
-	basisVectors.erase(std::remove_if(basisVectors.begin(), basisVectors.end(),
-				splitBasis<mono>::IsSymm), basisVectors.end());
-	basisVectors.erase(std::remove_if(basisVectors.begin(), basisVectors.end(),
-				mono::MirrorIsBetter), basisVectors.end());
-	std::cout << "Basis after deleting symmetric and unfavorable elements: \n";
-	for(auto& m : basisVectors) std::cout << m << std::endl;
-	std::cout << "--------------------" << std::endl;
-}
-
-template<>
-inline void Basis<mono>::DeleteAsymm(){
-	basisVectors.erase(std::remove_if(basisVectors.begin(), basisVectors.end(),
-				splitBasis<mono>::IsAsymm), basisVectors.end());
+				splitBasis<Mono>::IsEven), basisVectors.end());
 }
 
 template<class T>
@@ -319,7 +237,7 @@ inline std::ostream& operator<<(std::ostream& os, const Basis<T>& out){
 }
 
 template<>
-inline Triplet Basis<mono>::ExpressMono(const mono& toExpress, const int column,
+inline Triplet Basis<Mono>::ExpressMono(const Mono& toExpress, const int column,
 		const int rowOffset) const{
 	for(auto i = 0u; i < basisVectors.size(); ++i){
 		if(toExpress == basisVectors[i])
@@ -332,7 +250,7 @@ inline Triplet Basis<mono>::ExpressMono(const mono& toExpress, const int column,
 }
 
 template<>
-inline std::list<Triplet> Basis<mono>::ExpressPoly(const poly& toExpress, 
+inline std::list<Triplet> Basis<Mono>::ExpressPoly(const Poly& toExpress, 
 		const int column, const int rowOffset) const{
 	std::list<Triplet> ret;
 	if(toExpress.size() == 0) return ret;
@@ -344,7 +262,7 @@ inline std::list<Triplet> Basis<mono>::ExpressPoly(const poly& toExpress,
 				std::cout << "Zero get: " << term.Coeff() << ". Now have "
 					<< zeros << "." << std::endl;
 				continue;
-			} it should not actually be possible for a poly to have coeff = 0*/
+			} it should not actually be possible for a Poly to have coeff = 0*/
 			if(term == basisVectors[i]){
 				ret.emplace_front(rowOffset+i, column, 
 						term.Coeff()/basisVectors[i].Coeff());
@@ -369,9 +287,9 @@ inline std::list<Triplet> Basis<mono>::ExpressPoly(const poly& toExpress,
 // which would reproduce toExpress. Obviously it would be more correct if it
 // did attempt to do so.
 template<>
-inline Triplet Basis<poly>::ExpressMono(const mono& toExpress, const int column,
+inline Triplet Basis<Poly>::ExpressMono(const Mono& toExpress, const int column,
 		const int rowOffset) const{
-	poly polyForm(toExpress);
+	Poly polyForm(toExpress);
 	for(auto i = 0u; i < basisVectors.size(); ++i){
 		if(polyForm == basisVectors[i])
 			return Triplet(rowOffset+i, column, 
@@ -386,7 +304,7 @@ inline Triplet Basis<poly>::ExpressMono(const mono& toExpress, const int column,
 // the poly as written. This is obviously not ideal. It also means we can only
 // get exactly 1*the polynomial, which actually probably breaks stuff.
 template<>
-inline std::list<Triplet> Basis<poly>::ExpressPoly(const poly& toExpress, 
+inline std::list<Triplet> Basis<Poly>::ExpressPoly(const Poly& toExpress, 
 		const int column, const int rowOffset) const{
 	for(auto i = 0u; i < basisVectors.size(); ++i){
 		if(toExpress == basisVectors[i])
@@ -398,28 +316,13 @@ inline std::list<Triplet> Basis<poly>::ExpressPoly(const poly& toExpress,
 }
 
 template<class T>
-inline bool splitBasis<T>::IsOdd(const mono& toTest){
+inline bool splitBasis<T>::IsOdd(const Mono& toTest){
 	return toTest.TotalPt()%2 == 1;
 }
 
 template<class T>
-inline bool splitBasis<T>::IsEven(const mono& toTest){
+inline bool splitBasis<T>::IsEven(const Mono& toTest){
 	return !IsOdd(toTest);
-}
-
-template<class T>
-inline bool splitBasis<T>::IsSymm(const mono& toTest){
-	mono clone(toTest);
-	clone.MirrorPM();
-	/*std::cout << toTest;
-	std::cout << (clone == toTest ? " == " : " != ");
-	std::cout << clone << std::endl;*/
-	return clone == toTest;
-}
-
-template<class T>
-inline bool splitBasis<T>::IsAsymm(const mono& toTest){
-	return !IsSymm(toTest);
 }
 
 // this could definitely be done more intelligently if speed were important;
@@ -436,27 +339,7 @@ inline splitBasis<T>::splitBasis(const int numP, const int degree, const int opt
 }
 
 template<class T>
-inline splitBasis<T> splitBasis<T>::BecomeAsymmetric(){
-	splitBasis symm(*this);
-	DeleteSymm();
-	symm.DeleteAsymm();
-	return symm;
-}
-
-template<class T>
-inline void splitBasis<T>::DeleteSymm(){
-	oddBasis.DeleteSymm();
-	evenBasis.DeleteSymm();
-}
-
-template<class T>
-inline void splitBasis<T>::DeleteAsymm(){
-	oddBasis.DeleteAsymm();
-	evenBasis.DeleteAsymm();
-}
-
-template<class T>
-inline std::list<Triplet> splitBasis<T>::ExpressPoly(const poly& toExpress, 
+inline std::list<Triplet> splitBasis<T>::ExpressPoly(const Poly& toExpress, 
 		const int column, const int rowOffset) const{
 	std::list<Triplet> ret;
 	for(auto& term : toExpress){
@@ -472,7 +355,7 @@ inline std::list<Triplet> splitBasis<T>::ExpressPoly(const poly& toExpress,
 // Priority for sorting monomials within a basis. The point of this is to get
 // the orthogonalization that we want from Gram-Schmidt, so it favors states 
 // with lower P_\perp, and then states with a lower degree as a tiebreaker.
-inline bool SortPriority(const mono& A, const mono& B) {
+inline bool SortPriority(const Mono& A, const Mono& B) {
 	if (A.TotalPt() != B.TotalPt()) {
 		return A.TotalPt() < B.TotalPt();
 	} else { // i.e. if both have the same totalPt
@@ -480,7 +363,7 @@ inline bool SortPriority(const mono& A, const mono& B) {
 	}
 }
 
-//bool SortPriority(const poly& A, const poly& B);
+//bool SortPriority(const Poly& A, const Poly& B);
 
 template<class T>
 Basis<T> CombineBases(const std::vector<Basis<T>>& oldBases) {
@@ -505,8 +388,8 @@ void Normalize(Basis<T>* toNormalize, const GammaCache& cache,
 	std::vector<T> newBasisVectors;
 	for (T& basisVector : *toNormalize) {
 		if (basisVector.IsNull()) {
-			std::cout << basisVector.HumanReadable() << " judged to be a null "
-				<< "state." << std::endl;
+			//std::cout << basisVector.HumanReadable() << " judged to be a null "
+				//<< "state." << std::endl;
 			continue;
 		}
 		coeff_class norm = T::InnerProduct(basisVector, basisVector, cache, 

@@ -9,113 +9,98 @@
 
 // all monos in a poly(nomial) should be guaranteed to be ordered correctly!
 // Notes on arithmetic:
-// * You can add or subtract monos or polys from a poly. If you do, the poly
+// * You can add or subtract monos or Polys from a Poly. If you do, the Poly
 // will check if it already has each mono; if it does, it just increases the
 // coefficient, while if it doesn't it appends that mono to terms.
-// * You can multiply and divide by basic arithmetic types but not mono or poly.
+// * You can multiply and divide by basic arithmetic types but not mono or Poly.
 // * Individual component monos can be accessed with [] just like an ordinary
 // array. This can also be iterated through with begin() and end().
-// * The output stream operator std::cout << somePoly prints the poly as a
+// * The output stream operator std::cout << somePoly prints the Poly as a
 // sum of its constituent monos.
-class poly {
-	std::vector<mono> terms;
+class Poly {
+	std::vector<Mono> terms;
 
 	public:
-		explicit poly() {}
-		explicit poly(const mono starter) { terms.push_back(starter); }
-		explicit poly(const std::vector<mono>& terms);
+		explicit Poly() {}
+		explicit Poly(const Mono starter) { terms.push_back(starter); }
+		explicit Poly(const std::vector<Mono>& terms);
 
-		poly& operator+=(const mono& x);
-		poly& operator-=(const mono& x);
-		poly& operator+=(const poly& x);
-		poly& operator-=(const poly& x);
+		Poly& operator+=(const Mono& x);
+		Poly& operator-=(const Mono& x);
+		Poly& operator+=(const Poly& x);
+		Poly& operator-=(const Poly& x);
 
-		friend poly operator+(poly x, const poly& y);
-		friend poly operator-(poly x, const poly& y);
-		friend poly operator+(poly x, const mono& y);
-		friend poly operator-(poly x, const mono& y);
-		friend poly operator+(const mono& x, poly y);
-		friend poly operator-(const mono& x, poly y);
+		friend Poly operator+(Poly x, const Poly& y);
+		friend Poly operator-(Poly x, const Poly& y);
+		friend Poly operator+(Poly x, const Mono& y);
+		friend Poly operator-(Poly x, const Mono& y);
+		friend Poly operator+(const Mono& x, Poly y);
+		friend Poly operator-(const Mono& x, Poly y);
 
-		bool operator==(const poly& other) const;
-		bool operator!=(const poly& other) const { return !(*this == other); }
+		bool operator==(const Poly& other) const;
+		bool operator!=(const Poly& other) const { return !(*this == other); }
 
-		template<typename T> poly& operator*=(const T& y);
-		template<typename T> poly& operator/=(const T& y);
+		template<typename T> Poly& operator*=(const T& y);
+		template<typename T> Poly& operator/=(const T& y);
 		template<typename T>
-			friend poly operator*(poly x, const T&    y) { return x*=y; }
+			friend Poly operator*(Poly x, const T&    y) { return x*=y; }
 		template<typename T>
-			friend poly operator/(poly x, const T&    y) { return x/=y; }
+			friend Poly operator/(Poly x, const T&    y) { return x/=y; }
 		template<typename T>
-			friend poly operator*(const T& x,    poly y) { return y*x; }
-		poly operator-() const;
+			friend Poly operator*(const T& x,    Poly y) { return y*x; }
+		Poly operator-() const;
 
-		const	mono& operator[](size_t i)	const	{ return terms[i]; }
-				mono& operator[](size_t i)			{ return terms[i]; }
+		const	Mono& operator[](size_t i)	const	{ return terms[i]; }
+				Mono& operator[](size_t i)			{ return terms[i]; }
 		size_t	size()						const	{return terms.size(); }
-		std::vector<mono>::const_iterator	begin() const noexcept
+		std::vector<Mono>::const_iterator	begin() const noexcept
 				{ return terms.begin(); }
-		std::vector<mono>::iterator			begin() noexcept
+		std::vector<Mono>::iterator			begin() noexcept
 				{ return terms.begin(); }
-		std::vector<mono>::const_iterator	end()	const noexcept
+		std::vector<Mono>::const_iterator	end()	const noexcept
 				{ return terms.end(); }
-		std::vector<mono>::iterator			end()	noexcept
+		std::vector<Mono>::iterator			end()	noexcept
 				{ return terms.end(); }
 
-		friend std::ostream& operator<<(std::ostream& os, const poly& out);
+		friend std::ostream& operator<<(std::ostream& os, const Poly& out);
 		std::string HumanReadable() const;
 
-		poly DerivPm(const int);
-		poly DerivPp(const int);
-		poly DerivPm();
-		poly DerivPp();
+		Poly DerivPm(const int);
+		Poly DerivPm();
 
-		void MirrorPM() { for(auto& t : terms) t.MirrorPM(); }
-
-		poly K1(const coeff_class delta) const;
-		poly K2(const coeff_class delta) const;
-		poly K3(const coeff_class delta) const;
-
-		static poly K1(const mono& inputMono, const coeff_class delta);
-		static poly K2(const mono& inputMono, const coeff_class delta);
-		static poly K3(const mono& inputMono, const coeff_class delta);
-
-		static poly DeleteNonDirichlet(const poly& inputPoly);
-		static poly DeleteNonDirichlet(const std::vector<mono>& inputMonos);
-
-		static coeff_class InnerProduct(const poly& A, const poly& B,
+		static coeff_class InnerProduct(const Poly& A, const Poly& B,
 						const GammaCache& cache, const KVectorCache& kCache);
 };
 
 template<typename T>
-poly& poly::operator*=(const T& y){
-	for(mono& m : terms){
+Poly& Poly::operator*=(const T& y){
+	for(Mono& m : terms){
 		m *= y;
 	}
 	return *this;
 }
 
 template<typename T>
-poly& poly::operator/=(const T& y){
-	for(mono& m : terms){
+Poly& Poly::operator/=(const T& y){
+	for(Mono& m : terms){
 		m /= y;
 	}
 	return *this;
 }
 
 /*template<typename T>
-poly operator*(poly x, const T& y){
-	poly ret(x);
-	for(mono& m : ret){
+Poly operator*(Poly x, const T& y){
+	Poly ret(x);
+	for(Mono& m : ret){
 		m *= y;
 	}
 	return ret;
 }*/
 
 /*template<typename T>
-poly operator/(poly x, const T& y){
-	poly ret(x);
-	for(mono& m : ret){
+Poly operator/(Poly x, const T& y){
+	Poly ret(x);
+	for(Mono& m : ret){
 		m /= y;
 	}
 	return ret;
@@ -123,7 +108,7 @@ poly operator/(poly x, const T& y){
 
 // specialization of vector output template for vectors of polynomials
 template<>
-inline std::ostream& operator<<(std::ostream& os, const std::vector<poly>& out){
+inline std::ostream& operator<<(std::ostream& os, const std::vector<Poly>& out){
 	if(out.size() == 0) return os << "{ }";
 	os << "{ ";
 	for(auto& element : out){

@@ -2,9 +2,9 @@
 
 // the reason this uses += rather than a copy is so that coefficients can be
 // added for monomials which appear more than once
-poly::poly(const std::vector<mono>& terms){
+Poly::Poly(const std::vector<Mono>& terms){
 	if(terms.size() == 0){
-		std::cout << "Warning! A poly has been constructed from an empty mono."
+		std::cout << "Warning! A Poly has been constructed from an empty Mono."
 			<< std::endl;
 	}
 	for(auto& newTerm : terms){
@@ -12,7 +12,7 @@ poly::poly(const std::vector<mono>& terms){
 	}
 }
 
-poly& poly::operator+=(const mono& x){
+Poly& Poly::operator+=(const Mono& x){
 	if(std::abs(x.Coeff()) < EPSILON) return *this;
 
 	for(auto it = terms.begin(); it != terms.end(); ++it){
@@ -26,55 +26,55 @@ poly& poly::operator+=(const mono& x){
 	return *this;
 }
 
-poly& poly::operator-=(const mono& x){
+Poly& Poly::operator-=(const Mono& x){
 	return *this += -x;
 }
 
-poly& poly::operator+=(const poly& x){
+Poly& Poly::operator+=(const Poly& x){
 	for(auto& mn : x.terms){
 		*this += mn;
 	}
 	return *this;
 }
 
-poly& poly::operator-=(const poly& x){
+Poly& Poly::operator-=(const Poly& x){
 	for(auto& mn : x.terms){
 		*this -= mn;
 	}
 	return *this;
 }
 
-poly operator+(poly x, const poly& y){
+Poly operator+(Poly x, const Poly& y){
 	return x += y;
 }
 
-poly operator-(poly x, const poly& y){
+Poly operator-(Poly x, const Poly& y){
 	return x -= y;
 }
 
-poly operator+(poly x, const mono& y){
+Poly operator+(Poly x, const Mono& y){
 	return x += y;
 }
 
-poly operator-(poly x, const mono& y){
+Poly operator-(Poly x, const Mono& y){
 	return x -= y;
 }
 
-poly operator+(const mono& x, poly y){
+Poly operator+(const Mono& x, Poly y){
 	return y += x;
 }
 
-poly operator-(const mono& x, poly y){
+Poly operator-(const Mono& x, Poly y){
 	return y -= x;
 }
 
-poly poly::operator-() const{
-	poly ret(*this);
+Poly Poly::operator-() const{
+	Poly ret(*this);
 	for(auto& m : ret) m = -m;
 	return ret;
 }
 
-bool poly::operator==(const poly& other) const{
+bool Poly::operator==(const Poly& other) const{
 	bool found;
 	for(auto& term1 : terms){
 		found = false;
@@ -90,31 +90,16 @@ bool poly::operator==(const poly& other) const{
 	return true;
 }
 
-/*std::ostream& operator<<(std::ostream& os, const poly& out){
+/*std::ostream& operator<<(std::ostream& os, const Poly& out){
 	for(auto& component : out) os << component << " + ";
 	return out.size() > 0 ? os << "\b\b \b\b" : os;
 }*/
 
-std::ostream& operator<<(std::ostream& os, const poly& out){
+std::ostream& operator<<(std::ostream& os, const Poly& out){
 	return out.size() > 0 ? os << out.HumanReadable() : os;
 }
 
-/*std::string poly::HumanReadable(){
-	if(terms.size() == 0) return "";
-	std::string ret = "";
-	if(terms[0].Coeff() < 0) ret.append("  ");
-	for(auto& term : terms){
-		if(term.Coeff() < 0) ret.append("\b\b- ");
-		if(std::abs(term.Coeff()) != 1){
-			ret.append(std::to_string(std::abs(term.Coeff())));
-		}
-		ret.append(term.HumanReadable() + " + ");
-	}
-	ret.erase(ret.end()-3, ret.end());
-	return ret;
-}*/
-
-std::string poly::HumanReadable() const{
+std::string Poly::HumanReadable() const{
 	if(terms.size() == 0) return "";
 	std::ostringstream os;
 	if(terms[0].Coeff() < 0) os << "  ";
@@ -127,52 +112,12 @@ std::string poly::HumanReadable() const{
 	return os.str();
 }
 
-poly poly::K1(const coeff_class delta) const{
-	poly ret;
-	for(auto& term : terms){
-		for(auto& newTerm : term.K1(delta)) ret += newTerm;
-	}
-	return ret;
-}
-
-poly poly::K2(const coeff_class delta) const{
-	poly ret;
-	for(auto& term : terms){
-		for(auto& newTerm : term.K2(delta)) ret += newTerm;
-	}
-	return ret;
-}
-
-poly poly::K3(const coeff_class delta) const{
-	poly ret;
-	for(auto& term : terms){
-		for(auto& newTerm : term.K3(delta)) ret += newTerm;
-	}
-	return ret;
-}
-
-poly poly::DeleteNonDirichlet(const poly& inputPoly){
-	poly ret;
-	for(auto& term : inputPoly){
-		if(term.IsDirichlet()) ret += term;
-	}
-	return ret;
-}
-
-poly poly::DeleteNonDirichlet(const std::vector<mono>& inputMonos){
-	poly ret;
-	for(auto& term : inputMonos){
-		if(term.IsDirichlet()) ret += term;
-	}
-	return ret;
-}
-
-coeff_class poly::InnerProduct(const poly& A, const poly& B, 
+coeff_class Poly::InnerProduct(const Poly& A, const Poly& B, 
 		const GammaCache& cache, const KVectorCache& kCache){
 	coeff_class ret = 0;
 	for(auto& monoA : A){
 		for(auto& monoB : B){
-			ret += mono::InnerProduct(monoA, monoB, cache, kCache);
+			ret += Mono::InnerProduct(monoA, monoB, cache, kCache);
 		}
 	}
 	return ret;
