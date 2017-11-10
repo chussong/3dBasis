@@ -34,7 +34,7 @@ $(EXECUTABLE): $(OBJECTS)
 	$(CXX) $+ $(LDFLAGS) -o $@
 
 3dBasis.o: 3dBasis.cpp 3dBasis.hpp mono.hpp poly.hpp basis.hpp lib/libspqr.so \
-	timer.hpp cache.hpp matrix.hpp
+	timer.hpp cache.hpp matrix.hpp multinomial.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 mono.o: mono.cpp mono.hpp io.hpp constants.hpp construction.hpp cache.hpp
@@ -52,7 +52,8 @@ binomial.o: binomial.cpp binomial.hpp constants.hpp
 multinomial.o: multinomial.cpp multinomial.hpp constants.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-matrix.o: matrix.cpp matrix.hpp binomial.hpp multinomial.hpp
+matrix.o: matrix.cpp matrix.hpp binomial.hpp multinomial.hpp mono.hpp basis.hpp \
+	io.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 lib/libspqr.so: lib/liblapack.a lib/libopenblas.a

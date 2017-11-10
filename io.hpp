@@ -7,6 +7,7 @@
 template<typename T>
 inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& out){
 	os << "{";
+	if (out.size() == 0) return os << " }";
 	for(auto& element : out){
 		if(element >= 0) os << " ";
 		os << element << ",";
@@ -17,24 +18,25 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& out){
 // specialization of above template which "transposes" particle vectors
 template<>
 inline std::ostream& operator<<(std::ostream& os, const std::vector<particle>& out){
-	os << "{";
+	os << "{{";
 	for(auto& p : out){
 		if(p.pm >= 0) os << " ";
-		os << p.pm << ",";
+		os << std::to_string(p.pm) << ",";
 	}
 	os << "\b }{";
 	for(auto& p : out){
 		if(p.pt >= 0) os << " ";
-		os << p.pt << ",";
+		os << std::to_string(p.pt) << ",";
 	}
-	os << "\b }{";
-	os << "\b }";
+	os << "\b }}";
 	return os;
 }
 
+// specialization for vectors of chars which displays them as numbers
 template<>
 inline std::ostream& operator<<(std::ostream& os, const std::vector<char>& out){
 	os << "{";
+	if (out.size() == 0) return os << " }";
 	for(auto& element : out){
 		if(element >= 0) os << " ";
 		os << static_cast<int>(element) << ",";

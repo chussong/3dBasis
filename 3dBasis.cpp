@@ -19,23 +19,21 @@ int main(int argc, char* argv[]) {
 		Multinomial::Initialize(args.numP, args.degree);
 		for (char n = 0; n <= args.degree; ++n) {
 			std::cout << "n = " << std::to_string(n) << ": ";
-			for (auto& mVector : Multinomial::GetMVectors(n)) {
+			for (auto& mVector : Multinomial::GetMVectors(args.numP, n)) {
 				//std::cout << std::endl << Multinomial::MVectorOut(mVector) << ": ";
-				std::cout << Multinomial::Lookup(mVector) << ", ";
+				std::cout << Multinomial::Lookup(args.numP, mVector) << ", ";
 			}
 			std::cout << std::endl;
 		}
 		return EXIT_SUCCESS;
 	}
 
-	if (std::abs(args.delta) < EPSILON) args.delta = 0.5;
-
 	//if(args.options & OPT_IPTEST){
 		return InnerProductTest(args);
 	//}
 }
 
-int InnerProductTest(const arguments& args){
+int InnerProductTest(const arguments& args) {
 	int numP = args.numP;
 	int degree = args.degree + args.numP; // add required Dirichlet derivatives
 	//coeff_class delta = args.delta;
@@ -77,25 +75,26 @@ int InnerProductTest(const arguments& args){
 
 	std::cout << "EVEN STATE ORTHOGONALIZATION" << std::endl;
 	Orthogonalize(allEvenBases, cache, kCache);
-	std::cout << "REORDERED" << std::endl;
+	/*std::cout << "REORDERED" << std::endl;
 	std::swap(allEvenBases.front(), allEvenBases.back());
-	Orthogonalize(allEvenBases, cache, kCache);
+	Orthogonalize(allEvenBases, cache, kCache);*/
 
 	std::cout << "ODD STATE ORTHOGONALIZATION" << std::endl;
 	Orthogonalize(allOddBases, cache, kCache);
-	std::cout << "REORDERED" << std::endl;
+	/*std::cout << "REORDERED" << std::endl;
 	std::swap(allOddBases.front(), allOddBases.back());
-	Orthogonalize(allOddBases, cache, kCache);
+	Orthogonalize(allOddBases, cache, kCache);*/
 
 	return EXIT_SUCCESS;
 }
 
 int Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
-					const GammaCache& cache, const KVectorCache& kCache){
+					const GammaCache& cache, const KVectorCache& kCache) {
 	Timer timer;
 	Basis<Mono> unifiedBasis = CombineBases(inputBases);
-	Normalize(&unifiedBasis, cache, kCache);
-	DMatrix gram = GramMatrix(unifiedBasis, cache, kCache);
+	/*Normalize(&unifiedBasis, cache, kCache);
+	DMatrix gram = GramMatrix(unifiedBasis, cache, kCache);*/
+	DMatrix gram = GramFock(unifiedBasis);
 	if(gram.rows() == 0) return 0;
 	
 	std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()
@@ -135,13 +134,31 @@ int Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
 		std::cout << ", which will not be shown." << std::endl;
 	}
 
-	timer.Start();
 	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
+	std::cout << "Using this basis: " << minimalBasis << std::endl;
+	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
+	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
+		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
+															orthogonalized[i] );
+	}
+
+	std::cout << "Fock space inner product for confirmation; monos:" << std::endl;
+	DMatrix gram2(GramFock(minimalBasis));
+	std::cout << gram2 << std::endl << "basis states:" << std::endl
+		<< polysOnMinBasis.transpose()*gram2*polysOnMinBasis << std::endl;
+
+
+	timer.Start();
 	DMatrix massMatrix(MassMatrix(minimalBasis));
+	//std::cout << "Here are our orthogonalized polynomials on the minimal basis:"
+		//<< std::endl << polysOnMinBasis << std::endl;
+
+	std::cout << "Here is the monomial mass matrix we computed:" << std::endl
+		<< massMatrix << std::endl;
 
 	std::cout << "Computed this mass matrix from the basis in " 
 		<< timer.TimeElapsedInWords() << ", getting this matrix:" << std::endl;
-	std::cout << massMatrix << std::endl;
+	std::cout << polysOnMinBasis.transpose()*massMatrix*polysOnMinBasis << std::endl;
 
 	/*std::cout << "Here's the new gram matrix to confirm orthonormality:"
 		<< std::endl;
@@ -249,7 +266,7 @@ std::vector<Poly> GramSchmidt_MatrixOnly(const DMatrix& input,
 	return output;
 }
 
-arguments ParseArguments(int argc, char* argv[]){
+arguments ParseArguments(int argc, char* argv[]) {
 	std::vector<std::string> options;
 	std::string arg;
 	arguments ret;
@@ -281,11 +298,12 @@ arguments ParseArguments(int argc, char* argv[]){
 	}
 	if(j < 2) ret.numP = 0; // invalidate the input since it was insufficient
 	ret.options = ParseOptions(options);
+	if (argc < 3 || std::abs(ret.delta) < EPSILON) ret.delta = 0.5;
 	return ret;
 }
 
 // -b solves using the non-split method
-int ParseOptions(std::vector<std::string> options){
+int ParseOptions(std::vector<std::string> options) {
 	int ret = 0;
 	for(auto& opt : options){
 		if(opt.compare(0, 2, "-v") == 0){
@@ -322,25 +340,25 @@ int ParseOptions(std::vector<std::string> options){
 	return ret;
 }
 
-bool particle::operator==(const particle& other) const{
+bool particle::operator==(const particle& other) const {
 	return (pm == other.pm) && (pt == other.pt);
 }
 
 // note: triplets displayed (row, column, value) despite matrix's storage type
-std::ostream& operator<<(std::ostream& os, const Triplet& out){
+std::ostream& operator<<(std::ostream& os, const Triplet& out) {
 	return os << "(" << out.row() << "," << out.col() << "," << out.value()
 		<< ")";
 }
 
 // this version is a 'loose' EoM compliance that only removes Pp which are on
 // the same particle as a Pm
-bool EoMAllowed(){
+bool EoMAllowed() {
 	std::cout << "Warning: EoMAllowed is deprecated." << std::endl;
 	return true;
 }
 
 std::list<Triplet> ConvertToRows(const std::vector<Poly>& polyForms, 
-		const Basis<Mono>& targetBasis, const Eigen::Index rowOffset){
+		const Basis<Mono>& targetBasis, const Eigen::Index rowOffset) {
 	if(polyForms.size() == 0) return std::list<Triplet>();
 	std::list<Triplet> ret = targetBasis.ExpressPoly(polyForms[0], 0,
 			rowOffset);
@@ -351,7 +369,7 @@ std::list<Triplet> ConvertToRows(const std::vector<Poly>& polyForms,
 	return ret;
 }
 
-Poly VectorToPoly(const DVector& kernelVector, const Basis<Mono>& startBasis){
+Poly VectorToPoly(const DVector& kernelVector, const Basis<Mono>& startBasis) {
 	Poly ret;
 	if(static_cast<size_t>(kernelVector.rows()) != startBasis.size()){
 		std::cerr << "Error: the given Q column has " << kernelVector.rows()
@@ -369,7 +387,7 @@ Poly VectorToPoly(const DVector& kernelVector, const Basis<Mono>& startBasis){
 }
 
 Poly ColumnToPoly(const Matrix& kernelMatrix, const Eigen::Index col, 
-		const Basis<Mono>& startBasis){
+		const Basis<Mono>& startBasis) {
 	Poly ret;
 	if(static_cast<size_t>(kernelMatrix.rows()) != startBasis.size()){
 		std::cerr << "Error: the given Q matrix has " << kernelMatrix.rows()
@@ -390,7 +408,7 @@ Poly ColumnToPoly(const Matrix& kernelMatrix, const Eigen::Index col,
 }
 
 Poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col, 
-		const Basis<Mono>& startBasis){
+		const Basis<Mono>& startBasis) {
 	Poly ret;
 	if(static_cast<size_t>(kernelMatrix.rows()) != startBasis.size()){
 		std::cerr << "Error: the given Q matrix has " << kernelMatrix.rows()
@@ -411,12 +429,12 @@ Poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col,
 }
 
 DMatrix ExtractQMatrix(const Eigen::FullPivHouseholderQR<DMatrix>& solver, 
-		               const int){
+		               const int) {
 	return solver.matrixQ();
 }
 
 DMatrix ExtractQMatrix(const Eigen::ColPivHouseholderQR<DMatrix>& solver, 
-		               const int dimension){
+		               const int dimension) {
 	return solver.householderQ()*DMatrix::Identity(dimension, dimension);
 }
 

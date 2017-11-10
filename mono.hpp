@@ -51,9 +51,11 @@ class Mono {
 		unsigned int NParticles() const { return particles.size(); }
 
 		const char& Pm(const int i) const;
-		char& Pm(const int i);
+		//char& Pm(const int i);
+		void ChangePm(const int i, const char newValue);
 		const char& Pt(const int i) const;
-		char& Pt(const int i);
+		//char& Pt(const int i);
+		void ChangePt(const int i, const char newValue);
 		int TotalPm() const;
 		int TotalPt() const;
 		int MaxPm() const;

@@ -25,16 +25,28 @@ const char& Mono::Pm(const int i) const{
 	return particles[i].pm;
 }
 
-char& Mono::Pm(const int i){
+// can't have non-const accessors since they can make a mono fail to be ordered
+/*char& Mono::Pm(const int i){
 	return particles[i].pm;
+}*/
+
+void Mono::ChangePm(const int i, const char newValue) {
+	particles[i].pm = newValue;
+	Order();
 }
 
 const char& Mono::Pt(const int i) const{
 	return particles[i].pt;
 }
 
-char& Mono::Pt(const int i){
+// can't have non-const accessors since they can make a mono fail to be ordered
+/*char& Mono::Pt(const int i){
 	return particles[i].pt;
+}*/
+
+void Mono::ChangePt(const int i, const char newValue) {
+	particles[i].pt = newValue;
+	Order();
 }
 
 // note: like all operations on completed Monos, this assumes both are ordered
@@ -200,7 +212,7 @@ Mono Mono::DerivPm(const unsigned int part) const{
 	}
 	Mono ret(*this);
 	ret.coeff *= ret.Pm(part);
-	ret.Pm(part)--;
+	ret.ChangePm(part, ret.Pm(part)-1);
 	return ret;
 }
 
@@ -213,7 +225,7 @@ Mono Mono::DerivPt(const unsigned int part) const{
 	}
 	Mono ret(*this);
 	ret.coeff *= ret.Pt(part);
-	ret.Pt(part)--;
+	ret.ChangePt(part, ret.Pt(part)-1);
 	return ret;
 }
 
@@ -237,20 +249,20 @@ std::vector<Mono> Mono::DerivPt() const{
 
 Mono Mono::MultPm(const unsigned int particle) const{
 	Mono ret(*this);
-	++ret.Pm(particle);
+	ret.ChangePm(particle, ret.Pm(particle)+1);
 	return ret;
 }
 
 Mono Mono::MultPt(const unsigned int particle) const{
 	Mono ret(*this);
-	++ret.Pt(particle);
+	ret.ChangePt(particle, ret.Pt(particle)+1);
 	return ret;
 }
 
 Mono Mono::MultPp(const unsigned int particle) const{
 	Mono ret(*this);
-	ret.Pt(particle) += 2;
-	ret.Pm(particle) -= 1;
+	ret.ChangePt(particle, ret.Pt(particle)+2);
+	ret.ChangePm(particle, ret.Pm(particle)-1);
 	ret.Coeff() /= 2;
 	return ret;
 }

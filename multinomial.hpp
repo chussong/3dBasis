@@ -20,10 +20,11 @@ std::string MVectorOut(std::string mVector);
 
 void Initialize(const char particleNumber, const char highestN);
 void Clear();
-void FillTo(const char newHighestN);
-MVectorContainer GetMVectors(const char n);
-coeff_class Choose(const char n, const std::vector<char>& m);
-coeff_class Lookup(const std::string& nAndm);
+void FillTo(const char particleNumber, const char newHighestN);
+MVectorContainer GetMVectors(const char particleNumber, const char n);
+coeff_class Choose(const char particleNumber, const char n, 
+		const std::vector<char>& m);
+coeff_class Lookup(const char particleNumber, const std::string& nAndm);
 
 class MultinomialTable {
 	public:

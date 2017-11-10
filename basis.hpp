@@ -51,6 +51,8 @@ class Basis {
 				const int rowOffset) const;
 		std::list<Triplet> ExpressPoly(const Poly& toExpress, 
 				const int column, const int rowOffset) const;
+		DVector DenseExpressMono(const Mono& toExpress) const;
+		DVector DenseExpressPoly(const Poly& toExpress) const;
 
 };
 
@@ -201,6 +203,20 @@ inline std::list<Triplet> Basis<T>::ExpressPoly(const Poly&, const int, const in
 }
 
 template<class T>
+inline DVector Basis<T>::DenseExpressMono(const Mono&) const {
+	std::cout << "Basis<T>::DenseExpressMono should never be called. "
+		<< "How was a Basis<T> object created in the first place?" << std::endl;
+	return DVector(0);
+}
+
+template<class T>
+inline DVector Basis<T>::DenseExpressPoly(const Poly& toExpress) const {
+	std::cout << "Basis<T>::DenseExpressPoly should never be called. "
+		<< "How was a Basis<T> object created in the first place?" << std::endl;
+	return DVector(toExpress.size());
+}
+
+template<class T>
 inline unsigned int Basis<T>::FindInBasis(const T& wildVector) const{
 	for(auto i = 0u; i < basisVectors.size(); ++i){
 		if(basisVectors[i] == wildVector) return i;
@@ -281,6 +297,27 @@ inline std::list<Triplet> Basis<Mono>::ExpressPoly(const Poly& toExpress,
 	//std::cout << "Expressed " << toExpress << " as the following triplets:" << std::endl;
 	//for(auto& trip : ret) std::cout << trip << std::endl;
 	return ret;
+}
+
+template<>
+inline DVector Basis<Mono>::DenseExpressMono(const Mono& toExpress) const {
+	DVector output = DVector::Zero(this->size());
+	for (std::size_t i = 0; i < this->size(); ++i) {
+		if ((*this)[i] == toExpress) {
+			output(i) = toExpress.Coeff();
+			return output;
+		}
+	}
+	std::cerr << "Error: attempted to express " << toExpress << " on the basis "
+		<< *this << " but was not able to." << std::endl;
+	return output;
+}
+
+template<>
+inline DVector Basis<Mono>::DenseExpressPoly(const Poly& toExpress) const {
+	DVector output = DVector::Zero(this->size());
+	for (const auto& term : toExpress) output += DenseExpressMono(term);
+	return output;
 }
 
 // This does not attempt to find a linear combination of known polynomials
@@ -392,8 +429,9 @@ void Normalize(Basis<T>* toNormalize, const GammaCache& cache,
 				//<< "state." << std::endl;
 			continue;
 		}
-		coeff_class norm = T::InnerProduct(basisVector, basisVector, cache, 
-				kCache);
+		coeff_class norm = InnerFock(basisVector, basisVector);
+		//coeff_class norm = T::InnerProduct(basisVector, basisVector, cache, 
+				//kCache);
 		/*std::cout << "Norm of " << basisVector.HumanReadable() << ": " 
 			<< norm << std::endl;
 		std::cout << "Meanwhile, its Kt is: " << basisVector.K2(0.5) << "."

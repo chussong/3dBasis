@@ -3,7 +3,7 @@
 namespace Multinomial {
 
 namespace {
-	std::unique_ptr<MultinomialTable> multinomialTable;
+	std::vector<std::unique_ptr<MultinomialTable>> multinomialTable;
 	constexpr char hexMap[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', 
 		'9', 'A', 'B', 'C', 'D', 'E', 'F'};
 } // anonymous namespace
@@ -34,46 +34,53 @@ std::string MVectorOut(std::string mVector) {
 }
 
 void Initialize(const char particleNumber, const char highestN) {
-	multinomialTable = std::make_unique<MultinomialTable>(particleNumber);
-	if (particleNumber >= 2) FillTo(highestN);
+	if (multinomialTable.size() <= static_cast<std::size_t>(particleNumber)) {
+		multinomialTable.resize(particleNumber+1);
+	}
+	if (multinomialTable[particleNumber] == nullptr) {
+		multinomialTable[particleNumber] = 
+			std::make_unique<MultinomialTable>(particleNumber);
+	}
+	if (particleNumber >= 2) multinomialTable[particleNumber]->FillTo(highestN);
 }
 
 void Clear() {
-	multinomialTable = nullptr;
+	multinomialTable.clear();
 }
 
 // vector of all mVectors whose total "n" is exactly the supplied n
 //
 // if this turns out to be slow, we can avoid the copy by passing iterators to
 // a slightly reorganized container for the mVectors
-MVectorContainer GetMVectors(const char n) {
-	return multinomialTable->GetMVectors(n);
+MVectorContainer GetMVectors(const char particleNumber, const char n) {
+	return multinomialTable[particleNumber]->GetMVectors(n);
 }
 
-coeff_class Choose(const char n, const std::vector<char>& m) {
-	return multinomialTable->Choose(n, m);
+coeff_class Choose(const char particleNumber, const char n, 
+		const std::vector<char>& m) {
+	return multinomialTable[particleNumber]->Choose(n, m);
 }
 
-coeff_class Lookup(const std::string& nAndm) {
-	return multinomialTable->Lookup(nAndm);
+coeff_class Lookup(const char particleNumber, const std::string& nAndm) {
+	return multinomialTable[particleNumber]->Lookup(nAndm);
 }
 
-void FillTo(const char newHighestN) {
-	if (multinomialTable == nullptr) {
+void FillTo(const char particleNumber, const char newHighestN) {
+	if (multinomialTable[particleNumber] == nullptr) {
 		std::cerr << "Error: asked to fill a nullptr MultinomialTable to n="
 			<< std::to_string(newHighestN) << "." << std::endl;
 		return;
 	}
-	multinomialTable->FillTo(newHighestN);
+	multinomialTable[particleNumber]->FillTo(newHighestN);
 }
 
 MultinomialTable::MultinomialTable(const char particleNumber): 
 	particleNumber(particleNumber) {
-	if (particleNumber < 2) {
+	/*if (particleNumber < 2) {
 		std::cerr << "Warning: MultinomialTable has been constructed with "
 			<< "particleNumber " << std::to_string(particleNumber) 
 			<< " < 2; your program is probably about to crash." << std::endl;
-	}
+	}*/
 }
 
 // we fill this by constructing Pascal's simplex, in which each entry is the sum
@@ -83,6 +90,7 @@ MultinomialTable::MultinomialTable(const char particleNumber):
 // generalization of the policy we used for binomials. We will also not store
 // any whose first term is the degree, since these are all 1 
 void MultinomialTable::FillTo(const char newHighestN) {
+	if (highestN >= newHighestN) return;
 	ComputeMVectors(newHighestN);
 	//std::cout << "mVectors constructed, now size " << mVectors.size() << std::endl;
 
