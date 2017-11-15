@@ -25,7 +25,7 @@ DMatrix MassMatrix(const Basis<Mono>& basis);
 namespace MatrixInternal {
 
 // the main point of this header
-coeff_class MassMatrixTerm(const Mono& A, Mono B);
+coeff_class MassMatrixTerm(const Mono& A, Mono B, const bool isInnerProduct);
 
 // two structs used in the coordinate transformations for MassMatrixTerm
 struct MatrixTerm_Intermediate {
@@ -88,7 +88,8 @@ std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& 
 		std::vector<char> B, const std::vector<std::size_t>& permVector);
 std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& F1,
 		const std::vector<MatrixTerm_Final>& F2, std::vector<std::size_t>& perm);*/
-coeff_class FinalResult(const std::vector<MatrixTerm_Final>& exponents);
+coeff_class FinalResult(const std::vector<MatrixTerm_Final>& exponents,
+		const bool isInnerProduct);
 
 // prefactor and integrals used in FinalResult
 coeff_class InnerProductPrefactor(const char n);

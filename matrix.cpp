@@ -1,8 +1,8 @@
 #include "matrix.hpp"
 
 coeff_class InnerFock(const Mono& A, Mono B) {
-	B.ChangePm(0, B.Pm(0)+1); // this will be reverted in MassMatrixTerm below
-	return MatrixInternal::MassMatrixTerm(A, B)/A.NParticles();
+	//B.ChangePm(0, B.Pm(0)+1); // this will be reverted in MassMatrixTerm below
+	return MatrixInternal::MassMatrixTerm(A, B, true)/A.NParticles();
 }
 
 DMatrix GramFock(const Basis<Mono>& basis) {
@@ -20,9 +20,11 @@ DMatrix GramFock(const Basis<Mono>& basis) {
 DMatrix MassMatrix(const Basis<Mono>& basis) {
 	DMatrix massMatrix(basis.size(), basis.size());
 	for (std::size_t i = 0; i < basis.size(); ++i) {
-		massMatrix(i, i) = MatrixInternal::MassMatrixTerm(basis[i], basis[i]);
+		massMatrix(i, i) = MatrixInternal::MassMatrixTerm(basis[i], basis[i], 
+																		false);
 		for (std::size_t j = i+1; j < basis.size(); ++j) {
-			massMatrix(i, j) = MatrixInternal::MassMatrixTerm(basis[i], basis[j]);
+			massMatrix(i, j) = MatrixInternal::MassMatrixTerm(basis[i], basis[j], 
+																		false);
 			massMatrix(j, i) = massMatrix(i, j);
 		}
 	}
@@ -62,8 +64,8 @@ void MatrixTerm_Final::Resize(const size_t n) {
 	cosTheta.resize(n-1);
 }
 
-coeff_class MassMatrixTerm(const Mono& A, Mono B) {
-	B.ChangePm(0, B.Pm(0)-1);
+coeff_class MassMatrixTerm(const Mono& A, Mono B, const bool isInnerProduct) {
+	//B.ChangePm(0, B.Pm(0)-1);
 
 	coeff_class degeneracy = 1;
 	for(auto& count : A.CountIdentical()) degeneracy *= Factorial(count);
@@ -80,7 +82,7 @@ coeff_class MassMatrixTerm(const Mono& A, Mono B) {
 		do {
 			fFromB = MatrixTermsFromMono_Permuted(B, permB);
 			combinedFs = CombineTwoFs(fFromA, fFromB);
-			total += FinalResult(combinedFs);
+			total += FinalResult(combinedFs, isInnerProduct);
 		} while (std::next_permutation(permB.begin(), permB.end()));
 	} while (std::next_permutation(permA.begin(), permA.end()));
 
@@ -385,7 +387,8 @@ std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& 
 	return ret;
 }
 
-coeff_class FinalResult(const std::vector<MatrixTerm_Final>& exponents) {
+coeff_class FinalResult(const std::vector<MatrixTerm_Final>& exponents,
+		const bool isInnerProduct) {
 	//if (exponents.size() == 0) return InnerProductPrefactor(2);
 	if (exponents.size() == 0) return MassMatrixPrefactor(2);
 	auto n = exponents.front().uPlus.size() + 1;
@@ -394,8 +397,15 @@ coeff_class FinalResult(const std::vector<MatrixTerm_Final>& exponents) {
 		//std::cout << "TERM: " << term.coefficient << ", " << term.uPlus
 			//<< ", " << term.uMinus << std::endl;
 		coeff_class integral = term.coefficient;
-		// do the u integrals first; uPlus.size() is n-1
-		for (auto i = 0u; i < n-1; ++i) {
+
+		// do the u integrals first; the first one is special because its
+		// uPlus power is reduced by 2 unless this is an inner product
+		if (isInnerProduct) {
+			integral *= UIntegral(term.uPlus[0] + 3, 5*n - 7 + term.uMinus[0]);
+		} else {
+			integral *= UIntegral(term.uPlus[0] + 1, 5*n - 7 + term.uMinus[0]);
+		}
+		for (auto i = 1u; i < n-1; ++i) {
 			//std::cout << "u+ = " << (int)term.uPlus[i] << "; u- = "
 				//<< (int)term.uMinus[i] << std::endl;
 			integral *= UIntegral(term.uPlus[i] + 3, 
@@ -468,6 +478,9 @@ coeff_class UIntegral(const coeff_class a, const coeff_class b) {
 // this is the integral over the "theta" veriables from 0 to pi; it implements 
 // Zuhair's 5.35, where a is the exponent of sin(theta) and b is the exponent of 
 // cos(theta).
+//
+// results are cached by (a,b); since a and b are symmetric, we only store the
+// results with a <= b, swapping the two parameters if they're the other order
 coeff_class ThetaIntegral_Short(const coeff_class a, const coeff_class b) {
 	if (static_cast<int>(b) % 2 == 1) return 0;
 	std::array<coeff_class,2> abArray{{a,b}};
@@ -484,7 +497,7 @@ coeff_class ThetaIntegral_Short(const coeff_class a, const coeff_class b) {
 // Zuhair's 5.36, where a is the exponent of sin(theta) and b is the exponent of
 // cos(theta).
 coeff_class ThetaIntegral_Long(const coeff_class a, const coeff_class b) {
-	if (static_cast<int>(a) % 2 == 1 || static_cast<int>(b) % 2 == 1) return 0;
+	if (static_cast<int>(a) % 2 == 1) return 0;
 	return 2*ThetaIntegral_Short(a, b);
 }
 

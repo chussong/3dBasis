@@ -92,9 +92,9 @@ int Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
 					const GammaCache& cache, const KVectorCache& kCache) {
 	Timer timer;
 	Basis<Mono> unifiedBasis = CombineBases(inputBases);
-	/*Normalize(&unifiedBasis, cache, kCache);
-	DMatrix gram = GramMatrix(unifiedBasis, cache, kCache);*/
-	DMatrix gram = GramFock(unifiedBasis);
+	Normalize(&unifiedBasis, cache, kCache);
+	DMatrix gram = GramMatrix(unifiedBasis, cache, kCache);
+	//DMatrix gram = GramFock(unifiedBasis);
 	if(gram.rows() == 0) return 0;
 	
 	std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()
