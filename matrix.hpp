@@ -18,14 +18,15 @@
 #include "basis.hpp"
 #include "io.hpp"
 
-coeff_class InnerFock(const Mono& A, Mono B);
+coeff_class InnerFock(const Mono& A, const Mono& B);
 DMatrix GramFock(const Basis<Mono>& basis);
 DMatrix MassMatrix(const Basis<Mono>& basis);
 
 namespace MatrixInternal {
 
 // the main point of this header
-coeff_class MassMatrixTerm(const Mono& A, Mono B, const bool isInnerProduct);
+coeff_class MassMatrixTerm(const Mono& A, const Mono& B, 
+		const bool isInnerProduct);
 
 // two structs used in the coordinate transformations for MassMatrixTerm
 struct MatrixTerm_Intermediate {

@@ -1,10 +1,13 @@
 #include "matrix.hpp"
 
-coeff_class InnerFock(const Mono& A, Mono B) {
+// Fock space inner product between two monomials
+coeff_class InnerFock(const Mono& A, const Mono& B) {
 	//B.ChangePm(0, B.Pm(0)+1); // this will be reverted in MassMatrixTerm below
-	return MatrixInternal::MassMatrixTerm(A, B, true)/A.NParticles();
+	return MatrixInternal::MassMatrixTerm(A, B, true);
+	//return MatrixInternal::MassMatrixTerm(A, B, true)/A.NParticles();
 }
 
+// creates a gram matrix for the given basis using the Fock space inner product
 DMatrix GramFock(const Basis<Mono>& basis) {
 	DMatrix gramMatrix(basis.size(), basis.size());
 	for (std::size_t i = 0; i < basis.size(); ++i) {
@@ -17,6 +20,9 @@ DMatrix GramFock(const Basis<Mono>& basis) {
 	return gramMatrix;
 }
 
+// creates a mass matrix M for the given monomials. To get the mass matrix of a 
+// basis of primary operators, one must express the primaries as a matrix of 
+// vectors, A, and multiply A^T M A.
 DMatrix MassMatrix(const Basis<Mono>& basis) {
 	DMatrix massMatrix(basis.size(), basis.size());
 	for (std::size_t i = 0; i < basis.size(); ++i) {
@@ -64,9 +70,14 @@ void MatrixTerm_Final::Resize(const size_t n) {
 	cosTheta.resize(n-1);
 }
 
-coeff_class MassMatrixTerm(const Mono& A, Mono B, const bool isInnerProduct) {
+coeff_class MassMatrixTerm(const Mono& A, const Mono& B, 
+		const bool isInnerProduct) {
+	//std::cout << "TERM: " << A.HumanReadable() << " x " << B.HumanReadable() 
+		//<< std::endl;
 	//B.ChangePm(0, B.Pm(0)-1);
 
+	// degeneracy factors result from turning the ordered monomials into 
+	// symmetric polynomials
 	coeff_class degeneracy = 1;
 	for(auto& count : A.CountIdentical()) degeneracy *= Factorial(count);
 	for(auto& count : B.CountIdentical()) degeneracy *= Factorial(count);
@@ -85,6 +96,10 @@ coeff_class MassMatrixTerm(const Mono& A, Mono B, const bool isInnerProduct) {
 			total += FinalResult(combinedFs, isInnerProduct);
 		} while (std::next_permutation(permB.begin(), permB.end()));
 	} while (std::next_permutation(permA.begin(), permA.end()));
+
+	// this somewhat dubious adjustment is presumably due to an error in
+	// Zuhair's formula (it appears in his code as well)
+	if (A.NParticles() >= 3) total /= 2;
 
 	return degeneracy*A.Coeff()*B.Coeff()*total;
 }
@@ -120,8 +135,8 @@ std::vector<MatrixTerm_Final> MatrixTermsFromXandY(
 		if (term.uPlus.size() < uFromX.size()/2) {
 			term.uPlus.resize(uFromX.size()/2, 0);
 			term.uMinus.resize(uFromX.size()/2, 0);
-			term.sinTheta.resize(uFromX.size()/2, 0);
-			term.cosTheta.resize(uFromX.size()/2, 0);
+			term.sinTheta.resize(uFromX.size()/2 - 1, 0);
+			term.cosTheta.resize(uFromX.size()/2 - 1, 0);
 		}
 		for (auto i = 0u; i < term.uPlus.size(); ++i) {
 			term.uPlus[i] += uFromX[i];
@@ -338,6 +353,14 @@ std::vector<char> AddVectors(const std::vector<char>& A,
 	}
 	//std::cout << A << " + " << B << " = " << output << std::endl;
 	return output;
+	/* Better version:
+	 * const std::vector<char>* aP = &A;
+	 * const std::vector<char>* bP = &B;
+	 * if (A.size() < B.size()) std::swap(aP, bP);
+	 * std::vector<char> output(*aP);
+	 * for (std::size_t i = 0; i < bP->size(); ++i) output[i] += (*bP)[i];
+	 * return output;
+	 */
 }
 
 /*std::vector<char> AddVectors(const std::vector<char>& A, 
@@ -366,9 +389,6 @@ std::vector<char> AddVectors(const std::vector<char>& A,
 // combines two u-and-theta coordinate wavefunctions (called F in Zuhair's
 // notes), each corresponding to one monomial. Each is a sum over many terms, so
 // combining them involves multiplying out two sums.
-//
-// permVector should be for the second monomial, and should start ordered (it
-// will be ordered when this function exits, but it's changed along the way)
 std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& F1,
 		const std::vector<MatrixTerm_Final>& F2) {
 	/*std::cout << "Combining two Fs with sizes " << F1.size() << " and " 
@@ -389,8 +409,14 @@ std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& 
 
 coeff_class FinalResult(const std::vector<MatrixTerm_Final>& exponents,
 		const bool isInnerProduct) {
-	//if (exponents.size() == 0) return InnerProductPrefactor(2);
-	if (exponents.size() == 0) return MassMatrixPrefactor(2);
+	if (exponents.size() == 0) {
+		std::cout << "No exponents detected; returning prefactor." << std::endl;
+		if (isInnerProduct) {
+			return InnerProductPrefactor(2);
+		} else {
+			return MassMatrixPrefactor(2);
+		}
+	}
 	auto n = exponents.front().uPlus.size() + 1;
 	coeff_class totalFromIntegrals = 0;
 	for (const auto& term : exponents) {
@@ -415,9 +441,12 @@ coeff_class FinalResult(const std::vector<MatrixTerm_Final>& exponents,
 		// now the theta integrals; sineTheta.size() is n-2, but cosTheta.size()
 		// is n-1 with the last component being meaningless. All but the last 
 		// one are short, while the last one is long
+		//
+		// these have constant terms which differ from Zuhair's because his i
+		// starts at 1 instead of 0
 		if (n >= 3) {
 			for (auto i = 0u; i < n-3; ++i) {
-				integral *= ThetaIntegral_Short(n - 2 - i + term.sinTheta[i],
+				integral *= ThetaIntegral_Short(n - 3 - i + term.sinTheta[i],
 						term.cosTheta[i] );
 			}
 			integral *= ThetaIntegral_Long(term.sinTheta[n-3], term.cosTheta[n-3]);
@@ -432,7 +461,11 @@ coeff_class FinalResult(const std::vector<MatrixTerm_Final>& exponents,
 	return InnerProductPrefactor(n) * totalFromIntegrals;*/
 	//std::cout << "Returning FinalResult = " << MassMatrixPrefactor(n) << " * " 
 		//<< totalFromIntegrals << std::endl;
-	return MassMatrixPrefactor(n) * totalFromIntegrals;
+	if (isInnerProduct) {
+		return InnerProductPrefactor(n) * totalFromIntegrals;
+	} else {
+		return MassMatrixPrefactor(n) * totalFromIntegrals;
+	}
 }
 
 coeff_class InnerProductPrefactor(const char n) {
@@ -443,7 +476,6 @@ coeff_class MassMatrixPrefactor(const char n) {
 	coeff_class denominator = std::tgamma(n); // tgamma is the "true" gamma fcn
 	denominator *= std::pow(16, n-1);
 	denominator *= std::pow(M_PI, 2*n-3);
-	// is m^2 some kind of mass? // ret *= m*m;
 	//std::cout << "PREFACTOR: " << 2/denominator << std::endl;
 	return 2/denominator;
 }
@@ -464,6 +496,7 @@ namespace {
 // follows the conventions of Zuhair's 5.34; a is the exponent of u_i+ and
 // b is the exponent of u_i-
 coeff_class UIntegral(const coeff_class a, const coeff_class b) {
+	//std::cout << "UIntegral(" << a << ", " << b << ")" << std::endl;
 	std::array<coeff_class,2> abArray{{a,b}};
 	if (b < a) std::swap(abArray[0], abArray[1]);
 	if (uCache.count(abArray) == 1) return uCache.at(abArray);

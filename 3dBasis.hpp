@@ -12,7 +12,7 @@
 #include <type_traits>	// std::is_same
 #include <thread>
 
-constexpr char VERSION[] = "0.7.0";
+constexpr char VERSION[] = "0.7.2";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"
@@ -24,7 +24,7 @@ constexpr char RELEASE_DATE[] = __DATE__;
 #include "timer.hpp"
 #include "cache.hpp"
 #include "matrix.hpp"
-#include "multinomial.hpp" // only needed for testing, really
+//#include "multinomial.hpp" // only needed for testing, really
 
 std::ostream& operator<<(std::ostream& os, const Triplet& out);
 
