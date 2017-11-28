@@ -417,21 +417,19 @@ Basis<T> CombineBases(const std::vector<Basis<T>>& oldBases) {
 // Take a basis and look at every element; if the element has zero norm (within
 // floating point tolerance), delete it, otherwise normalize it.
 template<class T>
-void Normalize(Basis<T>* toNormalize, const GammaCache& cache, 
+void Normalize(Basis<T>& toNormalize, const GammaCache& cache, 
 		const KVectorCache& kCache) {
-	if (!toNormalize) return;
-
 	// if vector's norm is zero, skip it; otherwise, normalize
 	std::vector<T> newBasisVectors;
-	for (T& basisVector : *toNormalize) {
+	for (const T& basisVector : toNormalize) {
 		if (basisVector.IsNull()) {
 			//std::cout << basisVector.HumanReadable() << " judged to be a null "
 				//<< "state." << std::endl;
 			continue;
 		}
-		coeff_class norm = InnerFock(basisVector, basisVector);
-		//coeff_class norm = T::InnerProduct(basisVector, basisVector, cache, 
-				//kCache);
+		// coeff_class norm = InnerFock(basisVector, basisVector);
+		coeff_class norm = T::InnerProduct(basisVector, basisVector, cache, 
+				kCache);
 		/*std::cout << "Norm of " << basisVector.HumanReadable() << ": " 
 			<< norm << std::endl;
 		std::cout << "Meanwhile, its Kt is: " << basisVector.K2(0.5) << "."
@@ -442,12 +440,12 @@ void Normalize(Basis<T>* toNormalize, const GammaCache& cache,
 		newBasisVectors.back() /= std::sqrt(norm);
 	}
 	Basis<T> newBasis{newBasisVectors};
-	std::swap(*toNormalize, newBasis);
+	std::swap(toNormalize, newBasis);
 
 	// delete everything with a zero norm
-	/*toNormalize->erase(std::remove_if(toNormalize->begin(), toNormalize->end(),
+	/*toNormalize.erase(std::remove_if(toNormalize.begin(), toNormalize.end(),
 				[](const T& vec){return vec.Coeff() == 0;}), 
-			toNormalize->end());*/
+			toNormalize.end());*/
 }
 
 #endif

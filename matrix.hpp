@@ -24,11 +24,29 @@ DMatrix MassMatrix(const Basis<Mono>& basis);
 
 namespace MatrixInternal {
 
+// this seems to be necessary if I've declared any operator<< inside of
+// MatrixInternal, which I've done for YTerm and MatrixTerm_Intermediate
+using ::operator<<;
+
 // the main point of this header
 coeff_class MassMatrixTerm(const Mono& A, const Mono& B, 
 		const bool isInnerProduct);
 
-// two structs used in the coordinate transformations for MassMatrixTerm
+// three structs used in the coordinate transformations for MassMatrixTerm
+
+struct YTerm {
+	coeff_class coeff;
+	std::vector<char> y;
+
+	YTerm() = delete;
+	YTerm(const coeff_class coeff, const std::vector<char>& y, 
+			const std::string& nAndm);
+	
+	char operator[](std::size_t i) const { return y[i]; }
+	std::size_t size() const { return y.size(); }
+};
+std::ostream& operator<<(std::ostream& os, const YTerm& out);
+
 struct MatrixTerm_Intermediate {
 	coeff_class coefficient = 1;
 	std::vector<char> uPlus;
@@ -39,6 +57,10 @@ struct MatrixTerm_Intermediate {
 	explicit MatrixTerm_Intermediate(const size_t n);
 	void Resize(const size_t n);
 };
+MatrixTerm_Intermediate operator*(const MatrixTerm_Intermediate& A,
+			MatrixTerm_Intermediate B);
+std::ostream& operator<<(std::ostream& os, const MatrixTerm_Intermediate& out);
+
 struct MatrixTerm_Final {
 	coeff_class coefficient = 1;
 	std::vector<char> uPlus;
@@ -71,14 +93,18 @@ std::vector<MatrixTerm_Final> ExponentThetaFromYTilde(
 		std::vector<MatrixTerm_Intermediate>& intermediateTerms);
 
 // coordinate transform helper functions, called from transforms
-MatrixTerm_Intermediate YTildeTerm(const unsigned int i, const char a, 
-		const char l, const std::vector<char>& mVector);
-MatrixTerm_Intermediate YTildeLastTerm(const unsigned int n, const char a, 
-		const char l, const std::vector<char>& mVector);
+std::vector<YTerm> EliminateYn(const std::vector<char>& y);
+std::vector<MatrixTerm_Intermediate> YTildeTerms(
+		const unsigned int i, const char a, const char l, std::string nAndm);
+std::vector<MatrixTerm_Intermediate> MultiplyIntermediateTerms(
+		const std::vector<MatrixTerm_Intermediate>& termsA, 
+		const std::vector<MatrixTerm_Intermediate>& termsB);
+//MatrixTerm_Intermediate YTildeLastTerm(const unsigned int n, const char a, 
+		//const char l, const std::vector<char>& mVector);
 coeff_class YTildeCoefficient(const char a, const char l, 
-		const std::vector<char>& mVector);
-coeff_class YTildeLastCoefficient(const char a, const char l, 
-		const std::vector<char>& mVector);
+		const std::string& nAndm);
+//coeff_class YTildeLastCoefficient(const char a, const char l, 
+		//const std::vector<char>& mVector);
 
 // functions representing individual steps of the MassMatrixTerm computation
 std::vector<char> AddVectors(const std::vector<char>& A, 

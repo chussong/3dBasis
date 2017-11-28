@@ -88,11 +88,14 @@ int InnerProductTest(const arguments& args) {
 	return EXIT_SUCCESS;
 }
 
+// return the number of independent vectors in the basis
 int Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
 					const GammaCache& cache, const KVectorCache& kCache) {
 	Timer timer;
 	Basis<Mono> unifiedBasis = CombineBases(inputBases);
-	Normalize(&unifiedBasis, cache, kCache);
+	Normalize(unifiedBasis, cache, kCache);
+	// without this cout stream, unifiedBasis isn't acutually updated in time
+	std::cout << "Normalized basis: " << unifiedBasis << std::endl;
 	DMatrix gram = GramMatrix(unifiedBasis, cache, kCache);
 	//DMatrix gram = GramFock(unifiedBasis);
 	if(gram.rows() == 0) return 0;

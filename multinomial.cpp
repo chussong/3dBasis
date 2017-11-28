@@ -27,7 +27,9 @@ constexpr bool MVectorPrecedence::operator()(const std::string& A,
 
 std::string MVectorOut(std::string mVector) {
 	for (auto i = 0u; i < mVector.size(); ++i) {
-		if (mVector[i] > 15) throw(std::out_of_range("MVectorOut range error"));
+		if (mVector[i] < 0 || mVector[i] > 15) {
+			throw(std::out_of_range("MVectorOut range error"));
+		}
 		mVector[i] = hexMap[static_cast<int>(mVector[i])];
 	}
 	return mVector;
@@ -41,7 +43,7 @@ void Initialize(const char particleNumber, const char highestN) {
 		multinomialTable[particleNumber] = 
 			std::make_unique<MultinomialTable>(particleNumber);
 	}
-	if (particleNumber >= 2) multinomialTable[particleNumber]->FillTo(highestN);
+	/*if (particleNumber >= 2)*/ multinomialTable[particleNumber]->FillTo(highestN);
 }
 
 void Clear() {
@@ -75,7 +77,7 @@ void FillTo(const char particleNumber, const char newHighestN) {
 }
 
 MultinomialTable::MultinomialTable(const char particleNumber): 
-	particleNumber(particleNumber) {
+	particleNumber(particleNumber), highestN(-1) {
 	/*if (particleNumber < 2) {
 		std::cerr << "Warning: MultinomialTable has been constructed with "
 			<< "particleNumber " << std::to_string(particleNumber) 
@@ -91,31 +93,49 @@ MultinomialTable::MultinomialTable(const char particleNumber):
 // any whose first term is the degree, since these are all 1 
 void MultinomialTable::FillTo(const char newHighestN) {
 	if (highestN >= newHighestN) return;
+
+	// first, generate the mVectors we need to compute the coefficients for
 	ComputeMVectors(newHighestN);
 	//std::cout << "mVectors constructed, now size " << mVectors.size() << std::endl;
 
+	table.emplace(std::string(particleNumber+1, 0), 1);
+
+	// the case with a single particle has to be handled differently because it
+	// wrecks the main loop
+	if (particleNumber == 1) {
+		for (const std::string& key : mVectors) table.emplace(key, 1);
+		highestN = newHighestN;
+		return;
+	}
+
 	// each key is the sum of the values of all lower keys which can produce it
 	for (std::string key : mVectors) {
-		//std::cout << "Evaluating this key based on lower values: " 
-			//<< MVectorOut(key) << std::endl;
+		if (key[0] == 0) {
+			//std::cout << "Emplacing " << MVectorOut(key) << " with value 1."
+				//<< std::endl;
+			//table.emplace(std::move(key), 1);
+			continue;
+		}
+		// std::cout << "Evaluating this key based on lower values: " 
+			// << MVectorOut(key) << std::endl;
 		highestN = std::max(highestN, key[0]);
 		coeff_class value = 0;
 		--key[0];
 		--key[1];
 		value += Lookup(key);
 		int i = 2;
-		do {
+		while (i < particleNumber+1 && key[i] != 0) {
 			++key[i-1];
 			--key[i];
 			value += Lookup(key);
 			++i;
-		} while (i < particleNumber+1 && key[i] != 0);
+		}
 		//--key[1];
 		++key[0];
 		++key[i-1];
 		if (value == 0) value = 1;
-		//std::cout << "Emplacing this key: " << MVectorOut(key) << 
-			//" with value: " << value << std::endl;
+		// std::cout << "Emplacing this key: " << MVectorOut(key) << 
+			// " with value: " << value << std::endl;
 		table.emplace(std::move(key), value);
 	}
 	highestN = newHighestN;
@@ -126,23 +146,41 @@ void MultinomialTable::FillTo(const char newHighestN) {
 // if this turns out to be slow, we can avoid the copy by passing iterators to
 // a slightly reorganized container for the mVectors
 MVectorContainer MultinomialTable::GetMVectors(const char n) {
-	//std::cout << "Returning some of " << mVectors.size() << " mVectors." << std::endl;
+	// std::cout << "Returning mVectors corresponding to n = " << (int)n
+		// << " from among the " << mVectors.size() << " known ones." << std::endl;
+	if (n == 0) {
+		// std::cout << "Someone is requesting the 0 mVector. Can I return them "
+			// << MVectorOut(std::string(particleNumber+1, 0)) << "?" << std::endl;
+		return {std::string(particleNumber+1, 0)};
+	}
 	std::string lower(particleNumber+1, n);
 	std::string upper(particleNumber+1, 0);
 	upper[0] = n;
 	//std::cout << "Returning mVectors between " << MVectorOut(lower) << " and " 
 		//<< MVectorOut(upper) << std::endl;
+	// the below is obviously only for safety, remove it if needed
+	if (MVectorContainer(mVectors.lower_bound(lower), 
+				mVectors.upper_bound(upper)).size() == 0) {
+		std::cerr << "WARNING: request for mVectors at (" << (int)particleNumber
+			<< ", " << (int)n << ") returned an empty set drawn from the total "
+			<< "of " << mVectors.size() << " mVectors with n up to "
+			<< (int)highestN << "." << std::endl;
+	}
 	return MVectorContainer(mVectors.lower_bound(lower), 
 			mVectors.upper_bound(upper));
 }
 
 // computes all mVectors with n up to newHighestN
 void MultinomialTable::ComputeMVectors(const char newHighestN) {
+	// std::cout << "Computing mVectors for n = " << (int)newHighestN << std::endl;
+	mVectors.clear();
 	for (char n = newHighestN; n >= 0; --n) {
 		std::string mVector(particleNumber+1, 0);
 		mVector[0] = n;
 		mVector[1] = n;
 		do { 
+			// std::cout << "Emplacing an mVector: " << MVectorOut(mVector) 
+				// << std::endl;
 			mVectors.emplace_hint(mVectors.begin(), mVector);
 		} while(AdvanceMVector(mVector));
 	}
@@ -155,6 +193,7 @@ bool MultinomialTable::AdvanceMVector(std::string& mVector) {
 	//std::cout << "Advancing this mVector: " << MVectorOut(mVector) << std::endl;
 	// start at the end, go backward until you find an entry that can go down
 	for(unsigned int i = mVector.size()-2; i > 0; --i){
+		if (mVector[i] < 2) continue;
 		// go forward from i until you find an entry that can go up
 		unsigned int j = i + 1;
 		do{
@@ -173,8 +212,10 @@ bool MultinomialTable::AdvanceMVector(std::string& mVector) {
 				}
 				return true;
 			} else if(mVector[i] == mVector[j] + 1) {
+				// mV[j] can't be increased but maybe a future one can
 				++j;
 			} else {
+				// mV[i] == mV[i+1] so we already know it can't be decreased
 				break;
 			}
 		} while (j < mVector.size());
@@ -189,6 +230,8 @@ coeff_class MultinomialTable::Choose(const char n, const std::vector<char>& m)
 
 // the first entry of nAndm is n, followed by the m vector
 coeff_class MultinomialTable::Lookup(std::string nAndm) const {
+	// std::cout << "Lookup of mVector " << MVectorOut(nAndm) << " with length "
+		// << nAndm.size() << std::endl;
 	if (nAndm.size() != particleNumber + 1) {
 		std::cerr << "Error: asked to choose a multinomial with an m vector "
 			<< "whose size (" << nAndm.size()-1 << ") is different from the "
@@ -199,8 +242,10 @@ coeff_class MultinomialTable::Lookup(std::string nAndm) const {
 
 	// we're using the permutation symmetry to only store sorted coefficients
 	std::sort(nAndm.begin()+1, nAndm.end(), std::greater<char>());
-	if(nAndm[0] <  nAndm[1]) return 0;
-	//if (nAndm[0] == nAndm[1]) return 1;
+	if (nAndm[0] <  nAndm[1]) return 0;
+	// the below line should not be necessary, since the zero vectors should be
+	// emplaced in the table. I have no idea what the problem is
+	// if (nAndm[0] == nAndm[1]) return 1;
 	//if (nAndm[0] == nAndm[1] + 1) return nAndm[0];
 
 	if (nAndm[0] > highestN) {
@@ -211,6 +256,7 @@ coeff_class MultinomialTable::Lookup(std::string nAndm) const {
 		//FillTo(n);
 	}
 
+	// std::cout << "Looking up this mVector: " << MVectorOut(nAndm) << std::endl;
 	return table.at(nAndm);
 }
 

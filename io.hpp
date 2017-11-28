@@ -1,6 +1,7 @@
 #ifndef IO_HPP
 #define IO_HPP
 
+#include <iostream>
 #include "constants.hpp"
 
 // stream output operator template for vectors
