@@ -28,6 +28,9 @@ int main(int argc, char* argv[]) {
 		return EXIT_SUCCESS;
 	}
 
+	//ExactBinomial_FillTo(args.degree);
+	Multinomial::Initialize(2, args.degree); // binomial coefficients
+
 	//if(args.options & OPT_IPTEST){
 		return InnerProductTest(args);
 	//}
@@ -42,7 +45,7 @@ int InnerProductTest(const arguments& args) {
 	//options = options | OPT_DEBUG;
 
 	std::cout << "Beginning inner product test with N=" << numP << ", L="
-		<< degree << "." << std::endl;
+		<< degree << " (including Dirichlet derivatives)." << std::endl;
 	
 	//std::cout << "Testing gamma cache construction." << std::endl;
 	GammaCache cache(numP, 2*degree, 2*(degree-numP));
@@ -96,8 +99,11 @@ int Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
 	Normalize(unifiedBasis, cache, kCache);
 	// without this cout stream, unifiedBasis isn't acutually updated in time
 	std::cout << "Normalized basis: " << unifiedBasis << std::endl;
-	DMatrix gram = GramMatrix(unifiedBasis, cache, kCache);
-	//DMatrix gram = GramFock(unifiedBasis);
+
+	// comment one or the other of these to decide which inner product to use.
+	// Ideally, we would like to use GramFock/InnerFock only
+	// DMatrix gram = GramMatrix(unifiedBasis, cache, kCache);
+	DMatrix gram = GramFock(unifiedBasis);
 	if(gram.rows() == 0) return 0;
 	
 	std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()
@@ -206,6 +212,10 @@ std::vector<Poly> GramSchmidt_WithMatrix(const Basis<Mono> inputBasis,
 			//std::cout << GSNorm(GSProjection(nextVector, oldVec, gramMatrix), gramMatrix)
 				//<< std::endl;
 		//}
+		if (norm < 0) {
+			std::cerr << "Warning: negative norm " << norm << "." << std::endl;
+			norm = -norm;
+		}
 		vectorForms.push_back(nextVector/std::sqrt(norm));
 		//inverseNorms.push_back(1/norm);
 	}
@@ -273,6 +283,7 @@ arguments ParseArguments(int argc, char* argv[]) {
 	std::vector<std::string> options;
 	std::string arg;
 	arguments ret;
+	ret.delta = 0;
 	int j = 0;
 	for(int i = 1; i < argc; ++i){
 		arg = argv[i];
@@ -291,8 +302,8 @@ arguments ParseArguments(int argc, char* argv[]) {
 						ret.delta = ReadArg<coeff_class>(arg);
 						break;
 					default:
-						std::cerr << "Error: at most two non-option arguments may "
-							<< "be given." << std::endl;
+						std::cerr << "Error: at most three non-option arguments"
+							<< " may be given." << std::endl;
 						return ret;
 				}
 				++j;

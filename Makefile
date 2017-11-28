@@ -11,9 +11,8 @@ LDFLAGS = -L$(BASEDIR)/lib -Wl,-rpath=$(BASEDIR)/lib,-rpath=$(BASEDIR)/SuiteSpar
 		  -lgsl -lspqr -lcholmod -lmetis -lopenblas -lpthread
 EXECUTABLE = 3dBasis
 
-SOURCES = mono.cpp poly.cpp 3dBasis.cpp cache.cpp binomial.cpp multinomial.cpp \
-		  matrix.cpp
-OBJECTS = mono.o poly.o 3dBasis.o cache.o binomial.o multinomial.o matrix.o
+SOURCES = mono.cpp poly.cpp 3dBasis.cpp cache.cpp multinomial.cpp matrix.cpp
+OBJECTS = mono.o poly.o 3dBasis.o cache.o multinomial.o matrix.o
 
 default: $(EXECUTABLE)
 
@@ -46,14 +45,10 @@ poly.o: poly.cpp poly.hpp mono.hpp io.hpp constants.hpp
 cache.o: cache.cpp cache.hpp constants.hpp io.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-binomial.o: binomial.cpp binomial.hpp constants.hpp
-	$(CXX) $(CXXFLAGS) $< -o $@
-
 multinomial.o: multinomial.cpp multinomial.hpp constants.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-matrix.o: matrix.cpp matrix.hpp binomial.hpp multinomial.hpp mono.hpp basis.hpp \
-	io.hpp
+matrix.o: matrix.cpp matrix.hpp multinomial.hpp mono.hpp basis.hpp io.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 lib/libspqr.so: lib/liblapack.a lib/libopenblas.a

@@ -12,7 +12,7 @@
 #include <boost/functional/hash.hpp>
 
 #include "constants.hpp"
-#include "binomial.hpp"
+//#include "binomial.hpp" // removed this, using 2-element multinomials instead
 #include "multinomial.hpp"
 #include "mono.hpp"
 #include "basis.hpp"
@@ -36,10 +36,10 @@ coeff_class MassMatrixTerm(const Mono& A, const Mono& B,
 
 struct YTerm {
 	coeff_class coeff;
-	std::vector<char> y;
+	std::string y;
 
 	YTerm() = delete;
-	YTerm(const coeff_class coeff, const std::vector<char>& y, 
+	YTerm(const coeff_class coeff, const std::string& y, 
 			const std::string& nAndm);
 	
 	char operator[](std::size_t i) const { return y[i]; }
@@ -82,18 +82,19 @@ std::vector<MatrixTerm_Final> MatrixTermsFromMono(const Mono& input);
 std::vector<MatrixTerm_Final> MatrixTermsFromMono_Permuted(const Mono& input,
 		const std::vector<std::size_t>& permutationVector);
 std::vector<MatrixTerm_Final> MatrixTermsFromXandY(
-		const std::array<std::vector<char>,2>& xAndy, const int nParticles);
-std::array<std::vector<char>,2> ExponentExtractXY(const Mono& extractFromThis);
-std::array<std::vector<char>,2> PermuteXandY(
-		const std::array<std::vector<char>,2>& xAndy,
+		const std::array<std::string,2>& xAndy, const int nParticles);
+std::array<std::string,2> ExponentExtractXY(const Mono& extractFromThis);
+std::array<std::string,2> PermuteXandY(
+		const std::array<std::string,2>& xAndy,
 		const std::vector<std::size_t>& permutationVector);
-std::vector<char> ExponentUFromX(const std::vector<char>& x);
-std::vector<MatrixTerm_Intermediate> ExponentYTildeFromY(const std::vector<char>& y);
+std::vector<char> ExponentUFromX(const std::string& x);
+std::vector<MatrixTerm_Final> ExponentThetaFromY(const std::string y);
+std::vector<MatrixTerm_Intermediate> ExponentYTildeFromY(const std::string& y);
 std::vector<MatrixTerm_Final> ExponentThetaFromYTilde(
 		std::vector<MatrixTerm_Intermediate>& intermediateTerms);
 
 // coordinate transform helper functions, called from transforms
-std::vector<YTerm> EliminateYn(const std::vector<char>& y);
+std::vector<YTerm> EliminateYn(const std::string& y);
 std::vector<MatrixTerm_Intermediate> YTildeTerms(
 		const unsigned int i, const char a, const char l, std::string nAndm);
 std::vector<MatrixTerm_Intermediate> MultiplyIntermediateTerms(

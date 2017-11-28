@@ -50,10 +50,10 @@ constexpr coeff_class EPSILON = 1e-10;
 constexpr unsigned int MAX_THREADS = 8u;
 
 struct arguments{
-	int numP;
-	int degree;
-	coeff_class delta;
-	int options;
+	int numP = -1;
+	int degree = -1;
+	coeff_class delta = 0;
+	int options = 0;
 };
 
 struct particle{

@@ -39,7 +39,7 @@ DMatrix MassMatrix(const Basis<Mono>& basis) {
 
 namespace MatrixInternal {
 
-YTerm::YTerm(const coeff_class coeff, const std::vector<char>& y, 
+YTerm::YTerm(const coeff_class coeff, const std::string& y, 
 		const std::string& nAndm): coeff(coeff), y(y.begin(), y.end()-1) {
 	for (std::size_t i = 0; i < size(); ++i) {
 		this->y[i] += nAndm[i+1];
@@ -80,10 +80,11 @@ MatrixTerm_Final::MatrixTerm_Final(const size_t n): coefficient(1), uPlus(n),
 }
 
 // maybe should be rvalue references instead? hopefully it's the same
-MatrixTerm_Final::MatrixTerm_Final(const coeff_class coefficient, const std::vector<char>& uPlus, 
-		const std::vector<char>& uMinus, const std::vector<char>& sinTheta,
-		const std::vector<char>& cosTheta): coefficient(coefficient), 
-	uPlus(uPlus), uMinus(uMinus), sinTheta(sinTheta), cosTheta(cosTheta) {
+MatrixTerm_Final::MatrixTerm_Final(const coeff_class coefficient, 
+		const std::vector<char>& uPlus, const std::vector<char>& uMinus, 
+		const std::vector<char>& sinTheta, const std::vector<char>& cosTheta): 
+	coefficient(coefficient), uPlus(uPlus), uMinus(uMinus), sinTheta(sinTheta), 
+	cosTheta(cosTheta) {
 }
 
 // notice that there are fewer Thetas than Us, so the vectors aren't all the
@@ -113,6 +114,9 @@ coeff_class MassMatrixTerm(const Mono& A, const Mono& B,
 	coeff_class total = 0;
 	// there's no reason to be using these permutation vectors instead of 
 	// permuting xAndy directly
+	//
+	// one of these permutations is likely unnecesarry, which should be a
+	// significant time savings
 	do {
 		fFromA = MatrixTermsFromMono_Permuted(A, permA);
 		do {
@@ -133,7 +137,7 @@ coeff_class MassMatrixTerm(const Mono& A, const Mono& B,
 // coefficient; the vector returned here contains the components of the sum
 // constituting the answer, each with its own exponents and coefficient
 std::vector<MatrixTerm_Final> MatrixTermsFromMono(const Mono& input) {
-	std::array<std::vector<char>,2> xAndy(ExponentExtractXY(input));
+	std::array<std::string,2> xAndy(ExponentExtractXY(input));
 	return MatrixTermsFromXandY(xAndy, input.NParticles());
 }
 
@@ -141,7 +145,7 @@ std::vector<MatrixTerm_Final> MatrixTermsFromMono(const Mono& input) {
 // and permuting it directly instead of calling this over and over
 std::vector<MatrixTerm_Final> MatrixTermsFromMono_Permuted(const Mono& input,
 		const std::vector<std::size_t>& permutationVector) {
-	std::array<std::vector<char>,2> xAndy(ExponentExtractXY(input));
+	std::array<std::string,2> xAndy(ExponentExtractXY(input));
 	//std::cout << "Extracted " << xAndy[0] << " from " << input;
 	xAndy = PermuteXandY(xAndy, permutationVector);
 	//std::cout << " and permuted it to " << xAndy[0] << std::endl;
@@ -150,12 +154,13 @@ std::vector<MatrixTerm_Final> MatrixTermsFromMono_Permuted(const Mono& input,
 
 // !!! NOTE: THE RESULTS OF THIS ENTIRE FUNCTION SHOULD BE HASHED !!!
 std::vector<MatrixTerm_Final> MatrixTermsFromXandY(
-		const std::array<std::vector<char>,2>& xAndy, const int nParticles) {
+		const std::array<std::string,2>& xAndy, const int nParticles) {
 	std::vector<char> uFromX(ExponentUFromX(xAndy[0]));
 	//std::cout << "uFromX: " << uFromX << std::endl;
-	// !!! NOTE: SHOULD HASH THE RESULTS OF BELOW FUNCTION !!!
-	std::vector<MatrixTerm_Intermediate> inter(ExponentYTildeFromY(xAndy[1]));
-	std::vector<MatrixTerm_Final> ret(ExponentThetaFromYTilde(inter));
+	// !!! NOTE: SHOULD HASH THE RESULTS OF BELOW FUNCTIONS !!!
+	// std::vector<MatrixTerm_Intermediate> inter(ExponentYTildeFromY(xAndy[1]));
+	// std::vector<MatrixTerm_Final> ret(ExponentThetaFromYTilde(inter));
+	std::vector<MatrixTerm_Final> ret(ExponentThetaFromY(xAndy[1]));
 	// u has contributions from both x and y, so we have to combine them
 	if (ret.size() == 0) ret.emplace_back(nParticles - 1);
 	for (auto& term : ret) {
@@ -189,8 +194,8 @@ std::vector<MatrixTerm_Final> MatrixTermsFromXandY(
 //
 // note that I'm storing the Dirichlet-mandated P_- on each particle but Zuhair
 // isn't, so we have to subtract that off
-std::array<std::vector<char>,2> ExponentExtractXY(const Mono& extractFromThis) {
-	std::vector<char> x, y;
+std::array<std::string,2> ExponentExtractXY(const Mono& extractFromThis) {
+	std::string x, y;
 	for (auto i = 0u; i < extractFromThis.NParticles(); ++i) {
 		x.push_back(extractFromThis.Pm(i) - 1);
 		y.push_back(extractFromThis.Pt(i));
@@ -200,10 +205,10 @@ std::array<std::vector<char>,2> ExponentExtractXY(const Mono& extractFromThis) {
 
 // this function is pointless; xAndy should be generated once and permuted
 // directly instead of remaking it over and over again
-std::array<std::vector<char>,2> PermuteXandY(
-		const std::array<std::vector<char>,2>& xAndy,
+std::array<std::string,2> PermuteXandY(
+		const std::array<std::string,2>& xAndy,
 		const std::vector<std::size_t>& permutationVector) {
-	std::array<std::vector<char>,2> output;
+	std::array<std::string,2> output;
 	output[0].resize(xAndy[0].size());
 	output[1].resize(xAndy[1].size());
 	for (std::size_t i = 0; i < permutationVector.size(); ++i) {
@@ -217,7 +222,7 @@ std::array<std::vector<char>,2> PermuteXandY(
 
 // goes from x to u using Zuhair's (4.21); returned vector has a list of all u+ 
 // in order followed by a list of all u- in order
-std::vector<char> ExponentUFromX(const std::vector<char>& x) {
+std::vector<char> ExponentUFromX(const std::string& x) {
 	if (x.size() < 2) {
 		std::cerr << "Error: asked to do exponent transform from X to U but "
 			<< "there were only " << x.size() << " entries in X." << std::endl;
@@ -241,13 +246,27 @@ std::vector<char> ExponentUFromX(const std::vector<char>& x) {
 	return u;
 }
 
+namespace {
+	std::unordered_map<std::string, std::vector<MatrixTerm_Final>> yCache;
+} // anonymous namespace
+
+std::vector<MatrixTerm_Final> ExponentThetaFromY(const std::string y) {
+	if (yCache.count(y) == 0) {
+		std::vector<MatrixTerm_Intermediate> inter(ExponentYTildeFromY(y));
+		std::vector<MatrixTerm_Final> ret(ExponentThetaFromYTilde(inter));
+		yCache.emplace(y, std::move(ret));
+	}
+
+	return yCache[y];
+}
+
 // convert from y to y-tilde following (4.26).
 //
 // this is by far the most intensive of the coordinate transformations: it has
 // u biproducts in addition to the yTilde that you want, but worst of all it has
 // two terms, so you end up with a sum of return terms, each with some 
 // binomial-derived coefficient.
-std::vector<MatrixTerm_Intermediate> ExponentYTildeFromY(const std::vector<char>& y) {
+std::vector<MatrixTerm_Intermediate> ExponentYTildeFromY(const std::string& y) {
 	//std::cout << "Transforming this y: " << y << std::endl;
 	std::vector<MatrixTerm_Intermediate> ret;
 	// i here is the i'th particle (pair); each one only sees those whose
@@ -316,7 +335,7 @@ std::vector<MatrixTerm_Intermediate> ExponentYTildeFromY(const std::vector<char>
 	return ret;
 }
 
-std::vector<YTerm> EliminateYn(const std::vector<char>& y) {
+std::vector<YTerm> EliminateYn(const std::string& y) {
 	std::vector<YTerm> output;
 	Multinomial::Initialize(y.size()-1, y.back());
 	for (auto nAndm : Multinomial::GetMVectors(y.size()-1, y.back())) {
@@ -420,7 +439,8 @@ MatrixTerm_Intermediate YTildeLastTerm(const unsigned int n, const char a,
 // the coefficient of a YTildeTerm, i.e. everything that's not a u or yTilde
 coeff_class YTildeCoefficient(const char a, const char l, 
 		const std::string& nAndm) {
-	coeff_class ret = ExactBinomial(a, l);
+	//coeff_class ret = ExactBinomial(a, l);
+	coeff_class ret = Multinomial::Choose(2, a, {static_cast<char>(a-l),l});
 	ret *= Multinomial::Lookup(nAndm.size()-1, nAndm);
 	if ((a-l) % 2 == 1) ret = -ret;
 	return ret;
