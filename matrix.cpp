@@ -105,11 +105,15 @@ coeff_class MassMatrixTerm(const Mono& A, const Mono& B,
 	// degeneracy factors result from turning the ordered monomials into 
 	// symmetric polynomials
 	coeff_class degeneracy = 1;
-	for(auto& count : A.CountIdentical()) degeneracy *= Factorial(count);
-	for(auto& count : B.CountIdentical()) degeneracy *= Factorial(count);
+	// I think the A step here is wrong and I have to instead be weighting each
+	// total configuration by its A degeneracy?
+	// for (auto& count : A.CountIdentical()) degeneracy *= Factorial(count);
+	degeneracy *= Factorial(A.NParticles());
+	for (auto& count : B.CountIdentical()) degeneracy *= Factorial(count);
 
 	std::vector<std::size_t> permA(A.PermutationVector());
 	std::vector<std::size_t> permB(B.PermutationVector());
+	std::array<std::string,2> xAndy_A, xAndy_B;
 	std::vector<MatrixTerm_Final> fFromA, fFromB, combinedFs;
 	coeff_class total = 0;
 	// there's no reason to be using these permutation vectors instead of 
@@ -117,14 +121,26 @@ coeff_class MassMatrixTerm(const Mono& A, const Mono& B,
 	//
 	// one of these permutations is likely unnecesarry, which should be a
 	// significant time savings
-	do {
+	// do {
 		fFromA = MatrixTermsFromMono_Permuted(A, permA);
+		// xAndy_A = ExponentExtractXY(A);
+		// xAndy_A = PermuteXandY(xAndy_A, permA);
 		do {
 			fFromB = MatrixTermsFromMono_Permuted(B, permB);
 			combinedFs = CombineTwoFs(fFromA, fFromB);
+			// std::array<std::string,2> xAndy_B = ExponentExtractXY(B);
+			// xAndy_B = PermuteXandY(xAndy_B, permB);
+			// xAndy_B = CombineXandY(xAndy_A, xAndy_B);
+			// combinedFs = MatrixTermsFromXandY(xAndy_B, A.NParticles());
 			total += FinalResult(combinedFs, isInnerProduct);
 		} while (std::next_permutation(permB.begin(), permB.end()));
-	} while (std::next_permutation(permA.begin(), permA.end()));
+	// } while (std::next_permutation(permA.begin(), permA.end()));
+	
+	if (isInnerProduct) {
+		total *= InnerProductPrefactor(A.NParticles());
+	} else {
+		total *= MassMatrixPrefactor(A.NParticles());
+	}
 
 	// this somewhat dubious adjustment is presumably due to an error in
 	// Zuhair's formula (the adjustment appears in his code as well)
@@ -220,6 +236,16 @@ std::array<std::string,2> PermuteXandY(
 	return output;
 }
 
+std::array<std::string,2> CombineXandY(const std::array<std::string,2>& xAndy_A,
+		std::array<std::string,2> xAndy_B) {
+	for (auto i = 0u; i < 2; ++i) {
+		for (auto j = 0u; j < xAndy_A.size(); ++j) {
+			xAndy_B[i][j] += xAndy_A[i][j];
+		}
+	}
+	return xAndy_B;
+}
+
 // goes from x to u using Zuhair's (4.21); returned vector has a list of all u+ 
 // in order followed by a list of all u- in order
 std::vector<char> ExponentUFromX(const std::string& x) {
@@ -298,7 +324,6 @@ std::vector<MatrixTerm_Intermediate> ExponentYTildeFromY(const std::string& y) {
 		for (auto i = 1u; i < yTerm.size(); ++i) {
 			if (yTerm[i] == 0) continue;
 			std::vector<MatrixTerm_Intermediate> termsFromThisY;
-			Multinomial::Initialize(i, yTerm[i]);
 			for (char l = 0; l <= yTerm[i]; ++l) {
 				for (const auto& nAndm : Multinomial::GetMVectors(i, yTerm[i]-l)) {
 					std::vector<MatrixTerm_Intermediate> newTerms(
@@ -337,7 +362,6 @@ std::vector<MatrixTerm_Intermediate> ExponentYTildeFromY(const std::string& y) {
 
 std::vector<YTerm> EliminateYn(const std::string& y) {
 	std::vector<YTerm> output;
-	Multinomial::Initialize(y.size()-1, y.back());
 	for (auto nAndm : Multinomial::GetMVectors(y.size()-1, y.back())) {
 		coeff_class coeff = Multinomial::Lookup(y.size()-1, nAndm);
 		if (y.back() % 2 == 1) coeff = -coeff;
@@ -370,6 +394,8 @@ std::vector<YTerm> EliminateYn(const std::string& y) {
 	return ret;
 }*/
 
+// i is the y from y_i; a is the exponent of y_i; l is a binomial index; nAndm
+// is a multinomial vector with total order a-l
 std::vector<MatrixTerm_Intermediate> YTildeTerms(
 		const unsigned int i, const char a, const char l, std::string nAndm) {
 	std::vector<MatrixTerm_Intermediate> ret;
@@ -381,8 +407,10 @@ std::vector<MatrixTerm_Intermediate> YTildeTerms(
 			ret.back().uPlus[j] = nAndm[j+1];
 			ret.back().yTilde[j] = nAndm[j+1];
 			ret.back().uMinus[j] = a;
-			for (auto k = j+1; k < i; ++k) {
+			// for (auto k = j+1; k < i; ++k) {
+			for (auto k = 0u; k < j; ++k) {
 				ret.back().uMinus[j] += nAndm[k+1];
+				// ret.back().uMinus[k] += nAndm[j+1];
 			}
 		}
 		ret.back().uPlus[i] = 2*a - l;
@@ -555,65 +583,42 @@ std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& 
 	return ret;
 }
 
-coeff_class FinalResult(const std::vector<MatrixTerm_Final>& exponents,
+// warning: this breaks the MatrixTerm_Final vector fed into it so it can't be
+// used again
+coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
 		const bool isInnerProduct) {
 	if (exponents.size() == 0) {
-		std::cout << "No exponents detected; returning prefactor." << std::endl;
-		if (isInnerProduct) {
-			return InnerProductPrefactor(2);
-		} else {
-			return MassMatrixPrefactor(2);
-		}
+		std::cout << "No exponents detected; returning 1." << std::endl;
+		return 1;
 	}
 	auto n = exponents.front().uPlus.size() + 1;
 	coeff_class totalFromIntegrals = 0;
-	for (const auto& term : exponents) {
-		//std::cout << "TERM: " << term.coefficient << ", " << term.uPlus
-			//<< ", " << term.uMinus << std::endl;
-		coeff_class integral = term.coefficient;
-
-		// do the u integrals first; the first one is special because its
-		// uPlus power is reduced by 2 unless this is an inner product
+	for (auto& term : exponents) {
 		if (isInnerProduct) {
-			integral *= UIntegral(term.uPlus[0] + 3, 5*n - 7 + term.uMinus[0]);
+			// just do the integrals
+			totalFromIntegrals += DoAllIntegrals(term);
 		} else {
-			integral *= UIntegral(term.uPlus[0] + 1, 5*n - 7 + term.uMinus[0]);
-		}
-		for (auto i = 1u; i < n-1; ++i) {
-			//std::cout << "u+ = " << (int)term.uPlus[i] << "; u- = "
-				//<< (int)term.uMinus[i] << std::endl;
-			integral *= UIntegral(term.uPlus[i] + 3, 
-					5*(n - i) - 7 + term.uMinus[i]);
-		}
-
-		// now the theta integrals; sineTheta.size() is n-2, but cosTheta.size()
-		// is n-1 with the last component being meaningless. All but the last 
-		// one are short, while the last one is long
-		//
-		// these have constant terms which differ from Zuhair's because his i
-		// starts at 1 instead of 0
-		if (n >= 3) {
-			for (auto i = 0u; i < n-3; ++i) {
-				integral *= ThetaIntegral_Short(n - 3 - i + term.sinTheta[i],
-						term.cosTheta[i] );
+			// sum over integral results for every possible 1/x
+			term.uPlus[0] -= 2;
+			totalFromIntegrals += DoAllIntegrals(term);
+			for (std::size_t i = 1; i < term.uPlus.size(); ++i) {
+				term.uPlus[i-1] += 2;
+				term.uMinus[i-1] -= 2;
+				term.uPlus[i] -= 2;
+				totalFromIntegrals += DoAllIntegrals(term);
 			}
-			integral *= ThetaIntegral_Long(term.sinTheta[n-3], term.cosTheta[n-3]);
 		}
-
-		//std::cout << "Adding this integral on the pile: " << integral 
-			//<< std::endl;
-		totalFromIntegrals += integral;
 	}
 	/*std::cout << "Returning FinalResult = " << InnerProductPrefactor(n) << " * " 
 		<< totalFromIntegrals << std::endl;
 	return InnerProductPrefactor(n) * totalFromIntegrals;*/
 	//std::cout << "Returning FinalResult = " << MassMatrixPrefactor(n) << " * " 
 		//<< totalFromIntegrals << std::endl;
-	if (isInnerProduct) {
-		return InnerProductPrefactor(n) * totalFromIntegrals;
-	} else {
-		return MassMatrixPrefactor(n) * totalFromIntegrals;
-	}
+	// if (isInnerProduct) {
+		return totalFromIntegrals;
+	// } else {
+		// return MassMatrixPrefactor(n) * totalFromIntegrals;
+	// }
 }
 
 coeff_class InnerProductPrefactor(const char n) {
@@ -637,6 +642,34 @@ namespace {
 	std::unordered_map<std::array<coeff_class,2>, coeff_class,
 		boost::hash<std::array<coeff_class,2>> > thetaCache;
 } // anonymous namespace
+
+coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
+	std::size_t n = term.uPlus.size() + 1;
+	coeff_class output = term.coefficient;
+
+	// do the u integrals first
+	for (auto i = 0u; i < n-1; ++i) {
+		output *= UIntegral(term.uPlus[i] + 3, 5*(n - i) - 7 + term.uMinus[i]);
+	}
+
+	// now the theta integrals; sineTheta.size() is n-2, but cosTheta.size()
+	// is n-1 with the last component being meaningless. All but the last 
+	// one are short, while the last one is long
+	//
+	// these have constant terms which differ from Zuhair's because his i
+	// starts at 1 instead of 0
+	if (n >= 3) {
+		for (auto i = 0u; i < n-3; ++i) {
+			output *= ThetaIntegral_Short(n-3 - i + term.sinTheta[i],
+					term.cosTheta[i] );
+		}
+		output *= ThetaIntegral_Long(term.sinTheta[n-3], term.cosTheta[n-3]);
+	}
+	// std::cout << "{" << term.uPlus << ", " << term.uMinus << ", " 
+		// << term.sinTheta << ", " << term.cosTheta << "} -> " << output 
+		// << std::endl;
+	return output;
+}
 
 // this is the integral over the "u" variables; it uses a hypergeometric 
 // identity to turn 2F1(a, b, c, -1) -> 2^(-a)*2F1(a, c-b, c, 1/2)

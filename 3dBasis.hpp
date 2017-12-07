@@ -12,7 +12,7 @@
 #include <type_traits>	// std::is_same
 #include <thread>
 
-constexpr char VERSION[] = "0.8.0";
+constexpr char VERSION[] = "0.8.1";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"

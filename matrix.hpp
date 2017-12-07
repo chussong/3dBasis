@@ -87,6 +87,8 @@ std::array<std::string,2> ExponentExtractXY(const Mono& extractFromThis);
 std::array<std::string,2> PermuteXandY(
 		const std::array<std::string,2>& xAndy,
 		const std::vector<std::size_t>& permutationVector);
+std::array<std::string,2> CombineXandY(const std::array<std::string,2>& xAndy_A,
+		std::array<std::string,2> xAndy_B);
 std::vector<char> ExponentUFromX(const std::string& x);
 std::vector<MatrixTerm_Final> ExponentThetaFromY(const std::string y);
 std::vector<MatrixTerm_Intermediate> ExponentYTildeFromY(const std::string& y);
@@ -116,12 +118,13 @@ std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& 
 		std::vector<char> B, const std::vector<std::size_t>& permVector);
 std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& F1,
 		const std::vector<MatrixTerm_Final>& F2, std::vector<std::size_t>& perm);*/
-coeff_class FinalResult(const std::vector<MatrixTerm_Final>& exponents,
+coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
 		const bool isInnerProduct);
 
 // prefactor and integrals used in FinalResult
 coeff_class InnerProductPrefactor(const char n);
 coeff_class MassMatrixPrefactor(const char n);
+coeff_class DoAllIntegrals(const MatrixTerm_Final& term);
 coeff_class UIntegral(const coeff_class a, const coeff_class b);
 coeff_class ThetaIntegral_Short(const coeff_class a, const coeff_class b);
 coeff_class ThetaIntegral_Long(const coeff_class a, const coeff_class b);

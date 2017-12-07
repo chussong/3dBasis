@@ -29,7 +29,10 @@ int main(int argc, char* argv[]) {
 	}
 
 	//ExactBinomial_FillTo(args.degree);
-	Multinomial::Initialize(2, args.degree); // binomial coefficients
+	// Multinomial::Initialize(2, args.degree); // binomial coefficients
+	for (int n = 1; n <= args.numP; ++n) {
+		Multinomial::Initialize(n, 2*args.degree);
+	}
 
 	//if(args.options & OPT_IPTEST){
 		return InnerProductTest(args);
@@ -102,8 +105,8 @@ int Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
 
 	// comment one or the other of these to decide which inner product to use.
 	// Ideally, we would like to use GramFock/InnerFock only
-	// DMatrix gram = GramMatrix(unifiedBasis, cache, kCache);
-	DMatrix gram = GramFock(unifiedBasis);
+	DMatrix gram = GramMatrix(unifiedBasis, cache, kCache);
+	// DMatrix gram = GramFock(unifiedBasis);
 	if(gram.rows() == 0) return 0;
 	
 	std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()
