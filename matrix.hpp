@@ -12,7 +12,6 @@
 #include <boost/functional/hash.hpp>
 
 #include "constants.hpp"
-//#include "binomial.hpp" // removed this, using 2-element multinomials instead
 #include "multinomial.hpp"
 #include "mono.hpp"
 #include "basis.hpp"
@@ -24,15 +23,17 @@ DMatrix MassMatrix(const Basis<Mono>& basis);
 
 namespace MatrixInternal {
 
+enum MATRIX_TYPE { MAT_INNER, MAT_MASS, MAT_PHI4 };
+
 // this seems to be necessary if I've declared any operator<< inside of
 // MatrixInternal, which I've done for YTerm and MatrixTerm_Intermediate
 using ::operator<<;
 
 // the main point of this header
-coeff_class MassMatrixTerm(const Mono& A, const Mono& B, 
-		const bool isInnerProduct);
+coeff_class MatrixTerm(const Mono& A, const Mono& B, 
+		const MATRIX_TYPE type);
 
-// three structs used in the coordinate transformations for MassMatrixTerm
+// three structs used in the coordinate transformations for MatrixTerm
 
 struct YTerm {
 	coeff_class coeff;
@@ -77,22 +78,22 @@ struct MatrixTerm_Final {
 	void Resize(const size_t n);
 };
 
-// coordinate transform functions, called from MassMatrixTerm
+// coordinate transform functions, called from MatrixTerm
 std::vector<MatrixTerm_Final> MatrixTermsFromMono(const Mono& input);
 std::vector<MatrixTerm_Final> MatrixTermsFromMono_Permuted(const Mono& input,
 		const std::vector<std::size_t>& permutationVector);
 std::vector<MatrixTerm_Final> MatrixTermsFromXandY(
 		const std::array<std::string,2>& xAndy, const int nParticles);
-std::array<std::string,2> ExponentExtractXY(const Mono& extractFromThis);
+std::array<std::string,2> ExtractXY(const Mono& extractFromThis);
 std::array<std::string,2> PermuteXandY(
 		const std::array<std::string,2>& xAndy,
 		const std::vector<std::size_t>& permutationVector);
 std::array<std::string,2> CombineXandY(const std::array<std::string,2>& xAndy_A,
 		std::array<std::string,2> xAndy_B);
-std::vector<char> ExponentUFromX(const std::string& x);
-std::vector<MatrixTerm_Final> ExponentThetaFromY(const std::string y);
-std::vector<MatrixTerm_Intermediate> ExponentYTildeFromY(const std::string& y);
-std::vector<MatrixTerm_Final> ExponentThetaFromYTilde(
+std::vector<char> UFromX(const std::string& x);
+std::vector<MatrixTerm_Final> ThetaFromY(const std::string y);
+std::vector<MatrixTerm_Intermediate> YTildeFromY(const std::string& y);
+std::vector<MatrixTerm_Final> ThetaFromYTilde(
 		std::vector<MatrixTerm_Intermediate>& intermediateTerms);
 
 // coordinate transform helper functions, called from transforms
@@ -109,7 +110,7 @@ coeff_class YTildeCoefficient(const char a, const char l,
 //coeff_class YTildeLastCoefficient(const char a, const char l, 
 		//const std::vector<char>& mVector);
 
-// functions representing individual steps of the MassMatrixTerm computation
+// functions representing individual steps of the MatrixTerm computation
 std::vector<char> AddVectors(const std::vector<char>& A, 
 		const std::vector<char>& B);
 std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& F1,
@@ -119,7 +120,7 @@ std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& 
 std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& F1,
 		const std::vector<MatrixTerm_Final>& F2, std::vector<std::size_t>& perm);*/
 coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
-		const bool isInnerProduct);
+		const MATRIX_TYPE type);
 
 // prefactor and integrals used in FinalResult
 coeff_class InnerProductPrefactor(const char n);

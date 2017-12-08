@@ -47,10 +47,10 @@ class Basis {
 		typename std::vector<T>::iterator			end()	noexcept
 				{ return basisVectors.end(); }
 
-		Triplet ExpressMono(const Mono& toExpress, const int column,
-				const int rowOffset) const;
-		std::list<Triplet> ExpressPoly(const Poly& toExpress, 
-				const int column, const int rowOffset) const;
+		// Triplet ExpressMono(const Mono& toExpress, const int column,
+				// const int rowOffset) const;
+		// std::list<Triplet> ExpressPoly(const Poly& toExpress, 
+				// const int column, const int rowOffset) const;
 		DVector DenseExpressMono(const Mono& toExpress) const;
 		DVector DenseExpressPoly(const Poly& toExpress) const;
 
@@ -75,8 +75,8 @@ class splitBasis {
 		Basis<T>& EvenBasis() { return evenBasis; }
 		const Basis<T>& EvenBasis() const { return evenBasis; }
 
-		std::list<Triplet> ExpressPoly(const Poly& toExpress, const int column,
-				const int row) const;
+		// std::list<Triplet> ExpressPoly(const Poly& toExpress, const int column,
+				// const int row) const;
 
 		static bool IsOdd (const Mono& toTest);
 		static bool IsEven(const Mono& toTest);
@@ -188,6 +188,7 @@ inline unsigned int Basis<T>::FindInBasis(const std::vector<int>&,
 	return -1u;
 }
 
+/*
 template<class T>
 inline Triplet Basis<T>::ExpressMono(const Mono&, const int, const int) const{
 	std::cout << "Unspecialized Basis::ExpressMono should never be called. "
@@ -201,6 +202,7 @@ inline std::list<Triplet> Basis<T>::ExpressPoly(const Poly&, const int, const in
 		<< "How was a basis object created in the first place?" << std::endl;
 	return {{Triplet(-1, -1, coeff_class(0))}};
 }
+*/
 
 template<class T>
 inline DVector Basis<T>::DenseExpressMono(const Mono&) const {
@@ -252,6 +254,7 @@ inline std::ostream& operator<<(std::ostream& os, const Basis<T>& out){
 	return os << "\b\b }";
 }
 
+/*
 template<>
 inline Triplet Basis<Mono>::ExpressMono(const Mono& toExpress, const int column,
 		const int rowOffset) const{
@@ -273,12 +276,12 @@ inline std::list<Triplet> Basis<Mono>::ExpressPoly(const Poly& toExpress,
 	unsigned int hits = 0u;
 	for(auto i = 0u; i < basisVectors.size(); ++i){
 		for(auto& term : toExpress){
-			/*if(std::abs(term.Coeff()) < EPSILON){
-				++zeros;
-				std::cout << "Zero get: " << term.Coeff() << ". Now have "
-					<< zeros << "." << std::endl;
-				continue;
-			} it should not actually be possible for a Poly to have coeff = 0*/
+			// if(std::abs(term.Coeff()) < EPSILON){
+				// ++zeros;
+				// std::cout << "Zero get: " << term.Coeff() << ". Now have "
+					// << zeros << "." << std::endl;
+				// continue;
+			// } it should not actually be possible for a Poly to have coeff = 0
 			if(term == basisVectors[i]){
 				ret.emplace_front(rowOffset+i, column, 
 						term.Coeff()/basisVectors[i].Coeff());
@@ -298,6 +301,7 @@ inline std::list<Triplet> Basis<Mono>::ExpressPoly(const Poly& toExpress,
 	//for(auto& trip : ret) std::cout << trip << std::endl;
 	return ret;
 }
+*/
 
 template<>
 inline DVector Basis<Mono>::DenseExpressMono(const Mono& toExpress) const {
@@ -320,6 +324,7 @@ inline DVector Basis<Mono>::DenseExpressPoly(const Poly& toExpress) const {
 	return output;
 }
 
+/*
 // This does not attempt to find a linear combination of known polynomials
 // which would reproduce toExpress. Obviously it would be more correct if it
 // did attempt to do so.
@@ -351,6 +356,7 @@ inline std::list<Triplet> Basis<Poly>::ExpressPoly(const Poly& toExpress,
 	<< " on the given basis but was not able to identify it." << std::endl;
 	return {{Triplet(-1, -1, 0)}};
 }
+*/
 
 template<class T>
 inline bool splitBasis<T>::IsOdd(const Mono& toTest){
@@ -375,6 +381,7 @@ inline splitBasis<T>::splitBasis(const int numP, const int degree, const int opt
 	//std::cout << oddBasis << std::endl;
 }
 
+/*
 template<class T>
 inline std::list<Triplet> splitBasis<T>::ExpressPoly(const Poly& toExpress, 
 		const int column, const int rowOffset) const{
@@ -388,6 +395,7 @@ inline std::list<Triplet> splitBasis<T>::ExpressPoly(const Poly& toExpress,
 	}
 	return ret;
 }
+*/
 
 // Priority for sorting monomials within a basis. The point of this is to get
 // the orthogonalization that we want from Gram-Schmidt, so it favors states 
@@ -402,6 +410,7 @@ inline bool SortPriority(const Mono& A, const Mono& B) {
 
 //bool SortPriority(const Poly& A, const Poly& B);
 
+// combine multiple bases into a single one
 template<class T>
 Basis<T> CombineBases(const std::vector<Basis<T>>& oldBases) {
 	std::vector<T> newBasisVectors;
@@ -414,11 +423,23 @@ Basis<T> CombineBases(const std::vector<Basis<T>>& oldBases) {
 	return Basis<T>(newBasisVectors);
 }
 
+// get an element from a vector of multiple bases treated like a single basis
+template<class T>
+const T& Get(const std::vector<Basis<T>>& multipleBases, size_t index){
+	for(const auto& basis : multipleBases){
+		if(index < basis.size()){
+			return basis[index];
+		} else {
+			index -= basis.size();
+		}
+	}
+	throw std::runtime_error("out of range error in Get(vector<Basis>)");
+}
+
 // Take a basis and look at every element; if the element has zero norm (within
 // floating point tolerance), delete it, otherwise normalize it.
 template<class T>
-void Normalize(Basis<T>& toNormalize, const GammaCache& cache, 
-		const KVectorCache& kCache) {
+void Normalize(Basis<T>& toNormalize) {
 	// if vector's norm is zero, skip it; otherwise, normalize
 	std::vector<T> newBasisVectors;
 	for (const T& basisVector : toNormalize) {
@@ -427,9 +448,9 @@ void Normalize(Basis<T>& toNormalize, const GammaCache& cache,
 				//<< "state." << std::endl;
 			continue;
 		}
-		// coeff_class norm = InnerFock(basisVector, basisVector);
-		coeff_class norm = T::InnerProduct(basisVector, basisVector, cache, 
-				kCache);
+		coeff_class norm = InnerFock(basisVector, basisVector);
+		// coeff_class norm = T::InnerProduct(basisVector, basisVector, cache, 
+				// kCache);
 		/*std::cout << "Norm of " << basisVector.HumanReadable() << ": " 
 			<< norm << std::endl;
 		std::cout << "Meanwhile, its Kt is: " << basisVector.K2(0.5) << "."
@@ -446,6 +467,29 @@ void Normalize(Basis<T>& toNormalize, const GammaCache& cache,
 	/*toNormalize.erase(std::remove_if(toNormalize.begin(), toNormalize.end(),
 				[](const T& vec){return vec.Coeff() == 0;}), 
 			toNormalize.end());*/
+}
+
+// take vector in monomial or polynomial basis, return it as polynomial
+template<class T>
+Poly VectorToPoly(const DVector& kernelVector, const Basis<T>& startBasis){
+	Poly ret;
+	if(static_cast<size_t>(kernelVector.rows()) != startBasis.size()){
+		std::cerr << "Error: the given Q column has " << kernelVector.rows()
+			<< " rows, " << "but the given basis has " << startBasis.size() 
+			<< " monomials. These must be the same." << std::endl;
+		return ret;
+	}
+	for(auto row = 0; row < kernelVector.rows(); ++row){
+		if(std::abs(kernelVector.coeff(row)) < EPSILON) continue;
+		ret += kernelVector.coeff(row)*startBasis[row];
+	}
+
+	// if(ret.size() == 0) return ret;
+	// coeff_class smallestCoeff = std::abs(ret[0].Coeff());
+	// for(auto& term : ret) smallestCoeff = 
+		// std::min(std::abs(term.Coeff()), smallestCoeff);
+	// for(auto& term : ret) term /= smallestCoeff;
+	return ret;
 }
 
 #endif

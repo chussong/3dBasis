@@ -51,8 +51,8 @@ int InnerProductTest(const arguments& args) {
 		<< degree << " (including Dirichlet derivatives)." << std::endl;
 	
 	//std::cout << "Testing gamma cache construction." << std::endl;
-	GammaCache cache(numP, 2*degree, 2*(degree-numP));
-	KVectorCache kCache(numP, 2*(degree-numP)); // maxPt might be half this?
+	// GammaCache cache(numP, 2*degree, 2*(degree-numP));
+	// KVectorCache kCache(numP, 2*(degree-numP)); // maxPt might be half this?
 	//std::cout << "A coefficient from it: " << cache.Middle(degree-2, 2, 1)
 		//<< std::endl;
 
@@ -80,206 +80,18 @@ int InnerProductTest(const arguments& args) {
 	}*/
 
 	std::cout << "EVEN STATE ORTHOGONALIZATION" << std::endl;
-	Orthogonalize(allEvenBases, cache, kCache);
+	Orthogonalize(allEvenBases);
 	/*std::cout << "REORDERED" << std::endl;
 	std::swap(allEvenBases.front(), allEvenBases.back());
 	Orthogonalize(allEvenBases, cache, kCache);*/
 
 	std::cout << "ODD STATE ORTHOGONALIZATION" << std::endl;
-	Orthogonalize(allOddBases, cache, kCache);
+	Orthogonalize(allOddBases);
 	/*std::cout << "REORDERED" << std::endl;
 	std::swap(allOddBases.front(), allOddBases.back());
 	Orthogonalize(allOddBases, cache, kCache);*/
 
 	return EXIT_SUCCESS;
-}
-
-// return the number of independent vectors in the basis
-int Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
-					const GammaCache& cache, const KVectorCache& kCache) {
-	Timer timer;
-	Basis<Mono> unifiedBasis = CombineBases(inputBases);
-	Normalize(unifiedBasis, cache, kCache);
-	// without this cout stream, unifiedBasis isn't acutually updated in time
-	std::cout << "Normalized basis: " << unifiedBasis << std::endl;
-
-	// comment one or the other of these to decide which inner product to use.
-	// Ideally, we would like to use GramFock/InnerFock only
-	DMatrix gram = GramMatrix(unifiedBasis, cache, kCache);
-	// DMatrix gram = GramFock(unifiedBasis);
-	if(gram.rows() == 0) return 0;
-	
-	std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()
-		<< "." << std::endl;
-	if(TotalSize(inputBases) <= 7){
-		std::cout << gram << std::endl;
-		//std::cout << "Compare to the non-unified one: " << std::endl 
-			//<< GramMatrix(inputBases, cache, kCache) << std::endl;
-	}
-
-	/*timer.Start();
-	DQRSolver solver;
-	// it's possible there's a smarter way to set the threshold than this,
-	// which could possibly take a long time? We multiply our custom epsilon by
-	// the largest coefficient of gram's component-wise absolute value
-	solver.setThreshold(EPSILON*gram.cwiseAbs().maxCoeff());
-	//std::cout << "Matrix threshold set to " << EPSILON*gram.cwiseAbs().maxCoeff()
-		//<< "." << std::endl;
-	solver.compute(gram);
-	DMatrix QMatrix = ExtractQMatrix(solver, gram.rows());
-	std::cout << "Q matrix found in " << timer.TimeElapsedInWords() << "."
-		<< std::endl;
-	if(TotalSize(inputBases) <= 7){
-		std::cout << QMatrix << std::endl;
-	}
-	std::cout << "Rank, i.e. number of independent operators: " << solver.rank() 
-		<< std::endl;*/
-
-	timer.Start();
-	std::vector<Poly> orthogonalized = GramSchmidt_WithMatrix(unifiedBasis, gram);
-	std::cout << "Gram-Schmidt performed in " << timer.TimeElapsedInWords()
-		<< ", giving " << orthogonalized.size() << " vectors";
-	if (orthogonalized.size() <= 20) {
-		std::cout << ":" << std::endl;
-		for(auto& p : orthogonalized) std::cout << p << std::endl;
-	} else {
-		std::cout << ", which will not be shown." << std::endl;
-	}
-
-	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
-	std::cout << "Using this basis: " << minimalBasis << std::endl;
-	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
-	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
-		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
-															orthogonalized[i] );
-	}
-
-	std::cout << "Fock space inner product for confirmation; monos:" << std::endl;
-	DMatrix gram2(GramFock(minimalBasis));
-	std::cout << gram2 << std::endl << "basis states:" << std::endl
-		<< polysOnMinBasis.transpose()*gram2*polysOnMinBasis << std::endl;
-
-
-	timer.Start();
-	DMatrix massMatrix(MassMatrix(minimalBasis));
-	//std::cout << "Here are our orthogonalized polynomials on the minimal basis:"
-		//<< std::endl << polysOnMinBasis << std::endl;
-
-	std::cout << "Here is the monomial mass matrix we computed:" << std::endl
-		<< massMatrix << std::endl;
-
-	std::cout << "Computed this mass matrix from the basis in " 
-		<< timer.TimeElapsedInWords() << ", getting this matrix:" << std::endl;
-	std::cout << polysOnMinBasis.transpose()*massMatrix*polysOnMinBasis << std::endl;
-
-	/*std::cout << "Here's the new gram matrix to confirm orthonormality:"
-		<< std::endl;
-	DMatrix gram2 = GramMatrix(Basis<Poly>(orthogonalized), cache, kCache);
-	std::cout << gram2 << std::endl;*/
-
-	//timer.Start();
-	//std::vector<Poly> matrixGS = MatrixGramSchmidt(gram, unifiedBasis);
-	//std::cout << "Matrix Gram-Schmidt performed in " 
-		//<< timer.TimeElapsedInWords() << ", giving this:" << std::endl;
-	//for(auto& p : matrixGS) std::cout << p << std::endl;
-
-	return orthogonalized.size();
-}
-
-std::vector<Poly> GramSchmidt_WithMatrix(const std::vector<Basis<Mono>> input,
-		const DMatrix& gramMatrix) {
-	return GramSchmidt_WithMatrix(CombineBases(input), gramMatrix);
-}
-
-// this may be assuming that the incoming basis is already normalized (though
-// of course not orthogonal)
-std::vector<Poly> GramSchmidt_WithMatrix(const Basis<Mono> inputBasis, 
-		const DMatrix& gramMatrix) {
-	std::vector<DVector> vectorForms;
-	//std::vector<coeff_class> inverseNorms;
-	for (auto i = 0u; i < inputBasis.size(); ++i) {
-		//DVector nextVector = DVector::Zero();
-		//nextVector(i) = 1;
-		DVector nextVector = DVector::Unit(inputBasis.size(), i);
-		for (auto j = 0u; j < vectorForms.size(); ++j) {
-			//nextVector -= gramMatrix(i, j)*vectorForms[j]*inverseNorms[j];
-			nextVector -= GSProjection(nextVector, vectorForms[j], gramMatrix);
-					//vectorForms[j]*inverseNorms[j], gramMatrix);
-		}
-
-		coeff_class norm = GSNorm(nextVector, gramMatrix);
-		if (std::abs(norm) < EPSILON) continue;
-		//nextVector /= std::sqrt(norm);
-		//std::cout << "Projections of final vector onto old ones: " << std::endl;
-		//for (auto& oldVec : vectorForms) {
-			//std::cout << GSNorm(GSProjection(nextVector, oldVec, gramMatrix), gramMatrix)
-				//<< std::endl;
-		//}
-		if (norm < 0) {
-			std::cerr << "Warning: negative norm " << norm << "." << std::endl;
-			norm = -norm;
-		}
-		vectorForms.push_back(nextVector/std::sqrt(norm));
-		//inverseNorms.push_back(1/norm);
-	}
-
-	std::vector<Poly> ret;
-	for (auto& vec : vectorForms) ret.push_back(VectorToPoly(vec, inputBasis));
-	return ret;
-}
-
-// projectOnto must be normalized already if you want the right answer from this
-DVector GSProjection(const DVector& toProject, const DVector& projectOnto,
-		const DMatrix& gramMatrix) {
-	coeff_class scale = 0;
-	for (auto i = 0u; i < toProject.size(); ++i) {
-		if (toProject(i) == 0) continue;
-		for (auto j = 0u; j < toProject.size(); ++j) {
-			scale += toProject(i)*projectOnto(j)*gramMatrix(i,j);
-		}
-	}
-	//std::cout << "Projection of \n" << toProject << " onto \n" << projectOnto
-		//<< " is \n" << result << std::endl;
-	return scale*projectOnto;
-}
-
-coeff_class GSNorm(const DVector& vector, const DMatrix& gramMatrix) {
-	coeff_class norm = 0;
-	for(auto i = 0u; i < vector.size(); ++i) {
-		norm += vector(i)*vector(i)*gramMatrix(i,i);
-		for (auto j = i+1; j < vector.size(); ++j) {
-			norm += 2*vector(i)*vector(j)*gramMatrix(i,j);
-		}
-	}
-	//std::cout << "This vector's norm is " << norm << ":" << std::endl << vector 
-		//<< std::endl;
-	return norm;
-}
-
-std::vector<Poly> GramSchmidt_MatrixOnly(const DMatrix& input, 
-		const std::vector<Basis<Mono>>& inputBases) {
-	std::vector<DVector> knownVectors;
-	for(Eigen::Index col = 0; col < input.cols(); ++col){
-		DVector newVector = input.col(col);
-		for(const DVector& knownVector : knownVectors){
-			newVector -= newVector.dot(knownVector)*knownVector;
-		}
-		if(newVector.norm() <= EPSILON) continue;
-		newVector /= newVector.norm();
-		knownVectors.push_back(newVector);
-	}
-
-	std::vector<Poly> output;
-	for(const DVector& knownVector : knownVectors){
-		Poly polyForm;
-		//std::cout << "knownVector is an object with " << knownVector.rows()
-			//<< " rows and " << knownVector.cols() << " columns." << std::endl;
-		for(Eigen::Index i = 0; i < knownVector.rows(); ++i){
-			polyForm += knownVector(i)*Get(inputBases, i);
-		}
-		output.push_back(polyForm);
-	}
-	return output;
 }
 
 arguments ParseArguments(int argc, char* argv[]) {
@@ -361,12 +173,6 @@ bool particle::operator==(const particle& other) const {
 	return (pm == other.pm) && (pt == other.pt);
 }
 
-// note: triplets displayed (row, column, value) despite matrix's storage type
-std::ostream& operator<<(std::ostream& os, const Triplet& out) {
-	return os << "(" << out.row() << "," << out.col() << "," << out.value()
-		<< ")";
-}
-
 // this version is a 'loose' EoM compliance that only removes Pp which are on
 // the same particle as a Pm
 bool EoMAllowed() {
@@ -374,6 +180,7 @@ bool EoMAllowed() {
 	return true;
 }
 
+/*
 std::list<Triplet> ConvertToRows(const std::vector<Poly>& polyForms, 
 		const Basis<Mono>& targetBasis, const Eigen::Index rowOffset) {
 	if(polyForms.size() == 0) return std::list<Triplet>();
@@ -385,25 +192,9 @@ std::list<Triplet> ConvertToRows(const std::vector<Poly>& polyForms,
 	}
 	return ret;
 }
+*/
 
-Poly VectorToPoly(const DVector& kernelVector, const Basis<Mono>& startBasis) {
-	Poly ret;
-	if(static_cast<size_t>(kernelVector.rows()) != startBasis.size()){
-		std::cerr << "Error: the given Q column has " << kernelVector.rows()
-			<< " rows, " << "but the given basis has " << startBasis.size() 
-			<< " monomials. These must be the same." << std::endl;
-		return ret;
-	}
-	for(auto row = 0; row < kernelVector.rows(); ++row){
-		if(std::abs(kernelVector.coeff(row)) < EPSILON) continue;
-		ret += kernelVector.coeff(row)*startBasis[row];
-	}
-
-	if(ret.size() == 0) return ret;
-	return ret;
-}
-
-Poly ColumnToPoly(const Matrix& kernelMatrix, const Eigen::Index col, 
+/*Poly ColumnToPoly(const SMatrix& kernelMatrix, const Eigen::Index col, 
 		const Basis<Mono>& startBasis) {
 	Poly ret;
 	if(static_cast<size_t>(kernelMatrix.rows()) != startBasis.size()){
@@ -422,7 +213,7 @@ Poly ColumnToPoly(const Matrix& kernelMatrix, const Eigen::Index col,
 	for(auto& term : ret) smallestCoeff = std::min(std::abs(term.Coeff()), smallestCoeff);
 	for(auto& term : ret) term /= smallestCoeff;
 	return ret;
-}
+}*/
 
 Poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col, 
 		const Basis<Mono>& startBasis) {
@@ -445,16 +236,6 @@ Poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col,
 	return ret;
 }
 
-DMatrix ExtractQMatrix(const Eigen::FullPivHouseholderQR<DMatrix>& solver, 
-		               const int) {
-	return solver.matrixQ();
-}
-
-DMatrix ExtractQMatrix(const Eigen::ColPivHouseholderQR<DMatrix>& solver, 
-		               const int dimension) {
-	return solver.householderQ()*DMatrix::Identity(dimension, dimension);
-}
-
 void ClearZeros(DMatrix* toClear) {
 	if(!toClear){
 		std::cerr << "Error: asked to clear the zeros from a nullptr instead of"
@@ -469,16 +250,4 @@ void ClearZeros(DMatrix* toClear) {
 			}
 		}
 	}
-}
-
-Basis<Mono> MinimalBasis(const std::vector<Poly>& polynomials) {
-	Poly combinedPoly;
-	for (const auto& poly : polynomials) {
-		combinedPoly += poly;
-	}
-	std::vector<Mono> allUsedMonos(combinedPoly.size());
-	for (auto i = 0u; i < combinedPoly.size(); ++i) {
-		allUsedMonos[i] = combinedPoly[i]/combinedPoly[i].Coeff();
-	}
-	return Basis<Mono>(allUsedMonos);
 }

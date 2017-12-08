@@ -5,7 +5,6 @@
 #include <string>
 #include "mono.hpp"
 #include "io.hpp"
-#include "cache.hpp"
 
 // all monos in a poly(nomial) should be guaranteed to be ordered correctly!
 // Notes on arithmetic:
@@ -68,8 +67,8 @@ class Poly {
 		Poly DerivPm(const int);
 		Poly DerivPm();
 
-		static coeff_class InnerProduct(const Poly& A, const Poly& B,
-						const GammaCache& cache, const KVectorCache& kCache);
+		// static coeff_class InnerProduct(const Poly& A, const Poly& B,
+						// const GammaCache& cache, const KVectorCache& kCache);
 };
 
 template<typename T>

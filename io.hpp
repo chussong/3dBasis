@@ -55,4 +55,12 @@ inline std::ostream& operator<<(std::ostream& os, const std::array<T,N>& out){
 	return os << "\b }";
 }
 
+/*
+// note: triplets displayed (row, column, value) despite matrix's storage type
+inline std::ostream& operator<<(std::ostream& os, const Triplet& out) {
+	return os << "(" << out.row() << "," << out.col() << "," << out.value()
+		<< ")";
+}
+*/
+
 #endif

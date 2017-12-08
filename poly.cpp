@@ -112,6 +112,7 @@ std::string Poly::HumanReadable() const{
 	return os.str();
 }
 
+/*
 coeff_class Poly::InnerProduct(const Poly& A, const Poly& B, 
 		const GammaCache& cache, const KVectorCache& kCache){
 	coeff_class ret = 0;
@@ -122,3 +123,4 @@ coeff_class Poly::InnerProduct(const Poly& A, const Poly& B,
 	}
 	return ret;
 }
+*/

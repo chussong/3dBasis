@@ -10,7 +10,6 @@
 
 #include "constants.hpp"
 #include "construction.hpp"
-#include "cache.hpp"
 
 // a mono(mial) with coefficient. It should be impossible for an instance of
 // this class to be out of order, so hopefully that's true! This class in its
@@ -103,16 +102,16 @@ class Mono {
 		Mono MultPt(const unsigned int targetParticle) const;
 		Mono MultPp(const unsigned int targetParticle) const;
 
-		static coeff_class InnerProduct(const Mono& A, const Mono& B,
-										const GammaCache& cache,
-										const KVectorCache& kCache);
-
-		static coeff_class IPZuhair(const Mono& A, const Mono& B,
-									const GammaCache& cache,
-									const KVectorCache& kCache);
-		static std::vector<std::vector<char>> VectorsAtK(const char totalK, 
-				const std::vector<size_t>& perm, const Mono& A, const Mono& B,
-				const size_t start);
+		// static coeff_class InnerProduct(const Mono& A, const Mono& B,
+										// const GammaCache& cache,
+										// const KVectorCache& kCache);
+// 
+		// static coeff_class IPZuhair(const Mono& A, const Mono& B,
+									// const GammaCache& cache,
+									// const KVectorCache& kCache);
+		// static std::vector<std::vector<char>> VectorsAtK(const char totalK, 
+				// const std::vector<size_t>& perm, const Mono& A, const Mono& B,
+				// const size_t start);
 };
 
 // calls the generic IdentifyNodes using the class's particles and (*value)

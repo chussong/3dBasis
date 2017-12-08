@@ -127,7 +127,14 @@ void MultinomialTable::FillTo(const char newHighestN) {
 		while (i < particleNumber+1 && key[i] != 0) {
 			++key[i-1];
 			--key[i];
-			value += Lookup(key);
+			try {
+				value += Lookup(key);
+			}
+			catch (std::out_of_range) {
+				std::cerr << "Error: attempted to look up " << MVectorOut(key)
+					<< " but it did not exist." << std::endl;
+				throw;
+			}
 			++i;
 		}
 		//--key[1];
@@ -192,6 +199,11 @@ bool MultinomialTable::AdvanceMVector(std::string& mVector) {
 	// we're leaving entry 0 untouched because it contains n
 	//std::cout << "Advancing this mVector: " << MVectorOut(mVector) << std::endl;
 	// start at the end, go backward until you find an entry that can go down
+	// bool debug = false;
+	// if (MVectorOut(mVector) == "A622") {
+		// std::cout << "Incrementing A622." << std::endl;
+		// debug = true;
+	// }
 	for(unsigned int i = mVector.size()-2; i > 0; --i){
 		if (mVector[i] < 2) continue;
 		// go forward from i until you find an entry that can go up
@@ -204,12 +216,17 @@ bool MultinomialTable::AdvanceMVector(std::string& mVector) {
 				for (unsigned int k = j; k < mVector.size(); ++k) {
 					for (unsigned int l = mVector.size()-1; 
 							mVector[k-1] > mVector[k] && l > k; --l) {
-						if (mVector[l] == 0) continue;
-						++mVector[k];
-						--mVector[l];
+						while (mVector[l] != 0 && mVector[k-1] > mVector[k]) {
+							++mVector[k];
+							--mVector[l];
+						}
 					}
 					if (mVector[k] == 0) break;
 				}
+				// if (debug) {
+					// std::cout << "Changed it to " << MVectorOut(mVector) 
+						// << std::endl;
+				// }
 				return true;
 			} else if(mVector[i] == mVector[j] + 1) {
 				// mV[j] can't be increased but maybe a future one can

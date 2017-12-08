@@ -2,9 +2,10 @@
 #define CONSTANTS_HPP
 
 #include "Eigen/Core"
-#include "Eigen/Sparse"
-#include "Eigen/SPQRSupport"
+// #include "Eigen/Sparse"
+// #include "Eigen/SPQRSupport"
 #include "Eigen/QR"
+#include "Eigen/Eigenvalues"
 
 /******************************************************************************/
 /***** Define the type used to store the coefficients of the monomials    *****/
@@ -18,11 +19,11 @@
 typedef double coeff_class;						// ordinary double-width float
 //typedef long coeff_class;						// ordinary double-width integer
 
-typedef Eigen::SparseMatrix<coeff_class> Matrix;
+// typedef Eigen::SparseMatrix<coeff_class> SMatrix;
 typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, Eigen::Dynamic> DMatrix;
-typedef Eigen::SparseVector<coeff_class> Vector;
+// typedef Eigen::SparseVector<coeff_class> SVector;
 typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, 1> DVector;
-typedef Eigen::Triplet<coeff_class> Triplet;
+// typedef Eigen::Triplet<coeff_class> Triplet;
 
 /******************************************************************************/
 /***** Define which solver to use to find the kernel of sparse matrices.  *****/
@@ -31,8 +32,8 @@ typedef Eigen::Triplet<coeff_class> Triplet;
 /***** SparseQR is built into Eigen, but appears to be a lot slower.      *****/
 /******************************************************************************/
 
-//typedef Eigen::SparseQR<Matrix, Eigen::COLAMDOrdering<int>> QRSolver;
-typedef Eigen::SPQR<Matrix> QRSolver; // direct interface to SPQR also possible
+// typedef Eigen::SparseQR<SMatrix, Eigen::COLAMDOrdering<int>> QRSolver;
+// typedef Eigen::SPQR<SMatrix> SQRSolver; // direct interface to SPQR also possible
 
 /******************************************************************************/
 /***** Define which solver to use for dense matrix orthogonalization.     *****/
@@ -42,11 +43,17 @@ typedef Eigen::SPQR<Matrix> QRSolver; // direct interface to SPQR also possible
 typedef Eigen::FullPivHouseholderQR<DMatrix> DQRSolver; // slower, full info
 
 /******************************************************************************/
+/***** Define which solver to use for dense eigenvalue decomposition.     *****/
+/******************************************************************************/
+
+typedef Eigen::SelfAdjointEigenSolver<DMatrix> EigenSolver; // symmetric matrix
+
+/******************************************************************************/
 /***** Constants and struct definitions which should be widely accessible *****/
 /******************************************************************************/
 
 //constexpr coeff_class delta = 0.25;
-constexpr coeff_class EPSILON = 1e-10;
+constexpr coeff_class EPSILON = 1e-8;
 constexpr unsigned int MAX_THREADS = 8u;
 
 struct arguments{
@@ -96,6 +103,16 @@ inline coeff_class Binomial(const int n, const int k){
 	return std::exp(logRet);
 
 	//return Factorial(n)/(Factorial(k) * Factorial(n-k));
+}
+
+// return total size of a vector of containers
+template<class T>
+inline size_t TotalSize(const std::vector<T>& vectorOfContainers){
+	size_t totalSize = 0;
+	for(const T& element : vectorOfContainers){
+		totalSize += element.size();
+	}
+	return totalSize;
 }
 
 #endif

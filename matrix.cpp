@@ -2,9 +2,9 @@
 
 // Fock space inner product between two monomials
 coeff_class InnerFock(const Mono& A, const Mono& B) {
-	//B.ChangePm(0, B.Pm(0)+1); // this will be reverted in MassMatrixTerm below
-	return MatrixInternal::MassMatrixTerm(A, B, true);
-	//return MatrixInternal::MassMatrixTerm(A, B, true)/A.NParticles();
+	//B.ChangePm(0, B.Pm(0)+1); // this will be reverted in MatrixTerm below
+	return MatrixInternal::MatrixTerm(A, B, MatrixInternal::MAT_INNER);
+	//return MatrixInternal::MatrixTerm(A, B, MatrixInter::MAT_INNER)/A.NParticles();
 }
 
 // creates a gram matrix for the given basis using the Fock space inner product
@@ -26,11 +26,11 @@ DMatrix GramFock(const Basis<Mono>& basis) {
 DMatrix MassMatrix(const Basis<Mono>& basis) {
 	DMatrix massMatrix(basis.size(), basis.size());
 	for (std::size_t i = 0; i < basis.size(); ++i) {
-		massMatrix(i, i) = MatrixInternal::MassMatrixTerm(basis[i], basis[i], 
-																		false);
+		massMatrix(i, i) = MatrixInternal::MatrixTerm(basis[i], basis[i], 
+													MatrixInternal::MAT_MASS);
 		for (std::size_t j = i+1; j < basis.size(); ++j) {
-			massMatrix(i, j) = MatrixInternal::MassMatrixTerm(basis[i], basis[j], 
-																		false);
+			massMatrix(i, j) = MatrixInternal::MatrixTerm(basis[i], basis[j], 
+													MatrixInternal::MAT_MASS);
 			massMatrix(j, i) = massMatrix(i, j);
 		}
 	}
@@ -96,8 +96,8 @@ void MatrixTerm_Final::Resize(const size_t n) {
 	cosTheta.resize(n-1);
 }
 
-coeff_class MassMatrixTerm(const Mono& A, const Mono& B, 
-		const bool isInnerProduct) {
+coeff_class MatrixTerm(const Mono& A, const Mono& B, 
+		const MATRIX_TYPE type) {
 	//std::cout << "TERM: " << A.HumanReadable() << " x " << B.HumanReadable() 
 		//<< std::endl;
 	//B.ChangePm(0, B.Pm(0)-1);
@@ -123,23 +123,24 @@ coeff_class MassMatrixTerm(const Mono& A, const Mono& B,
 	// significant time savings
 	// do {
 		fFromA = MatrixTermsFromMono_Permuted(A, permA);
-		// xAndy_A = ExponentExtractXY(A);
+		// xAndy_A = ExtractXY(A);
 		// xAndy_A = PermuteXandY(xAndy_A, permA);
 		do {
 			fFromB = MatrixTermsFromMono_Permuted(B, permB);
 			combinedFs = CombineTwoFs(fFromA, fFromB);
-			// std::array<std::string,2> xAndy_B = ExponentExtractXY(B);
+			// std::array<std::string,2> xAndy_B = ExtractXY(B);
 			// xAndy_B = PermuteXandY(xAndy_B, permB);
 			// xAndy_B = CombineXandY(xAndy_A, xAndy_B);
 			// combinedFs = MatrixTermsFromXandY(xAndy_B, A.NParticles());
-			total += FinalResult(combinedFs, isInnerProduct);
+			total += FinalResult(combinedFs, type);
 		} while (std::next_permutation(permB.begin(), permB.end()));
 	// } while (std::next_permutation(permA.begin(), permA.end()));
 	
-	if (isInnerProduct) {
+	if (type == MAT_INNER) {
 		total *= InnerProductPrefactor(A.NParticles());
-	} else {
+	} else if (type == MAT_MASS) {
 		total *= MassMatrixPrefactor(A.NParticles());
+	} else if (type == MAT_PHI4) {
 	}
 
 	// this somewhat dubious adjustment is presumably due to an error in
@@ -153,7 +154,7 @@ coeff_class MassMatrixTerm(const Mono& A, const Mono& B,
 // coefficient; the vector returned here contains the components of the sum
 // constituting the answer, each with its own exponents and coefficient
 std::vector<MatrixTerm_Final> MatrixTermsFromMono(const Mono& input) {
-	std::array<std::string,2> xAndy(ExponentExtractXY(input));
+	std::array<std::string,2> xAndy(ExtractXY(input));
 	return MatrixTermsFromXandY(xAndy, input.NParticles());
 }
 
@@ -161,7 +162,7 @@ std::vector<MatrixTerm_Final> MatrixTermsFromMono(const Mono& input) {
 // and permuting it directly instead of calling this over and over
 std::vector<MatrixTerm_Final> MatrixTermsFromMono_Permuted(const Mono& input,
 		const std::vector<std::size_t>& permutationVector) {
-	std::array<std::string,2> xAndy(ExponentExtractXY(input));
+	std::array<std::string,2> xAndy(ExtractXY(input));
 	//std::cout << "Extracted " << xAndy[0] << " from " << input;
 	xAndy = PermuteXandY(xAndy, permutationVector);
 	//std::cout << " and permuted it to " << xAndy[0] << std::endl;
@@ -171,12 +172,12 @@ std::vector<MatrixTerm_Final> MatrixTermsFromMono_Permuted(const Mono& input,
 // !!! NOTE: THE RESULTS OF THIS ENTIRE FUNCTION SHOULD BE HASHED !!!
 std::vector<MatrixTerm_Final> MatrixTermsFromXandY(
 		const std::array<std::string,2>& xAndy, const int nParticles) {
-	std::vector<char> uFromX(ExponentUFromX(xAndy[0]));
+	std::vector<char> uFromX(UFromX(xAndy[0]));
 	//std::cout << "uFromX: " << uFromX << std::endl;
 	// !!! NOTE: SHOULD HASH THE RESULTS OF BELOW FUNCTIONS !!!
-	// std::vector<MatrixTerm_Intermediate> inter(ExponentYTildeFromY(xAndy[1]));
-	// std::vector<MatrixTerm_Final> ret(ExponentThetaFromYTilde(inter));
-	std::vector<MatrixTerm_Final> ret(ExponentThetaFromY(xAndy[1]));
+	// std::vector<MatrixTerm_Intermediate> inter(YTildeFromY(xAndy[1]));
+	// std::vector<MatrixTerm_Final> ret(ThetaFromYTilde(inter));
+	std::vector<MatrixTerm_Final> ret(ThetaFromY(xAndy[1]));
 	// u has contributions from both x and y, so we have to combine them
 	if (ret.size() == 0) ret.emplace_back(nParticles - 1);
 	for (auto& term : ret) {
@@ -210,7 +211,7 @@ std::vector<MatrixTerm_Final> MatrixTermsFromXandY(
 //
 // note that I'm storing the Dirichlet-mandated P_- on each particle but Zuhair
 // isn't, so we have to subtract that off
-std::array<std::string,2> ExponentExtractXY(const Mono& extractFromThis) {
+std::array<std::string,2> ExtractXY(const Mono& extractFromThis) {
 	std::string x, y;
 	for (auto i = 0u; i < extractFromThis.NParticles(); ++i) {
 		x.push_back(extractFromThis.Pm(i) - 1);
@@ -248,7 +249,7 @@ std::array<std::string,2> CombineXandY(const std::array<std::string,2>& xAndy_A,
 
 // goes from x to u using Zuhair's (4.21); returned vector has a list of all u+ 
 // in order followed by a list of all u- in order
-std::vector<char> ExponentUFromX(const std::string& x) {
+std::vector<char> UFromX(const std::string& x) {
 	if (x.size() < 2) {
 		std::cerr << "Error: asked to do exponent transform from X to U but "
 			<< "there were only " << x.size() << " entries in X." << std::endl;
@@ -276,10 +277,10 @@ namespace {
 	std::unordered_map<std::string, std::vector<MatrixTerm_Final>> yCache;
 } // anonymous namespace
 
-std::vector<MatrixTerm_Final> ExponentThetaFromY(const std::string y) {
+std::vector<MatrixTerm_Final> ThetaFromY(const std::string y) {
 	if (yCache.count(y) == 0) {
-		std::vector<MatrixTerm_Intermediate> inter(ExponentYTildeFromY(y));
-		std::vector<MatrixTerm_Final> ret(ExponentThetaFromYTilde(inter));
+		std::vector<MatrixTerm_Intermediate> inter(YTildeFromY(y));
+		std::vector<MatrixTerm_Final> ret(ThetaFromYTilde(inter));
 		yCache.emplace(y, std::move(ret));
 	}
 
@@ -292,7 +293,7 @@ std::vector<MatrixTerm_Final> ExponentThetaFromY(const std::string y) {
 // u biproducts in addition to the yTilde that you want, but worst of all it has
 // two terms, so you end up with a sum of return terms, each with some 
 // binomial-derived coefficient.
-std::vector<MatrixTerm_Intermediate> ExponentYTildeFromY(const std::string& y) {
+std::vector<MatrixTerm_Intermediate> YTildeFromY(const std::string& y) {
 	//std::cout << "Transforming this y: " << y << std::endl;
 	std::vector<MatrixTerm_Intermediate> ret;
 	// i here is the i'th particle (pair); each one only sees those whose
@@ -489,7 +490,7 @@ coeff_class YTildeLastCoefficient(const char a, const char l,
 // convert from y-tilde to sines and cosines of theta following (4.32).
 //
 // returned vector has sines of all components in order followed by all cosines
-std::vector<MatrixTerm_Final> ExponentThetaFromYTilde(
+std::vector<MatrixTerm_Final> ThetaFromYTilde(
 		std::vector<MatrixTerm_Intermediate>& intermediateTerms) {
 	std::vector<MatrixTerm_Final> ret;
 
@@ -583,21 +584,21 @@ std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& 
 	return ret;
 }
 
-// warning: this breaks the MatrixTerm_Final vector fed into it so it can't be
-// used again
+// WARNING: if type == MAT_MASS this breaks the MatrixTerm_Final vector fed into
+// it by changing each term's uMinus entries by -2
 coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
-		const bool isInnerProduct) {
+		const MATRIX_TYPE type) {
 	if (exponents.size() == 0) {
 		std::cout << "No exponents detected; returning 1." << std::endl;
 		return 1;
 	}
-	auto n = exponents.front().uPlus.size() + 1;
+	// auto n = exponents.front().uPlus.size() + 1;
 	coeff_class totalFromIntegrals = 0;
 	for (auto& term : exponents) {
-		if (isInnerProduct) {
+		if (type == MAT_INNER) {
 			// just do the integrals
 			totalFromIntegrals += DoAllIntegrals(term);
-		} else {
+		} else if (type == MAT_MASS) {
 			// sum over integral results for every possible 1/x
 			term.uPlus[0] -= 2;
 			totalFromIntegrals += DoAllIntegrals(term);
@@ -607,6 +608,9 @@ coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
 				term.uPlus[i] -= 2;
 				totalFromIntegrals += DoAllIntegrals(term);
 			}
+			term.uPlus.back() += 2;
+			term.uMinus.back() -= 2;
+			totalFromIntegrals += DoAllIntegrals(term);
 		}
 	}
 	/*std::cout << "Returning FinalResult = " << InnerProductPrefactor(n) << " * " 
@@ -614,9 +618,9 @@ coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
 	return InnerProductPrefactor(n) * totalFromIntegrals;*/
 	//std::cout << "Returning FinalResult = " << MassMatrixPrefactor(n) << " * " 
 		//<< totalFromIntegrals << std::endl;
-	// if (isInnerProduct) {
+	// if (type == MAT_INNER) {
 		return totalFromIntegrals;
-	// } else {
+	// } else if (type == MAT_MASS) {
 		// return MassMatrixPrefactor(n) * totalFromIntegrals;
 	// }
 }
@@ -665,8 +669,8 @@ coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
 		}
 		output *= ThetaIntegral_Long(term.sinTheta[n-3], term.cosTheta[n-3]);
 	}
-	// std::cout << "{" << term.uPlus << ", " << term.uMinus << ", " 
-		// << term.sinTheta << ", " << term.cosTheta << "} -> " << output 
+	// std::cout << term.coefficient << " * {" << term.uPlus << ", " << term.uMinus
+		// << ", " << term.sinTheta << ", " << term.cosTheta << "} -> " << output 
 		// << std::endl;
 	return output;
 }

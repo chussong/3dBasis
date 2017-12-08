@@ -267,6 +267,7 @@ Mono Mono::MultPp(const unsigned int particle) const{
 	return ret;
 }
 
+/*
 coeff_class Mono::InnerProduct(const Mono& A, const Mono& B, 
 		const GammaCache& cache, const KVectorCache& kCache){
 	return IPZuhair(A, B, cache, kCache);
@@ -379,3 +380,4 @@ std::vector<std::vector<char>> Mono::VectorsAtK(const char totalK,
 	//for(auto& r : ret) std::cout << r << std::endl;
 	return ret;
 }
+*/
