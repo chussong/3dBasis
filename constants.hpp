@@ -10,20 +10,43 @@
 /******************************************************************************/
 /***** Define the type used to store the coefficients of the monomials    *****/
 /***** and thus also the entries of the matrix whose kernel we want.      *****/
-/***** WARNING: SparseQR (at least) seems to always fail with integers!   *****/
-/***** I'm not sure why this is; my code never divides coeff_class.       *****/
 /******************************************************************************/
 
 //typedef mpq_class coeff_class;				// arbitrary precision rational
 //typedef mpfr::mpreal coeff_class;				// arbitrary precision float
-typedef double coeff_class;						// ordinary double-width float
+//typedef double coeff_class;					// ordinary double-width float
 //typedef long coeff_class;						// ordinary double-width integer
+//typedef long double coeff_class;
+typedef __float128 coeff_class;
 
-// typedef Eigen::SparseMatrix<coeff_class> SMatrix;
 typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, Eigen::Dynamic> DMatrix;
-// typedef Eigen::SparseVector<coeff_class> SVector;
 typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, 1> DVector;
+// typedef Eigen::SparseMatrix<coeff_class> SMatrix;
+// typedef Eigen::SparseVector<coeff_class> SVector;
 // typedef Eigen::Triplet<coeff_class> Triplet;
+
+// also define a built-in class to which coeff_class is implicitly convertible
+// to help with template resolution in stdlib functions. If coeff_class is
+// built-in, then this can just be the same thing.
+//
+// this is generally used for comparing things to "zero", so it's okay if some
+// precision is lost
+typedef double builtin_class;
+
+// if builtin_class and coeff_class are different, this ostream operator also
+// needs to be defined
+
+inline std::ostream& operator<<(std::ostream& os, const coeff_class& out){
+	return os << static_cast<builtin_class>(out);
+}
+
+inline std::ostream& operator<<(std::ostream& os, const DMatrix& out) {
+	return os << out.cast<builtin_class>();
+}
+
+inline std::ostream& operator<<(std::ostream& os, const DVector& out) {
+	return os << out.cast<builtin_class>();
+}
 
 /******************************************************************************/
 /***** Define which solver to use to find the kernel of sparse matrices.  *****/
@@ -40,13 +63,17 @@ typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, 1> DVector;
 /******************************************************************************/
 
 //typedef Eigen::ColPivHouseholderQR<DMatrix> DQRSolver; // faster, less info
-typedef Eigen::FullPivHouseholderQR<DMatrix> DQRSolver; // slower, full info
+// typedef Eigen::FullPivHouseholderQR<DMatrix> DQRSolver; // slower, full info
+typedef Eigen::FullPivHouseholderQR<
+		Eigen::Matrix<builtin_class, Eigen::Dynamic, Eigen::Dynamic> > DQRSolver;
 
 /******************************************************************************/
 /***** Define which solver to use for dense eigenvalue decomposition.     *****/
 /******************************************************************************/
 
-typedef Eigen::SelfAdjointEigenSolver<DMatrix> EigenSolver; // symmetric matrix
+// the below only works for symmetric matrices
+typedef Eigen::SelfAdjointEigenSolver<
+		Eigen::Matrix<builtin_class, Eigen::Dynamic, Eigen::Dynamic> > EigenSolver;
 
 /******************************************************************************/
 /***** Constants and struct definitions which should be widely accessible *****/
@@ -95,7 +122,7 @@ constexpr coeff_class Factorial(const int n){
 
 // this would be constexpr instead of inline if the cmath functions were 
 // properly tagged. It likely compiles as constexpr in GCC.
-inline coeff_class Binomial(const int n, const int k){
+/*inline coeff_class Binomial(const int n, const int k){
 	coeff_class logRet = 0;
 	logRet += std::lgamma(n+1);
 	logRet -= std::lgamma(k+1);
@@ -103,7 +130,7 @@ inline coeff_class Binomial(const int n, const int k){
 	return std::exp(logRet);
 
 	//return Factorial(n)/(Factorial(k) * Factorial(n-k));
-}
+}*/
 
 // return total size of a vector of containers
 template<class T>

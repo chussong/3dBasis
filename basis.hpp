@@ -448,7 +448,8 @@ void Normalize(Basis<T>& toNormalize) {
 				//<< "state." << std::endl;
 			continue;
 		}
-		coeff_class norm = InnerFock(basisVector, basisVector);
+		builtin_class norm = InnerFock(basisVector, basisVector);
+		norm = std::sqrt(norm);
 		// coeff_class norm = T::InnerProduct(basisVector, basisVector, cache, 
 				// kCache);
 		/*std::cout << "Norm of " << basisVector.HumanReadable() << ": " 
@@ -458,7 +459,7 @@ void Normalize(Basis<T>& toNormalize) {
 		// using norm instead of std::abs(norm) because negative norms are zeros
 		//basisVector /= std::sqrt(norm);
 		newBasisVectors.push_back(basisVector);
-		newBasisVectors.back() /= std::sqrt(norm);
+		newBasisVectors.back() /= norm;
 	}
 	Basis<T> newBasis{newBasisVectors};
 	std::swap(toNormalize, newBasis);
@@ -480,7 +481,7 @@ Poly VectorToPoly(const DVector& kernelVector, const Basis<T>& startBasis){
 		return ret;
 	}
 	for(auto row = 0; row < kernelVector.rows(); ++row){
-		if(std::abs(kernelVector.coeff(row)) < EPSILON) continue;
+		if(std::abs<builtin_class>(kernelVector.coeff(row)) < EPSILON) continue;
 		ret += kernelVector.coeff(row)*startBasis[row];
 	}
 

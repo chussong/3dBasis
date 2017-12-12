@@ -641,10 +641,10 @@ coeff_class MassMatrixPrefactor(const char n) {
 
 // cache results using hash tables keyed by a and b
 namespace {
-	std::unordered_map<std::array<coeff_class,2>, coeff_class,
-		boost::hash<std::array<coeff_class,2>> > uCache;
-	std::unordered_map<std::array<coeff_class,2>, coeff_class,
-		boost::hash<std::array<coeff_class,2>> > thetaCache;
+	std::unordered_map<std::array<builtin_class,2>, builtin_class,
+		boost::hash<std::array<builtin_class,2>> > uCache;
+	std::unordered_map<std::array<builtin_class,2>, builtin_class,
+		boost::hash<std::array<builtin_class,2>> > thetaCache;
 } // anonymous namespace
 
 coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
@@ -680,9 +680,9 @@ coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
 //
 // follows the conventions of Zuhair's 5.34; a is the exponent of u_i+ and
 // b is the exponent of u_i-
-coeff_class UIntegral(const coeff_class a, const coeff_class b) {
+builtin_class UIntegral(const builtin_class a, const builtin_class b) {
 	//std::cout << "UIntegral(" << a << ", " << b << ")" << std::endl;
-	std::array<coeff_class,2> abArray{{a,b}};
+	std::array<builtin_class,2> abArray{{a,b}};
 	if (b < a) std::swap(abArray[0], abArray[1]);
 	if (uCache.count(abArray) == 1) return uCache.at(abArray);
 
@@ -699,13 +699,13 @@ coeff_class UIntegral(const coeff_class a, const coeff_class b) {
 //
 // results are cached by (a,b); since a and b are symmetric, we only store the
 // results with a <= b, swapping the two parameters if they're the other order
-coeff_class ThetaIntegral_Short(const coeff_class a, const coeff_class b) {
+builtin_class ThetaIntegral_Short(const builtin_class a, const builtin_class b) {
 	if (static_cast<int>(b) % 2 == 1) return 0;
-	std::array<coeff_class,2> abArray{{a,b}};
+	std::array<builtin_class,2> abArray{{a,b}};
 	if (b < a) std::swap(abArray[0], abArray[1]);
 	if (thetaCache.count(abArray) == 1) return thetaCache.at(abArray);
 
-	coeff_class ret = std::exp(std::lgamma((1+a)/2) + std::lgamma((1+b)/2) 
+	builtin_class ret = std::exp(std::lgamma((1+a)/2) + std::lgamma((1+b)/2) 
 			- std::lgamma((2 + a + b)/2) );
 	thetaCache.emplace(abArray, ret);
 	return ret;
@@ -714,7 +714,7 @@ coeff_class ThetaIntegral_Short(const coeff_class a, const coeff_class b) {
 // this is the integral over the "theta" veriables from 0 to 2pi; it implements 
 // Zuhair's 5.36, where a is the exponent of sin(theta) and b is the exponent of
 // cos(theta).
-coeff_class ThetaIntegral_Long(const coeff_class a, const coeff_class b) {
+builtin_class ThetaIntegral_Long(const builtin_class a, const builtin_class b) {
 	if (static_cast<int>(a) % 2 == 1) return 0;
 	return 2*ThetaIntegral_Short(a, b);
 }

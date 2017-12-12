@@ -127,7 +127,7 @@ arguments ParseArguments(int argc, char* argv[]) {
 	}
 	if(j < 2) ret.numP = 0; // invalidate the input since it was insufficient
 	ret.options = ParseOptions(options);
-	if (argc < 3 || std::abs(ret.delta) < EPSILON) ret.delta = 0.5;
+	if (argc < 3 || std::abs<builtin_class>(ret.delta) < EPSILON) ret.delta = 0.5;
 	return ret;
 }
 
@@ -230,9 +230,9 @@ Poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col,
 	}
 
 	if(ret.size() == 0) return ret;
-	coeff_class smallestCoeff = std::abs(ret[0].Coeff());
-	for(auto& term : ret) smallestCoeff = std::min(std::abs(term.Coeff()), smallestCoeff);
-	for(auto& term : ret) term /= smallestCoeff;
+	// coeff_class smallestCoeff = std::abs(ret[0].Coeff());
+	// for(auto& term : ret) smallestCoeff = std::min(std::abs(term.Coeff()), smallestCoeff);
+	// for(auto& term : ret) term /= smallestCoeff;
 	return ret;
 }
 
@@ -245,7 +245,7 @@ void ClearZeros(DMatrix* toClear) {
 	coeff_class threshold = EPSILON*toClear->cwiseAbs().maxCoeff();
 	for(Eigen::Index row = 0; row < toClear->rows(); ++row){
 		for(Eigen::Index col = 0; col < toClear->cols(); ++col){
-			if(std::abs((*toClear)(row, col)) < threshold){
+			if(std::abs<builtin_class>((*toClear)(row, col)) < threshold){
 				(*toClear)(row, col) = 0;
 			}
 		}

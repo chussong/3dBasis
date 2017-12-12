@@ -64,7 +64,9 @@ bool Mono::operator==(const Mono& other) const{
 }
 
 std::ostream& operator<<(std::ostream& os, const Mono& out){
-	if(std::abs(out.coeff - 1) < EPSILON) return os << out.particles;
+	if(std::abs<builtin_class>(out.coeff - 1) < EPSILON) {
+		return os << out.particles;
+	}
 	return os << out.coeff << " * " << out.particles;
 }
 
@@ -72,7 +74,9 @@ std::string Mono::HumanReadable() const{
 	std::ostringstream os;
 	// WARNING: this assumes that the sign of the coefficient will be accounted
 	// for in the function calling this! Only the absolute value is attached!
-	if(std::abs(Coeff() - 1) > EPSILON) os << std::abs(Coeff()) << "*{";
+	if(std::abs<builtin_class>(Coeff() - 1) > EPSILON) {
+		os << std::abs<builtin_class>(Coeff()) << "*{";
+	}
 	for(auto& p : particles){
 		if(p.pm != 0){
 			os << "M";
@@ -84,7 +88,7 @@ std::string Mono::HumanReadable() const{
 		}
 		os << "Φ";
 	}
-	if(std::abs(Coeff() - 1) > EPSILON) os << "}";
+	if(std::abs<builtin_class>(Coeff() - 1) > EPSILON) os << "}";
 	return os.str();
 }
 

@@ -17,9 +17,13 @@
 #include "basis.hpp"
 #include "io.hpp"
 
+// these should be the only functions you have to call from other files -------
+
 coeff_class InnerFock(const Mono& A, const Mono& B);
 DMatrix GramFock(const Basis<Mono>& basis);
 DMatrix MassMatrix(const Basis<Mono>& basis);
+
+// internal stuff -------------------------------------------------------------
 
 namespace MatrixInternal {
 
@@ -126,9 +130,9 @@ coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
 coeff_class InnerProductPrefactor(const char n);
 coeff_class MassMatrixPrefactor(const char n);
 coeff_class DoAllIntegrals(const MatrixTerm_Final& term);
-coeff_class UIntegral(const coeff_class a, const coeff_class b);
-coeff_class ThetaIntegral_Short(const coeff_class a, const coeff_class b);
-coeff_class ThetaIntegral_Long(const coeff_class a, const coeff_class b);
+builtin_class UIntegral(const builtin_class a, const builtin_class b);
+builtin_class ThetaIntegral_Short(const builtin_class a, const builtin_class b);
+builtin_class ThetaIntegral_Long(const builtin_class a, const builtin_class b);
 
 } // namespace MassMatrix
 #endif

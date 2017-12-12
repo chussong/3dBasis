@@ -13,12 +13,12 @@ Poly::Poly(const std::vector<Mono>& terms){
 }
 
 Poly& Poly::operator+=(const Mono& x){
-	if(std::abs(x.Coeff()) < EPSILON) return *this;
+	if(std::abs<builtin_class>(x.Coeff()) < EPSILON) return *this;
 
 	for(auto it = terms.begin(); it != terms.end(); ++it){
 		if(*it == x){
 			it->Coeff() += x.Coeff();
-			if(std::abs(it->Coeff()) < EPSILON) terms.erase(it);
+			if(std::abs<builtin_class>(it->Coeff()) < EPSILON) terms.erase(it);
 			return *this;
 		}
 	}
@@ -80,7 +80,9 @@ bool Poly::operator==(const Poly& other) const{
 		found = false;
 		for(auto& term2 : other.terms){
 			if(term1 == term2){
-				if(std::abs(term1.Coeff() - term2.Coeff()) > EPSILON) return false;
+				if(std::abs<builtin_class>(term1.Coeff() - term2.Coeff()) > EPSILON) {
+					return false;
+				}
 				found = true;
 				break;
 			}
