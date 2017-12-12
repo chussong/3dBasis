@@ -2,6 +2,7 @@
 #define MAIN_HPP
 
 #include <iostream>
+#include <fstream>
 #include <exception>
 #include <string>
 #include <vector>
@@ -11,7 +12,7 @@
 #include <algorithm>	// std::remove_if
 #include <type_traits>	// std::is_same
 
-constexpr char VERSION[] = "0.8.3";
+constexpr char VERSION[] = "0.8.5";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"

@@ -1,6 +1,8 @@
 #ifndef CONSTANTS_HPP
 #define CONSTANTS_HPP
 
+#include <iostream> // for the output stream in the argument struct
+
 #include "Eigen/Core"
 // #include "Eigen/Sparse"
 // #include "Eigen/SPQRSupport"
@@ -88,6 +90,7 @@ struct arguments{
 	int degree = -1;
 	coeff_class delta = 0;
 	int options = 0;
+	std::ostream* outputStream = &std::cout;
 };
 
 struct particle{

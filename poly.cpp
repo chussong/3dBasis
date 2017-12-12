@@ -101,16 +101,19 @@ std::ostream& operator<<(std::ostream& os, const Poly& out){
 	return out.size() > 0 ? os << out.HumanReadable() : os;
 }
 
-std::string Poly::HumanReadable() const{
+std::string Poly::HumanReadable() const {
 	if(terms.size() == 0) return "";
 	std::ostringstream os;
-	if(terms[0].Coeff() < 0) os << "  ";
-	for(auto& term : terms){
-		if(term.Coeff() < 0) os << "\b\b- ";
-		//if(std::abs(term.Coeff()) != 1) os << std::abs(term.Coeff());
-		os << term.HumanReadable() << " + ";
+	if (terms[0].Coeff() < 0) os << "- ";
+	os << terms[0].HumanReadable();
+	for (std::size_t i = 1; i < terms.size(); ++i) {
+		if (terms[i].Coeff() < 0) {
+			os << " - ";
+		} else {
+			os << " + ";
+		}
+		os << terms[i].HumanReadable();
 	}
-	os << "\b\b \b\b"; // this will leave a '+' around if <2 more chars are written
 	return os.str();
 }
 

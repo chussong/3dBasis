@@ -250,8 +250,10 @@ template<class T>
 inline std::ostream& operator<<(std::ostream& os, const Basis<T>& out){
 	if(out.size() == 0) return os << "{ }";
 	os << "{ ";
-	for(auto& v : out.basisVectors) os << v.HumanReadable() << ", ";
-	return os << "\b\b }";
+	for (std::size_t i = 0; i < out.size()-1; ++i) {
+		os << out[i].HumanReadable() << ", ";
+	}
+	return os << out[out.size()-1].HumanReadable() << " }";
 }
 
 /*

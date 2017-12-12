@@ -51,4 +51,6 @@ There are several options available:
 | -d | debug mode, producing lots of extra output (currently always on) |
 | -M | use only all-minus states with no transverse momentum |
 | -m | perform a test of the multinomial module, then exit |
+| -o \<filename\> | write non-error output to \<filename\> instead of the 
+terminal |
 | -v | instead of running, print the version and date of release, then exit |

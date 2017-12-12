@@ -1,12 +1,21 @@
 #include "gram-schmidt.hpp"
 
 // return the number of independent vectors in the basis
-int Orthogonalize(const std::vector<Basis<Mono>>& inputBases) {
+int Orthogonalize(const std::vector<Basis<Mono>>& inputBases, 
+		std::ostream& outStream) {
+	// std::ostream* outStreamPtr;
+	// if (outputName.empty()) {
+		// outStreamPtr = &std::cout;
+	// } else {
+		// outStreamPtr = new std::ofstream(outputName, std::ios_base::app);
+	// }
+	// std::ostream& outStream = *outStreamPtr;
+
 	Timer timer;
 	Basis<Mono> unifiedBasis = CombineBases(inputBases);
 	Normalize(unifiedBasis);
-	// without this cout stream, unifiedBasis isn't acutually updated in time
-	std::cout << "Normalized basis: " << unifiedBasis << std::endl;
+	// without the following stream, unifiedBasis segfaults
+	outStream << "Normalized basis: " << unifiedBasis << std::endl;
 
 	// comment one or the other of these to decide which inner product to use.
 	// Ideally, we would like to use GramFock/InnerFock only
@@ -15,10 +24,10 @@ int Orthogonalize(const std::vector<Basis<Mono>>& inputBases) {
 	DMatrix gram = GramFock(unifiedBasis);
 	if(gram.rows() == 0) return 0;
 	
-	std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()
+	outStream << "Gram matrix constructed in " << timer.TimeElapsedInWords()
 		<< "." << std::endl;
 	if(TotalSize(inputBases) <= 7){
-		std::cout << gram << std::endl;
+		outStream << gram << std::endl;
 		//std::cout << "Compare to the non-unified one: " << std::endl 
 			//<< GramMatrix(inputBases, cache, kCache) << std::endl;
 	}
@@ -54,59 +63,61 @@ int Orthogonalize(const std::vector<Basis<Mono>>& inputBases) {
 	// orthogonalize using custom gram-schmidt
 	std::vector<Poly> orthogonalized = GramSchmidt_WithMatrix(unifiedBasis, gram);
 
-	std::cout << "Gram-Schmidt performed in " << timer.TimeElapsedInWords()
+	outStream << "Gram-Schmidt performed in " << timer.TimeElapsedInWords()
 		<< ", giving " << orthogonalized.size() << " vectors";
 	if (orthogonalized.size() <= 20) {
-		std::cout << ":" << std::endl;
-		for(auto& p : orthogonalized) std::cout << p << std::endl;
+		outStream << ":" << std::endl;
+		for(auto& p : orthogonalized) outStream << p << std::endl;
 	} else {
-		std::cout << ", which will not be shown." << std::endl;
+		outStream << ", which will not be shown." << std::endl;
 	}
 
 	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
-	std::cout << "Using this basis: " << minimalBasis << std::endl;
+	outStream << "Using this basis: " << minimalBasis << std::endl;
 	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
 	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
 		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
 				orthogonalized[i] );
 	}
 
-	std::cout << "Fock space inner product for confirmation; monos:" << std::endl;
+	outStream << "Fock space inner product for confirmation; monos:" << std::endl;
 	DMatrix gram2(GramFock(minimalBasis));
 	DMatrix gram2BasisStates = 
 		polysOnMinBasis.transpose() * gram2 * polysOnMinBasis;
-	std::cout << gram2 << std::endl << "basis states:" 
+	outStream << gram2 << std::endl << "basis states:" 
 		<< std::endl << gram2BasisStates << std::endl;
 
 
 	timer.Start();
 	DMatrix monoMassMatrix(MassMatrix(minimalBasis));
-	//std::cout << "Here are our orthogonalized polynomials on the minimal basis:"
+	//outStream << "Here are our orthogonalized polynomials on the minimal basis:"
 		//<< std::endl << polysOnMinBasis << std::endl;
 
-	std::cout << "Here is the monomial mass matrix we computed:" << std::endl
+	outStream << "Here is the monomial mass matrix we computed:" << std::endl
 		<< monoMassMatrix << std::endl;
 
 	DMatrix polyMassMatrix = 
 		polysOnMinBasis.transpose()*monoMassMatrix*polysOnMinBasis;
-	std::cout << "Computed this mass matrix from the basis in " 
+	outStream << "Computed this mass matrix from the basis in " 
 		<< timer.TimeElapsedInWords() << ", getting this matrix:" << std::endl;
-	std::cout << polyMassMatrix << std::endl;
+	outStream << polyMassMatrix << std::endl;
 
 	EigenSolver eigenSolver(polyMassMatrix.cast<builtin_class>());
-	std::cout << "Here are its eigenvalues:\n" << eigenSolver.eigenvalues()
-		<< std::endl;
+	outStream << "Here are its eigenvalues:\n" << eigenSolver.eigenvalues()
+		<< std::endl << std::endl;
 
-	/*std::cout << "Here's the new gram matrix to confirm orthonormality:"
+	/*outStream << "Here's the new gram matrix to confirm orthonormality:"
 		<< std::endl;
 	DMatrix gram2 = GramMatrix(Basis<Poly>(orthogonalized), cache, kCache);
-	std::cout << gram2 << std::endl;*/
+	outStream << gram2 << std::endl;*/
 
 	//timer.Start();
 	//std::vector<Poly> matrixGS = MatrixGramSchmidt(gram, unifiedBasis);
-	//std::cout << "Matrix Gram-Schmidt performed in " 
+	//outStream << "Matrix Gram-Schmidt performed in " 
 		//<< timer.TimeElapsedInWords() << ", giving this:" << std::endl;
-	//for(auto& p : matrixGS) std::cout << p << std::endl;
+	//for(auto& p : matrixGS) outStream << p << std::endl;
+
+	// if (!outputName.empty()) delete outStreamPtr;
 
 	return orthogonalized.size();
 }

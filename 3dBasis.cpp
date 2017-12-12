@@ -18,25 +18,23 @@ int main(int argc, char* argv[]) {
 	if (args.options & OPT_MULTINOMTEST) {
 		Multinomial::Initialize(args.numP, args.degree);
 		for (char n = 0; n <= args.degree; ++n) {
-			std::cout << "n = " << std::to_string(n) << ": ";
+			*args.outputStream << "n = " << std::to_string(n) << ": ";
 			for (auto& mVector : Multinomial::GetMVectors(args.numP, n)) {
 				//std::cout << std::endl << Multinomial::MVectorOut(mVector) << ": ";
-				std::cout << Multinomial::Lookup(args.numP, mVector) << ", ";
+				*args.outputStream << Multinomial::Lookup(args.numP, mVector) << ", ";
 			}
-			std::cout << std::endl;
+			*args.outputStream << std::endl;
 		}
 		return EXIT_SUCCESS;
 	}
 
-	//ExactBinomial_FillTo(args.degree);
-	// Multinomial::Initialize(2, args.degree); // binomial coefficients
 	for (int n = 1; n <= args.numP; ++n) {
 		Multinomial::Initialize(n, 2*args.degree);
 	}
 
-	//if(args.options & OPT_IPTEST){
-		return InnerProductTest(args);
-	//}
+	int returnCode = InnerProductTest(args);
+	if (args.outputStream != &std::cout) delete args.outputStream;
+	return returnCode;
 }
 
 int InnerProductTest(const arguments& args) {
@@ -47,7 +45,7 @@ int InnerProductTest(const arguments& args) {
 
 	//options = options | OPT_DEBUG;
 
-	std::cout << "Beginning inner product test with N=" << numP << ", L="
+	*args.outputStream << "Beginning inner product test with N=" << numP << ", L="
 		<< degree << " (including Dirichlet derivatives)." << std::endl;
 	
 	//std::cout << "Testing gamma cache construction." << std::endl;
@@ -79,14 +77,14 @@ int InnerProductTest(const arguments& args) {
 		}
 	}*/
 
-	std::cout << "EVEN STATE ORTHOGONALIZATION" << std::endl;
-	Orthogonalize(allEvenBases);
+	*args.outputStream << "EVEN STATE ORTHOGONALIZATION" << std::endl;
+	Orthogonalize(allEvenBases, *args.outputStream);
 	/*std::cout << "REORDERED" << std::endl;
 	std::swap(allEvenBases.front(), allEvenBases.back());
 	Orthogonalize(allEvenBases, cache, kCache);*/
 
-	std::cout << "ODD STATE ORTHOGONALIZATION" << std::endl;
-	Orthogonalize(allOddBases);
+	*args.outputStream << "ODD STATE ORTHOGONALIZATION" << std::endl;
+	Orthogonalize(allOddBases, *args.outputStream);
 	/*std::cout << "REORDERED" << std::endl;
 	std::swap(allOddBases.front(), allOddBases.back());
 	Orthogonalize(allOddBases, cache, kCache);*/
@@ -102,9 +100,16 @@ arguments ParseArguments(int argc, char* argv[]) {
 	int j = 0;
 	for(int i = 1; i < argc; ++i){
 		arg = argv[i];
-		if(arg.size() > 0){
-			if(arg[0] == '-'){
-				options.push_back(arg);
+		if (arg.size() > 0) {
+			if (arg[0] == '-') {
+				if (arg.size() > 1 && arg[1] == 'o') {
+					// ret.outputName = std::string(argv[i+1]);
+					ret.outputStream = new std::ofstream(argv[i+1], 
+							std::ios_base::app);
+					++i; // next argument is the filename so don't process it
+				} else {
+					options.push_back(arg);
+				}
 			} else {
 				switch(j){
 					case 0:
@@ -171,13 +176,6 @@ int ParseOptions(std::vector<std::string> options) {
 
 bool particle::operator==(const particle& other) const {
 	return (pm == other.pm) && (pt == other.pt);
-}
-
-// this version is a 'loose' EoM compliance that only removes Pp which are on
-// the same particle as a Pm
-bool EoMAllowed() {
-	std::cout << "Warning: EoMAllowed is deprecated." << std::endl;
-	return true;
 }
 
 /*

@@ -5,6 +5,7 @@
 // methods which would be more stable
 
 #include <vector>
+#include <iostream>
 
 #include "constants.hpp"
 #include "timer.hpp"
@@ -13,7 +14,10 @@
 #include "basis.hpp"
 #include "matrix.hpp"
 
-int Orthogonalize(const std::vector<Basis<Mono>>& inputBases);
+// this should be the only function called from outside of this file ----------
+
+int Orthogonalize(const std::vector<Basis<Mono>>& inputBases, 
+		std::ostream& outStream);
 
 // custom gram-schmidt --------------------------------------------------------
 
