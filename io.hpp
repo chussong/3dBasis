@@ -2,6 +2,7 @@
 #define IO_HPP
 
 #include <iostream>
+#include <sstream> // for mathematica output formatting
 #include "constants.hpp"
 
 // stream output operator template for vectors
@@ -70,5 +71,25 @@ inline std::ostream& operator<<(std::ostream& os, const Triplet& out) {
 		<< ")";
 }
 */
+
+inline std::string MathematicaOutput(const DMatrix& out) {
+	std::stringstream stream;
+	stream << "{";
+	for (Eigen::Index row = 0; row < out.rows() - 1; ++row) {
+		stream << "{";
+		for (Eigen::Index col = 0; col < out.cols() - 1; ++col) {
+			stream << out(row, col) << ", ";
+		}
+		stream << out(row, out.cols()-1) << "},\n";
+	}
+
+	stream << "{";
+	for (Eigen::Index col = 0; col < out.cols() - 1; ++col) {
+		stream << out(out.rows()-1, col) << ", ";
+	}
+	stream << out(out.rows()-1, out.cols()-1) << "}}";
+	stream.flush();
+	return stream.str();
+}
 
 #endif

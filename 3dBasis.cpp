@@ -45,7 +45,7 @@ int InnerProductTest(const arguments& args) {
 
 	//options = options | OPT_DEBUG;
 
-	*args.outputStream << "Beginning inner product test with N=" << numP << ", L="
+	*args.outputStream << "Matrix element test with N=" << numP << ", L="
 		<< degree << " (including Dirichlet derivatives)." << std::endl;
 	
 	//std::cout << "Testing gamma cache construction." << std::endl;
@@ -89,6 +89,8 @@ int InnerProductTest(const arguments& args) {
 	std::swap(allOddBases.front(), allOddBases.back());
 	Orthogonalize(allOddBases, cache, kCache);*/
 
+	*args.outputStream << std::endl;
+
 	return EXIT_SUCCESS;
 }
 
@@ -103,9 +105,14 @@ arguments ParseArguments(int argc, char* argv[]) {
 		if (arg.size() > 0) {
 			if (arg[0] == '-') {
 				if (arg.size() > 1 && arg[1] == 'o') {
-					// ret.outputName = std::string(argv[i+1]);
+					// open next argument as outstream, appending to it
 					ret.outputStream = new std::ofstream(argv[i+1], 
-							std::ios_base::app);
+							std::ios_base::out | std::ios_base::app);
+					++i; // next argument is the filename so don't process it
+				} else if (arg.size() > 1 && arg[1] == 'O') {
+					// open next argument as outstream, replacing it
+					ret.outputStream = new std::ofstream(argv[i+1], 
+							std::ios_base::out | std::ios_base::trunc);
 					++i; // next argument is the filename so don't process it
 				} else {
 					options.push_back(arg);
