@@ -16,7 +16,7 @@
 
 // this should be the only function called from outside of this file ----------
 
-int Orthogonalize(const std::vector<Basis<Mono>>& inputBases, 
+std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases, 
 		std::ostream& outStream);
 
 // custom gram-schmidt --------------------------------------------------------
@@ -45,7 +45,6 @@ std::vector<Poly> PolysFromQMatrix(const DMatrix& QMatrix,
 
 // miscellaneous -------------------------------------------------------------
 
-Basis<Mono> MinimalBasis(const std::vector<Poly>& polynomials);
 DMatrix ExtractQMatrix(const Eigen::FullPivHouseholderQR<DMatrix>& solver, 
 		               const int dimension);
 DMatrix ExtractQMatrix(const Eigen::ColPivHouseholderQR<DMatrix>& solver, 

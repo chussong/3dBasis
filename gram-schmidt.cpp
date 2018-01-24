@@ -1,16 +1,8 @@
 #include "gram-schmidt.hpp"
 
 // return the number of independent vectors in the basis
-int Orthogonalize(const std::vector<Basis<Mono>>& inputBases, 
-		std::ostream& outStream) {
-	// std::ostream* outStreamPtr;
-	// if (outputName.empty()) {
-		// outStreamPtr = &std::cout;
-	// } else {
-		// outStreamPtr = new std::ofstream(outputName, std::ios_base::app);
-	// }
-	// std::ostream& outStream = *outStreamPtr;
-
+std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases, 
+		std::ostream&) {
 	Timer timer;
 	Basis<Mono> unifiedBasis = CombineBases(inputBases);
 	Normalize(unifiedBasis);
@@ -20,47 +12,17 @@ int Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
 	// comment one or the other of these to decide which inner product to use.
 	// Ideally, we would like to use GramFock/InnerFock only
 	// DMatrix gram = GramMatrix(unifiedBasis, cache, kCache);
-	// DMatrix gram = GramFock(unifiedBasis);
 	DMatrix gram = GramFock(unifiedBasis);
-	if(gram.rows() == 0) return 0;
+	if(gram.rows() == 0) return {};
 	
 	std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()
 		<< "." << std::endl;
 	if(TotalSize(inputBases) <= 7){
 		std::cout << gram << std::endl;
-		//std::cout << "Compare to the non-unified one: " << std::endl 
-			//<< GramMatrix(inputBases, cache, kCache) << std::endl;
 	}
-
-	/*timer.Start();
-	DQRSolver solver;
-	// it's possible there's a smarter way to set the threshold than this,
-	// which could possibly take a long time? We multiply our custom epsilon by
-	// the largest coefficient of gram's component-wise absolute value
-	solver.setThreshold(EPSILON*gram.cwiseAbs().maxCoeff());
-	//std::cout << "Matrix threshold set to " << EPSILON*gram.cwiseAbs().maxCoeff()
-		//<< "." << std::endl;
-	solver.compute(gram);
-	DMatrix QMatrix = ExtractQMatrix(solver, gram.rows());
-	std::cout << "Q matrix found in " << timer.TimeElapsedInWords() << "."
-		<< std::endl;
-	if(TotalSize(inputBases) <= 7){
-		std::cout << QMatrix << std::endl;
-	}
-	std::cout << "Rank, i.e. number of independent operators: " << solver.rank() 
-		<< std::endl;*/
-
-	timer.Start();
-
-	// orthogonalize using matrix QR decomposition
-	// DQRSolver solver;
-	// solver.setThreshold(EPSILON);
-	// solver.compute(gram);
-	// DMatrix QMatrix = ExtractQMatrix(solver, gram.rows());
-	// std::vector<Poly> orthogonalized = PolysFromQMatrix(QMatrix, unifiedBasis,
-			// gram, solver.rank());
 
 	// orthogonalize using custom gram-schmidt
+	timer.Start();
 	std::vector<Poly> orthogonalized = GramSchmidt_WithMatrix(unifiedBasis, gram);
 
 	std::cout << "Gram-Schmidt performed in " << timer.TimeElapsedInWords()
@@ -72,67 +34,7 @@ int Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
 		std::cout << ", which will not be shown." << std::endl;
 	}
 
-	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
-	outStream << "Minimal basis: " << minimalBasis << std::endl;
-	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
-	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
-		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
-				orthogonalized[i] );
-	}
-	if (&outStream != &std::cout) {
-		outStream << "Polynomials on this basis (as rows, not columns!):\n"
-			<< MathematicaOutput(polysOnMinBasis.transpose()) << std::endl;
-	}
-
-	std::cout << "Fock space inner product for confirmation; monos:" << std::endl;
-	DMatrix gram2(GramFock(minimalBasis));
-	DMatrix gram2BasisStates = 
-		polysOnMinBasis.transpose() * gram2 * polysOnMinBasis;
-	std::cout << gram2 << std::endl << "basis states:" 
-		<< std::endl << gram2BasisStates << std::endl;
-
-
-	timer.Start();
-	DMatrix monoMassMatrix(MassMatrix(minimalBasis));
-	//outStream << "Here are our orthogonalized polynomials on the minimal basis:"
-		//<< std::endl << polysOnMinBasis << std::endl;
-
-	std::cout << "Here is the monomial mass matrix we computed:" << std::endl
-		<< monoMassMatrix << std::endl;
-
-	DMatrix polyMassMatrix = 
-		polysOnMinBasis.transpose()*monoMassMatrix*polysOnMinBasis;
-	if (&outStream != &std::cout) {
-		outStream << "Mass matrix between basis states:\n"
-			<< MathematicaOutput(polyMassMatrix) << std::endl;
-	} else {
-		outStream << "Computed this mass matrix from the basis in " 
-			<< timer.TimeElapsedInWords() << ", getting this matrix:\n"
-			<< polyMassMatrix << std::endl;
-	}
-
-	EigenSolver eigenSolver(polyMassMatrix.cast<builtin_class>());
-	if (&outStream != &std::cout) {
-		outStream << std::endl;
-	} else {
-		outStream << "Here are its eigenvalues:\n" << eigenSolver.eigenvalues()
-			<< std::endl << std::endl;
-	}
-
-	/*outStream << "Here's the new gram matrix to confirm orthonormality:"
-		<< std::endl;
-	DMatrix gram2 = GramMatrix(Basis<Poly>(orthogonalized), cache, kCache);
-	outStream << gram2 << std::endl;*/
-
-	//timer.Start();
-	//std::vector<Poly> matrixGS = MatrixGramSchmidt(gram, unifiedBasis);
-	//outStream << "Matrix Gram-Schmidt performed in " 
-		//<< timer.TimeElapsedInWords() << ", giving this:" << std::endl;
-	//for(auto& p : matrixGS) outStream << p << std::endl;
-
-	// if (!outputName.empty()) delete outStreamPtr;
-
-	return orthogonalized.size();
+    return orthogonalized;
 }
 
 std::vector<Poly> GramSchmidt_WithMatrix(const std::vector<Basis<Mono>> input,
@@ -314,19 +216,6 @@ std::vector<Poly> PolysFromQMatrix(const DMatrix& QMatrix,
 	}
 	// std::cout << QMatrix << "\nconverted to " << output << std::endl;
 	return output;
-}
-
-// the minimal basis of monomials necessary to express the given polynomials
-Basis<Mono> MinimalBasis(const std::vector<Poly>& polynomials) {
-	Poly combinedPoly;
-	for (const auto& poly : polynomials) {
-		combinedPoly += poly;
-	}
-	std::vector<Mono> allUsedMonos(combinedPoly.size());
-	for (auto i = 0u; i < combinedPoly.size(); ++i) {
-		allUsedMonos[i] = combinedPoly[i]/combinedPoly[i].Coeff();
-	}
-	return Basis<Mono>(allUsedMonos);
 }
 
 DMatrix ExtractQMatrix(const Eigen::FullPivHouseholderQR<DMatrix>& solver, 

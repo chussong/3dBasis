@@ -425,6 +425,19 @@ Basis<T> CombineBases(const std::vector<Basis<T>>& oldBases) {
 	return Basis<T>(newBasisVectors);
 }
 
+// return the minimal basis of monomials needed to express the given polynomials
+inline Basis<Mono> MinimalBasis(const std::vector<Poly>& polynomials) {
+	Poly combinedPoly;
+	for (const auto& poly : polynomials) {
+		combinedPoly += poly;
+	}
+	std::vector<Mono> allUsedMonos(combinedPoly.size());
+	for (auto i = 0u; i < combinedPoly.size(); ++i) {
+		allUsedMonos[i] = combinedPoly[i]/combinedPoly[i].Coeff();
+	}
+	return Basis<Mono>(allUsedMonos);
+}
+
 // get an element from a vector of multiple bases treated like a single basis
 template<class T>
 const T& Get(const std::vector<Basis<T>>& multipleBases, size_t index){

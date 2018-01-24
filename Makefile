@@ -12,8 +12,9 @@ LDFLAGS = -lgsl -lblas -lpthread
 EXECUTABLE = 3dBasis
 
 SOURCES = mono.cpp poly.cpp 3dBasis.cpp multinomial.cpp matrix.cpp \
-		  gram-schmidt.cpp
-OBJECTS = mono.o poly.o 3dBasis.o multinomial.o matrix.o gram-schmidt.o
+		  gram-schmidt.cpp discretization.cpp
+OBJECTS = mono.o poly.o 3dBasis.o multinomial.o matrix.o gram-schmidt.o \
+		  discretization.o
 
 default: $(EXECUTABLE)
 
@@ -38,6 +39,10 @@ gram-schmidt.o: gram-schmidt.cpp constants.hpp timer.hpp basis.hpp mono.hpp \
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 matrix.o: matrix.cpp matrix.hpp multinomial.hpp mono.hpp basis.hpp io.hpp
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+discretization.o: discretization.cpp discretization.hpp constants.hpp mono.hpp \
+	basis.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 clean:

@@ -12,7 +12,7 @@
 #include <algorithm>	// std::remove_if
 #include <type_traits>	// std::is_same
 
-constexpr char VERSION[] = "0.8.6";
+constexpr char VERSION[] = "0.8.7";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"
@@ -24,34 +24,27 @@ constexpr char RELEASE_DATE[] = __DATE__;
 #include "timer.hpp"
 #include "gram-schmidt.hpp"
 #include "matrix.hpp"
-#include "multinomial.hpp" // the binomial coefficients are initialized here
+#include "multinomial.hpp" // the coefficients are initialized in main()
+#include "discretization.hpp"
 
 // startup and input parsing --------------------------------------------------
 
-arguments ParseArguments(int argc, char* argv[]);
+Arguments ParseArguments(int argc, char* argv[]);
 int ParseOptions(std::vector<std::string> options);
 
-// int FindPrimaries(const arguments& args);
-// int FindPrimariesParityOnly(const arguments& args);
-// int FindPrimariesBruteForce(const arguments& args);
-// int FindPrimariesByM(const arguments& args);
-int InnerProductTest(const arguments& args);
+DMatrix ComputeHamiltonian(const Arguments& args);
+DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases,
+                                      const Arguments& args);
 
 // functions interfacing with Eigen ------------------------------------------
 
-// std::list<Triplet> ConvertToRows(const std::vector<Poly>& PolyForms, 
-		// const Basis<Mono>& targetBasis, const Eigen::Index rowOffset);
 std::vector<Poly> CombineKernels(const std::vector<Poly>& kernel1,
 		const std::vector<Poly>& kernel2);
-// Poly VectorToPoly(const SVector& kernelVector, const Basis<Mono>& startBasis);
 Poly VectorToPoly(const DVector& kernelVector, const Basis<Mono>& startBasis);
-// Poly ColumnToPoly(const SMatrix& kernelMatrix, const Eigen::Index col, 
-		// const Basis<Mono>& startBasis);
 Poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col, 
 		const Basis<Mono>& startBasis);
 
 void ClearZeros(DMatrix* toClear);
-//DMatrix GramMatrix(const Basis<Mono>& basis);
 
 // templates -----------------------------------------------------------------
 

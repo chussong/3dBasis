@@ -1,7 +1,7 @@
 #include "3dBasis.hpp"
 
 int main(int argc, char* argv[]) {
-	arguments args = ParseArguments(argc, argv);
+	Arguments args = ParseArguments(argc, argv);
 	if (args.options & OPT_VERSION){
 		std::cout << "This is 3dBasis version " << VERSION << ", released "
 			<< RELEASE_DATE << ". The latest updates can always be found at "
@@ -32,72 +32,95 @@ int main(int argc, char* argv[]) {
 		Multinomial::Initialize(n, 2*args.degree);
 	}
 
-	int returnCode = InnerProductTest(args);
+	DMatrix hamiltonian = ComputeHamiltonian(args);
 	if (args.outputStream != &std::cout) delete args.outputStream;
-	return returnCode;
+	return EXIT_SUCCESS;
 }
 
-int InnerProductTest(const arguments& args) {
+DMatrix ComputeHamiltonian(const Arguments& args) {
 	int numP = args.numP;
 	int degree = args.degree + args.numP; // add required Dirichlet derivatives
-	//coeff_class delta = args.delta;
 	int options = args.options;
-
-	//options = options | OPT_DEBUG;
 
 	*args.outputStream << "Matrix element test with N=" << numP << ", L="
 		<< degree << " (including Dirichlet derivatives)." << std::endl;
 	
-	//std::cout << "Testing gamma cache construction." << std::endl;
-	// GammaCache cache(numP, 2*degree, 2*(degree-numP));
-	// KVectorCache kCache(numP, 2*(degree-numP)); // maxPt might be half this?
-	//std::cout << "A coefficient from it: " << cache.Middle(degree-2, 2, 1)
-		//<< std::endl;
-
 	std::vector<Basis<Mono>> allEvenBases;
 	std::vector<Basis<Mono>> allOddBases;
 	for(int deg = numP; deg <= degree; ++deg){
 		splitBasis<Mono> degBasis(numP, deg, options);
 		allEvenBases.push_back(degBasis.EvenBasis());
 		allOddBases.push_back(degBasis.OddBasis());
-		//std::cout << allEvenBases.back() << std::endl;
-		//std::cout << allOddBases.back() << std::endl;
 	}
-
-	/*for(auto& basis : allEvenBases){
-		for(auto& basisMono : basis){
-			basisMono /= std::sqrt(Mono::InnerProduct(basisMono, basisMono,
-						cache, kCache) );
-		}
-	}
-	for(auto& basis : allOddBases){
-		for(auto& basisMono : basis){
-			basisMono /= std::sqrt(Mono::InnerProduct(basisMono, basisMono,
-						cache, kCache) );
-		}
-	}*/
 
 	*args.outputStream << "EVEN STATE ORTHOGONALIZATION" << std::endl;
-	Orthogonalize(allEvenBases, *args.outputStream);
-	/*std::cout << "REORDERED" << std::endl;
-	std::swap(allEvenBases.front(), allEvenBases.back());
-	Orthogonalize(allEvenBases, cache, kCache);*/
+    DMatrix evenHam = ComputeHamiltonian_SameParity(allEvenBases, args);
 
 	*args.outputStream << "ODD STATE ORTHOGONALIZATION" << std::endl;
-	Orthogonalize(allOddBases, *args.outputStream);
-	/*std::cout << "REORDERED" << std::endl;
-	std::swap(allOddBases.front(), allOddBases.back());
-	Orthogonalize(allOddBases, cache, kCache);*/
+    DMatrix oddHam  = ComputeHamiltonian_SameParity(allOddBases, args);
 
 	*args.outputStream << std::endl;
 
-	return EXIT_SUCCESS;
+	return DMatrix();
 }
 
-arguments ParseArguments(int argc, char* argv[]) {
+// the portion of the hamiltonian computation which assumes equal pt parity
+DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases,
+                                      const Arguments& args) {
+    Timer timer;
+    std::ostream& outStream = *args.outputStream;
+    std::vector<Poly> orthogonalized = Orthogonalize(inputBases, outStream);
+
+	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
+	outStream << "Minimal basis: " << minimalBasis << std::endl;
+	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
+	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
+		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
+				orthogonalized[i] );
+	}
+    // outStream << "polysOnMinBasis:\n" << polysOnMinBasis << std::endl;
+    DMatrix discPolys = DiscretizePolys(polysOnMinBasis, args.partitions);
+	if (&outStream != &std::cout) {
+		outStream << "Polynomials on this basis (as rows, not columns!):\n"
+			<< MathematicaOutput(polysOnMinBasis.transpose()) << std::endl;
+        outStream << "And discretized:\n"
+            << MathematicaOutput(discPolys.transpose()) << std::endl;
+	}
+
+	// std::cout << "Fock space inner product for confirmation; monos:" << std::endl;
+	// DMatrix gram2(GramFock(minimalBasis));
+	// DMatrix gram2BasisStates = 
+		// polysOnMinBasis.transpose() * gram2 * polysOnMinBasis;
+	// std::cout << gram2 << std::endl << "basis states:" 
+		// << std::endl << gram2BasisStates << std::endl;
+
+	timer.Start();
+	DMatrix monoMassMatrix(MassMatrix(minimalBasis));
+	outStream << "Here is the monomial mass matrix we computed:" << std::endl
+		<< monoMassMatrix << std::endl;
+
+    DMatrix discMonoMass = PartitionMu_Mass(minimalBasis, monoMassMatrix, 
+            args.partitions, args.partitionWidth);
+	outStream << "Here it is discretized by mu:" << std::endl
+		<< discMonoMass << std::endl;
+
+	DMatrix polyMassMatrix = discPolys.transpose()*discMonoMass*discPolys;
+	if (&outStream != &std::cout) {
+		outStream << "Mass matrix between basis states:\n"
+			<< MathematicaOutput(polyMassMatrix) << std::endl;
+	} else {
+		outStream << "Computed this mass matrix from the basis in " 
+			<< timer.TimeElapsedInWords() << ", getting this matrix:\n"
+			<< polyMassMatrix << std::endl;
+	}
+
+    return DMatrix();
+}
+
+Arguments ParseArguments(int argc, char* argv[]) {
 	std::vector<std::string> options;
 	std::string arg;
-	arguments ret;
+	Arguments ret;
 	ret.delta = 0;
 	int j = 0;
 	for(int i = 1; i < argc; ++i){

@@ -85,15 +85,17 @@ typedef Eigen::SelfAdjointEigenSolver<
 constexpr coeff_class EPSILON = 1e-8;
 constexpr unsigned int MAX_THREADS = 8u;
 
-struct arguments{
+struct Arguments {
 	int numP = -1;
 	int degree = -1;
 	coeff_class delta = 0;
 	int options = 0;
 	std::ostream* outputStream = &std::cout;
+	std::size_t partitions = 10; // \mu partitions per operator pair
+	coeff_class partitionWidth = 0.1;
 };
 
-struct particle{
+struct particle {
 	char pm;	// P_-
 	char pt; // P_\perp
 
@@ -111,7 +113,7 @@ enum options { OPT_BRUTE = 1 << 0, OPT_VERSION = 1 << 1, OPT_DEBUG = 1 << 2,
 /***** Compile-time constant math functions                               *****/
 /******************************************************************************/
 
-constexpr coeff_class Pochhammer(const coeff_class A, const int n){
+constexpr coeff_class Pochhammer(const coeff_class A, const int n) {
 	coeff_class ret = 1;
 	for(int i = 0; i < n; ++i){
 		ret *= A + i;
@@ -119,7 +121,7 @@ constexpr coeff_class Pochhammer(const coeff_class A, const int n){
 	return ret;
 }
 
-constexpr coeff_class Factorial(const int n){
+constexpr coeff_class Factorial(const int n) {
 	return Pochhammer(1, n);
 }
 
@@ -137,7 +139,7 @@ constexpr coeff_class Factorial(const int n){
 
 // return total size of a vector of containers
 template<class T>
-inline size_t TotalSize(const std::vector<T>& vectorOfContainers){
+inline size_t TotalSize(const std::vector<T>& vectorOfContainers) {
 	size_t totalSize = 0;
 	for(const T& element : vectorOfContainers){
 		totalSize += element.size();
