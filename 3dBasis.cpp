@@ -96,13 +96,23 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
 
 	timer.Start();
 	DMatrix monoMassMatrix(MassMatrix(minimalBasis));
-	outStream << "Here is the monomial mass matrix we computed:" << std::endl
-		<< monoMassMatrix << std::endl;
+    if (&outStream != &std::cout) {
+        outStream << "Here is the monomial mass matrix we computed:\n"
+            << MathematicaOutput(monoMassMatrix) << std::endl;
+    } else {
+        outStream << "Here is the monomial mass matrix we computed:\n"
+            << monoMassMatrix << std::endl;
+    }
 
     DMatrix discMonoMass = PartitionMu_Mass(minimalBasis, monoMassMatrix, 
             args.partitions, args.partitionWidth);
-	outStream << "Here it is discretized by mu:" << std::endl
-		<< discMonoMass << std::endl;
+    if (&outStream != &std::cout) {
+        outStream << "Here it is discretized by mu:\n"
+            << MathematicaOutput(discMonoMass) << std::endl;
+    } else {
+        outStream << "Here it is discretized by mu:\n"
+            << discMonoMass << std::endl;
+    }
 
 	DMatrix polyMassMatrix = discPolys.transpose()*discMonoMass*discPolys;
 	if (&outStream != &std::cout) {
