@@ -12,7 +12,7 @@
 #include <algorithm>	// std::remove_if
 #include <type_traits>	// std::is_same
 
-constexpr char VERSION[] = "0.8.8";
+constexpr char VERSION[] = "0.9.0";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"
@@ -26,6 +26,7 @@ constexpr char RELEASE_DATE[] = __DATE__;
 #include "matrix.hpp"
 #include "multinomial.hpp" // the coefficients are initialized in main()
 #include "discretization.hpp"
+#include "test.hpp"
 
 // startup and input parsing --------------------------------------------------
 

@@ -160,7 +160,6 @@ std::vector<size_t> Mono::PermutationVector() const {
 	return ret;
 }
 
-// The following two functions might actually work just as well as old Order():
 bool Mono::ParticlePrecedence(const particle& a, const particle& b){
 	if(a.pm != b.pm) return a.pm > b.pm;
 	return a.pt > b.pt;

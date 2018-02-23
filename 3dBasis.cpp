@@ -9,6 +9,10 @@ int main(int argc, char* argv[]) {
 		return EXIT_SUCCESS;
 	}
 
+    if (args.options & OPT_TEST) {
+        return Test::RunAllTests();
+    }
+
 	if (args.degree == 0 || args.numP == 0){
 		std::cerr << "Error: you must enter a number of particles, a degree, "
 			<< "and a value for delta." << std::endl;
@@ -205,6 +209,10 @@ int ParseOptions(std::vector<std::string> options) {
 			ret = ret | OPT_ALLMINUS;
 			continue;
 		}
+        if(opt.compare(0, 2, "-t") == 0){
+            ret |= OPT_TEST;
+            continue;
+        }
 		if(opt.compare(0, 1, "-") == 0){
 			std::cerr << "Warning: unrecognized option " << opt << " will be "
 				<< "ignored." << std::endl;

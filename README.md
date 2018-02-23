@@ -49,8 +49,9 @@ There are several options available:
 | Option | Description |
 | ------ | ----------- |
 | -d | debug mode, producing lots of extra output (currently always on) |
-| -M | use only all-minus states with no transverse momentum |
 | -m | perform a test of the multinomial module, then exit |
+| -M | use only all-minus states with no transverse momentum |
 | -o \<filename\> | write non-error output to \<filename\> instead of the terminal. If this file exists, it will be APPENDED TO |
 | -O \<filename\> | write non-error output to \<filename\> instead of the terminal. If this file exists, it will be OVERWRITTEN |
+| -t | perform all automated unit tests, then exit |
 | -v | instead of running, print the version and date of release, then exit |
