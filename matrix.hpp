@@ -94,6 +94,7 @@ struct InteractionTerm_Step2 {
     // r, sqrt(1 - r^2), sqrt(1 - alpha^2 r^2)
     std::array<char,3> r;
 };
+std::ostream& operator<<(std::ostream& os, const InteractionTerm_Step2& out);
 
 struct InteractionTerm_Output {
     // entire constant part of term, including prefactors, degeneracies, etc.

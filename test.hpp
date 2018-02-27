@@ -2,8 +2,10 @@
 #define TEST_HPP
 
 #include <iostream>
+#include <algorithm> // random_shuffle
 
 #include "matrix.hpp"
+#include "io.hpp"
 
 // This file contains unit tests for various functions; for a function named
 // Namespace::Function, the test will be Test::Namespace::Function, and will be
@@ -18,6 +20,8 @@ bool RunAllTests();
 namespace MatrixInternal {
 
 bool PermuteXY();
+bool InteractionTermsFromXY();
+bool CombineInteractionFs();
 
 } // namespace MatrixInternal
 

@@ -4,8 +4,6 @@ namespace Multinomial {
 
 namespace {
 	std::vector<std::unique_ptr<MultinomialTable>> multinomialTable;
-	constexpr char hexMap[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', 
-		'9', 'A', 'B', 'C', 'D', 'E', 'F'};
 } // anonymous namespace
 
 constexpr bool MVectorPrecedence::operator()(const std::string& A, 
@@ -23,16 +21,6 @@ constexpr bool MVectorPrecedence::operator()(const std::string& A,
 		if (A[i] != B[i]) return A[i] > B[i];
 	}
 	return false;
-}
-
-std::string MVectorOut(std::string mVector) {
-	for (auto i = 0u; i < mVector.size(); ++i) {
-		if (mVector[i] < 0 || mVector[i] > 15) {
-			throw(std::out_of_range("MVectorOut range error"));
-		}
-		mVector[i] = hexMap[static_cast<int>(mVector[i])];
-	}
-	return mVector;
 }
 
 void Initialize(const char particleNumber, const char highestN) {
@@ -54,7 +42,10 @@ void Clear() {
 //
 // if this turns out to be slow, we can avoid the copy by passing iterators to
 // a slightly reorganized container for the mVectors
-MVectorContainer GetMVectors(const char particleNumber, const char n) {
+MVectorContainer GetMVectors(const unsigned char particleNumber, const char n) {
+    if (multinomialTable.size() < particleNumber+1) {
+        throw std::logic_error("GetMVectors called on uninitialized pNumber.");
+    }
 	return multinomialTable[particleNumber]->GetMVectors(n);
 }
 
@@ -76,13 +67,13 @@ void FillTo(const char particleNumber, const char newHighestN) {
 	multinomialTable[particleNumber]->FillTo(newHighestN);
 }
 
-MultinomialTable::MultinomialTable(const char particleNumber): 
+MultinomialTable::MultinomialTable(const unsigned char particleNumber): 
 	particleNumber(particleNumber), highestN(-1) {
-	/*if (particleNumber < 2) {
-		std::cerr << "Warning: MultinomialTable has been constructed with "
-			<< "particleNumber " << std::to_string(particleNumber) 
-			<< " < 2; your program is probably about to crash." << std::endl;
-	}*/
+	// if (particleNumber < 0) {
+		// std::cerr << "Warning: MultinomialTable has been constructed with "
+			// << "particleNumber " << std::to_string(particleNumber) 
+			// << " < 0; your program is probably about to crash." << std::endl;
+	// }
 }
 
 // we fill this by constructing Pascal's simplex, in which each entry is the sum
@@ -152,12 +143,12 @@ void MultinomialTable::FillTo(const char newHighestN) {
 //
 // if this turns out to be slow, we can avoid the copy by passing iterators to
 // a slightly reorganized container for the mVectors
-MVectorContainer MultinomialTable::GetMVectors(const char n) {
+MVectorContainer MultinomialTable::GetMVectors(const unsigned char n) {
 	// std::cout << "Returning mVectors corresponding to n = " << (int)n
 		// << " from among the " << mVectors.size() << " known ones." << std::endl;
 	if (n == 0) {
-		// std::cout << "Someone is requesting the 0 mVector. Can I return them "
-			// << MVectorOut(std::string(particleNumber+1, 0)) << "?" << std::endl;
+		// std::cout << "Someone is requesting the 0 mVector in "
+            // << int(particleNumber) << "particles." << std::endl;
 		return {std::string(particleNumber+1, 0)};
 	}
 	std::string lower(particleNumber+1, n);

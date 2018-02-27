@@ -101,6 +101,11 @@ void MatrixTerm_Final::Resize(const size_t n) {
 	cosTheta.resize(n-1);
 }
 
+std::ostream& operator<<(std::ostream& os, const InteractionTerm_Step2& out) {
+    return os << out.coefficient << " * {" << out.u << ", "
+        << out.theta << ", " << out.r << "}";
+}
+
 // generically return direct or interaction matrix of the specified type
 //
 // NOTE: we will have to do discretizations before this function returns
@@ -165,6 +170,7 @@ coeff_class MatrixTerm_Direct(const Mono& A, const Mono& B, const MATRIX_TYPE ty
 	return degeneracy*A.Coeff()*B.Coeff()*total;
 }
 
+// the "inter" here means interacting, not intermediate, which is a bad name!
 std::vector<InteractionTerm_Output> MatrixTerm_Inter(const Mono& A, const Mono& B, 
         const MATRIX_TYPE type) {
 	//std::cout << "INTERACTION: " << A.HumanReadable() << " x " 
@@ -218,10 +224,10 @@ std::vector<InteractionTerm_Output> MatrixTerm_Inter(const Mono& A, const Mono& 
 // NOTE: there's a name collision here; we can fix it by removing the other
 // one and converting the direct computation to use this
 bool PermuteXY(std::string& xAndy) {
-    if (xAndy.size() < 4) return false;
     if (xAndy.size() % 2 != 0) {
         throw std::logic_error("Odd-length vector passed to PermuteXY");
     }
+    if (xAndy.size() < 4) return false;
 
     auto half = xAndy.size()/2;
     auto i = half - 1;
@@ -268,6 +274,8 @@ std::vector<MatrixTerm_Final> MatrixTermsFromMono_Permuted(const Mono& input,
 }
 
 // !!! NOTE: THE RESULTS OF THIS ENTIRE FUNCTION SHOULD BE HASHED !!!
+//
+// In fact, this function should essentially be replaced by the following one.
 std::vector<MatrixTerm_Final> MatrixTermsFromXandY(
 		const std::array<std::string,2>& xAndy, const int nParticles) {
 	std::vector<char> uFromX(UFromX(xAndy[0]));
@@ -305,6 +313,17 @@ const std::vector<MatrixTerm_Intermediate>& InteractionTermsFromXY(
         std::string y(xAndy.begin() + xAndy.size()/2, xAndy.end());
         std::vector<char> uFromX(UFromX(x));
 		std::vector<MatrixTerm_Intermediate> terms(YTildeFromY(y));
+        for (auto& term : terms) {
+            if (term.uPlus.size() < uFromX.size()/2) {
+                term.uPlus.resize(uFromX.size()/2, 0);
+                term.uMinus.resize(uFromX.size()/2, 0);
+                term.yTilde.resize(uFromX.size()/2, 0);
+            }
+            for (std::size_t i = 0; i < term.uPlus.size(); ++i) {
+                term.uPlus[i] += uFromX[i];
+                term.uMinus[i] += uFromX[term.uPlus.size() + i];
+            }
+        }
         intermediateCache.emplace(xAndy, std::move(terms));
     }
 

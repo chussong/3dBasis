@@ -50,11 +50,12 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<char>& out){
 		os << static_cast<int>(out[i]) << ",";
 	}
 	if (out.back() >= 0) os << " ";
-	return os << out.back() << " }";
+	return os << static_cast<int>(out.back()) << " }";
 }
 
-template<typename T, int N>
-inline std::ostream& operator<<(std::ostream& os, const std::array<T,N>& out){
+// stream output for arrays
+template<typename T, std::size_t N>
+inline std::ostream& operator<<(std::ostream& os, const std::array<T,N>& out) {
 	os << "{";
 	for (std::size_t i = 0; i < out.size()-1; ++i) {
 		if (out[i] >= 0) os << " ";
@@ -64,6 +65,19 @@ inline std::ostream& operator<<(std::ostream& os, const std::array<T,N>& out){
 	return os << out.back() << " }";
 }
 
+// partially specialized array output for characters
+template<std::size_t N>
+inline std::ostream& operator<<(std::ostream& os, const std::array<char,N>& out) {
+	os << "{";
+	for (std::size_t i = 0; i < out.size()-1; ++i) {
+		if (out[i] >= 0) os << " ";
+		os << static_cast<int>(out[i]) << ",";
+	}
+	if (out.back() >= 0) os << " ";
+	return os << static_cast<int>(out.back()) << " }";
+}
+
+
 /*
 // note: triplets displayed (row, column, value) despite matrix's storage type
 inline std::ostream& operator<<(std::ostream& os, const Triplet& out) {
@@ -71,6 +85,23 @@ inline std::ostream& operator<<(std::ostream& os, const Triplet& out) {
 		<< ")";
 }
 */
+
+namespace {
+    constexpr char hexMap[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', 
+        '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+} // anonymous namespace
+
+// reinterpret a string as a sequence of 8-bit numbers
+inline std::string MVectorOut(std::string mVector) {
+	for (auto i = 0u; i < mVector.size(); ++i) {
+		if (mVector[i] < 0 || mVector[i] > 15) {
+			throw(std::out_of_range("MVectorOut range error"));
+		}
+		mVector[i] = hexMap[static_cast<int>(mVector[i])];
+	}
+	return mVector;
+}
+
 
 inline std::string MathematicaOutput(const DMatrix& out) {
 	std::stringstream stream;

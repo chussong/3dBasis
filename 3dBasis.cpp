@@ -19,8 +19,15 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
+    // initialize all multinomials which may be necessary
+    //
+    // this is obviously something of a blunt instrument and could easily be
+    // made more efficient
+	for (int n = 1; n <= args.numP; ++n) {
+		Multinomial::Initialize(n, 2*args.degree);
+	}
+
 	if (args.options & OPT_MULTINOMTEST) {
-		Multinomial::Initialize(args.numP, args.degree);
 		for (char n = 0; n <= args.degree; ++n) {
 			*args.outputStream << "n = " << std::to_string(n) << ": ";
 			for (auto& mVector : Multinomial::GetMVectors(args.numP, n)) {
@@ -30,10 +37,6 @@ int main(int argc, char* argv[]) {
 			*args.outputStream << std::endl;
 		}
 		return EXIT_SUCCESS;
-	}
-
-	for (int n = 1; n <= args.numP; ++n) {
-		Multinomial::Initialize(n, 2*args.degree);
 	}
 
 	DMatrix hamiltonian = ComputeHamiltonian(args);

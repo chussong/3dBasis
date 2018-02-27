@@ -31,7 +31,7 @@ mono.o: mono.cpp mono.hpp io.hpp constants.hpp construction.hpp
 poly.o: poly.cpp poly.hpp mono.hpp io.hpp constants.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-multinomial.o: multinomial.cpp multinomial.hpp constants.hpp
+multinomial.o: multinomial.cpp multinomial.hpp constants.hpp io.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 gram-schmidt.o: gram-schmidt.cpp constants.hpp timer.hpp basis.hpp mono.hpp \
@@ -45,7 +45,7 @@ discretization.o: discretization.cpp discretization.hpp constants.hpp mono.hpp \
 	basis.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-test.o: test.cpp test.hpp
+test.o: test.cpp test.hpp io.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 clean:
