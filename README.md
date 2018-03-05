@@ -53,5 +53,6 @@ There are several options available:
 | -M | use only all-minus states with no transverse momentum |
 | -o \<filename\> | write non-error output to \<filename\> instead of the terminal. If this file exists, it will be APPENDED TO |
 | -O \<filename\> | write non-error output to \<filename\> instead of the terminal. If this file exists, it will be OVERWRITTEN |
+| -s | compute orthogonal basis states only, output them, then exit |
 | -t | perform all automated unit tests, then exit |
 | -v | instead of running, print the version and date of release, then exit |

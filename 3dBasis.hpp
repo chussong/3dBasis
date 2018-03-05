@@ -33,6 +33,9 @@ constexpr char RELEASE_DATE[] = __DATE__;
 Arguments ParseArguments(int argc, char* argv[]);
 int ParseOptions(std::vector<std::string> options);
 
+void ComputeBasisStates(const Arguments& args);
+void ComputeBasisStates_SameParity(const std::vector<Basis<Mono>>& inputBases,
+                                      const Arguments& args);
 DMatrix ComputeHamiltonian(const Arguments& args);
 DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases,
                                       const Arguments& args);

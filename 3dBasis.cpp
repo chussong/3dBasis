@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
-    // initialize all multinomials which may be necessary
+    // initialize all multinomials which might come up
     //
     // this is obviously something of a blunt instrument and could easily be
     // made more efficient
@@ -39,9 +39,57 @@ int main(int argc, char* argv[]) {
 		return EXIT_SUCCESS;
 	}
 
+    if (args.options & OPT_STATESONLY) {
+        ComputeBasisStates(args);
+        if (args.outputStream != &std::cout) delete args.outputStream;
+        return EXIT_SUCCESS;
+    }
+
 	DMatrix hamiltonian = ComputeHamiltonian(args);
 	if (args.outputStream != &std::cout) delete args.outputStream;
 	return EXIT_SUCCESS;
+}
+
+void ComputeBasisStates(const Arguments& args) {
+	int numP = args.numP;
+	int degree = args.degree + args.numP; // add required Dirichlet derivatives
+	int options = args.options;
+
+	*args.outputStream << "Orthogonal basis states with N=" << numP << ", L="
+		<< degree << " (including Dirichlet derivatives)." << std::endl;
+	
+	std::vector<Basis<Mono>> allEvenBases;
+	std::vector<Basis<Mono>> allOddBases;
+	for (int deg = numP; deg <= degree; ++deg) {
+		splitBasis<Mono> degBasis(numP, deg, options);
+		allEvenBases.push_back(degBasis.EvenBasis());
+		allOddBases.push_back(degBasis.OddBasis());
+	}
+
+	*args.outputStream << "EVEN STATE ORTHOGONALIZATION" << std::endl;
+    ComputeBasisStates_SameParity(allEvenBases, args);
+
+	*args.outputStream << "ODD STATE ORTHOGONALIZATION" << std::endl;
+    ComputeBasisStates_SameParity(allOddBases, args);
+
+	*args.outputStream << std::endl;
+}
+
+void ComputeBasisStates_SameParity(const std::vector<Basis<Mono>>& inputBases,
+                                    const Arguments& args) {
+    std::ostream& outStream = *args.outputStream;
+    std::vector<Poly> orthogonalized = Orthogonalize(inputBases, outStream);
+
+	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
+	outStream << "Minimal basis: " << minimalBasis << std::endl;
+	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
+	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
+		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
+				orthogonalized[i] );
+	}
+
+    outStream << "Polynomials on this basis (as rows, not columns!):\n"
+        << MathematicaOutput(polysOnMinBasis.transpose()) << std::endl;
 }
 
 DMatrix ComputeHamiltonian(const Arguments& args) {
@@ -86,7 +134,8 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
 				orthogonalized[i] );
 	}
     // outStream << "polysOnMinBasis:\n" << polysOnMinBasis << std::endl;
-    DMatrix discPolys = DiscretizePolys(polysOnMinBasis, args.partitions);
+    DMatrix discPolys = DiscretizePolys(polysOnMinBasis, minimalBasis, 
+            args.partitions);
 	if (&outStream != &std::cout) {
 		outStream << "Polynomials on this basis (as rows, not columns!):\n"
 			<< MathematicaOutput(polysOnMinBasis.transpose()) << std::endl;
@@ -187,16 +236,8 @@ Arguments ParseArguments(int argc, char* argv[]) {
 int ParseOptions(std::vector<std::string> options) {
 	int ret = 0;
 	for(auto& opt : options){
-		if(opt.compare(0, 2, "-v") == 0){
-			ret = ret | OPT_VERSION;
-			continue;
-		}
 		if(opt.compare(0, 2, "-d") == 0){
 			ret = ret | OPT_DEBUG;
-			ret = ret | OPT_OUTPUT;
-			continue;
-		}
-		if(opt.compare(0, 2, "-o") == 0){
 			ret = ret | OPT_OUTPUT;
 			continue;
 		}
@@ -212,10 +253,22 @@ int ParseOptions(std::vector<std::string> options) {
 			ret = ret | OPT_ALLMINUS;
 			continue;
 		}
+		if(opt.compare(0, 2, "-o") == 0){
+			ret = ret | OPT_OUTPUT;
+			continue;
+		}
+        if(opt.compare(0, 2, "-s") == 0){
+            ret |= OPT_STATESONLY;
+            continue;
+        }
         if(opt.compare(0, 2, "-t") == 0){
             ret |= OPT_TEST;
             continue;
         }
+		if(opt.compare(0, 2, "-v") == 0){
+			ret = ret | OPT_VERSION;
+			continue;
+		}
 		if(opt.compare(0, 1, "-") == 0){
 			std::cerr << "Warning: unrecognized option " << opt << " will be "
 				<< "ignored." << std::endl;

@@ -26,6 +26,11 @@ DVector MuIntegral_Mass(const Mono& A, const Mono& B,
 	return output;
 }
 
+DVector MuIntegral_InnerProduct(const Mono& A, const Mono& B, 
+		const std::size_t partitions, const coeff_class partitionWidth) {
+    return MuIntegral_Mass(A, B, partitions, partitionWidth);
+}
+
 // expands a mass matrix with the mu factors elided into one with them partially
 // integrated over, by taking each entry of the input matrix and turning it into
 // a block. Each block is diagonal because this is a mass matrix; it's not quite
@@ -49,16 +54,21 @@ DMatrix PartitionMu_Mass(const Basis<Mono>& minimalBasis, const DMatrix& mass,
 // take a matrix whose columns are the polynomials expressed in terms of a 
 // minimal basis and discretize it
 DMatrix DiscretizePolys(const DMatrix& polysOnMinBasis, 
-        const std::size_t partitions) {
+        const Basis<Mono>& minBasis, const std::size_t partitions) {
     DMatrix output = DMatrix::Zero(polysOnMinBasis.rows()*partitions,
                     polysOnMinBasis.cols()*partitions);
-    for (Eigen::Index row = 0; row < polysOnMinBasis.rows(); ++row) {
+    /*for (Eigen::Index row = 0; row < polysOnMinBasis.rows(); ++row) {
         for (Eigen::Index col = 0; col < polysOnMinBasis.cols(); ++col) {
+            // this is minimalBasis[col] * minimalBasic[col] (no row) because
+            // the row is indexing basis states, whereas the col is indexing
+            // minBasis monomials
+			DVector norms = MuIntegral_Mass(minimalBasis[col], 
+					minimalBasis[col], partitions, partWidth);
             for (std::size_t p = 0; p < partitions; ++p) {
                 output(partitions*row + p, partitions*col + p) 
-                    = polysOnMinBasis(row, col);
+                    = polysOnMinBasis(row, col) / std::sqrt(norms(p));
             }
         }
-    }
+    }*/
     return output;
 }
