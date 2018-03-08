@@ -21,7 +21,7 @@ default: $(EXECUTABLE)
 $(EXECUTABLE): $(OBJECTS)
 	$(CXX) $+ $(LDFLAGS) -o $@
 
-3dBasis.o: 3dBasis.cpp 3dBasis.hpp mono.hpp poly.hpp basis.hpp \
+3dBasis.o: 3dBasis.cpp 3dBasis.hpp mono.hpp poly.hpp basis.hpp io.hpp \
 	timer.hpp matrix.hpp multinomial.hpp gram-schmidt.hpp test.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 

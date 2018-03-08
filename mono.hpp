@@ -73,6 +73,7 @@ class Mono {
 		bool operator==(const Mono& other) const;
 		bool operator!=(const Mono& other) const { return !(*this == other); }
 		friend std::ostream& operator<<(std::ostream& os, const Mono& out);
+        friend std::string MathematicaOutput(const Mono& out);
 		std::string HumanReadable() const;
 
 		template<typename T>

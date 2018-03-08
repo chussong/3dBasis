@@ -82,7 +82,7 @@ void ComputeBasisStates_SameParity(const std::vector<Basis<Mono>>& inputBases,
     std::vector<Poly> orthogonalized = Orthogonalize(inputBases, outStream);
 
 	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
-	outStream << "minimalBasis = " << minimalBasis << std::endl;
+	outStream << "minimalBasis = " << MathematicaOutput(minimalBasis) << std::endl;
 	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
 	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
 		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
@@ -129,7 +129,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
     std::vector<Poly> orthogonalized = Orthogonalize(inputBases, outStream);
 
 	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
-	outStream << "minimalBasis = " << minimalBasis << std::endl;
+	outStream << "minimalBasis = " << MathematicaOutput(minimalBasis) << std::endl;
 	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
 	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
 		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(

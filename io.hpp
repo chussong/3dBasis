@@ -3,7 +3,15 @@
 
 #include <iostream>
 #include <sstream> // for mathematica output formatting
+#include <iomanip>
+#include <limits>
 #include "constants.hpp"
+
+// stream output for particles
+inline std::ostream& operator<<(std::ostream& os, const particle& out) {
+    return os << "{ " << static_cast<int>(out.pm) << ", "
+        << static_cast<int>(out.pt) << " }";
+}
 
 // stream output operator template for vectors
 template<typename T>
@@ -18,8 +26,20 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& out){
 	return os << out.back() << " }";
 }
 
-// specialization of above template which "transposes" particle vectors
+// specialization of above template which does not "transpose" particle vectors
 template<>
+inline std::ostream& operator<<(std::ostream& os, 
+        const std::vector<particle>& out) {
+	os << "{";
+	if (out.size() == 0) return os << " }";
+	for (std::size_t i = 0; i < out.size()-1; ++i) {
+		os << out[i] << ", ";
+	}
+	return os << out.back() << "}";
+}
+
+// specialization of above template which does "transpose" particle vectors
+/*template<>
 inline std::ostream& operator<<(std::ostream& os, const std::vector<particle>& out){
 	if (out.empty()) return os << "{{ }{ }}";
 
@@ -38,7 +58,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<particle>& o
 	if (out.back().pt >= 0) os << " ";
 	os << out.back().pt << " }}";
 	return os;
-}
+}*/
 
 // specialization for vectors of chars which displays them as numbers
 template<>
@@ -105,8 +125,18 @@ inline std::string MVectorOut(std::string mVector) {
 // this should output an exact decimal form of "out"; in particular, it should
 // not use the "e" notation
 inline std::string MathematicaOutput(const coeff_class out) {
-    std::string output = std::to_string(static_cast<builtin_class>(out));
-    return output;
+    std::stringstream ss;
+    ss.precision(std::numeric_limits<builtin_class>::max_digits10);
+    ss << out;
+    std::string stringForm = ss.str();
+
+    std::size_t e = stringForm.find('e');
+    if (e != std::string::npos) {
+        stringForm.replace(e, 1, "*10^(");
+        stringForm.append(")");
+    }
+
+    return stringForm;
 }
 
 inline std::string MathematicaOutput(const DMatrix& out) {

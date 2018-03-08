@@ -2,6 +2,8 @@
 #define BASIS_HPP
 
 #include <vector>
+#include <sstream>
+
 #include "constants.hpp"
 #include "construction.hpp"
 #include "mono.hpp"
@@ -254,6 +256,18 @@ inline std::ostream& operator<<(std::ostream& os, const Basis<T>& out){
 		os << out[i].HumanReadable() << ", ";
 	}
 	return os << out[out.size()-1].HumanReadable() << " }";
+}
+
+template<class T>
+inline std::string MathematicaOutput(const Basis<T>& out) {
+	if(out.size() == 0) return "{ }";
+    std::stringstream ss;
+    ss << "{ ";
+	for (std::size_t i = 0; i < out.size()-1; ++i) {
+		ss << MathematicaOutput(out[i]) << ", ";
+	}
+	ss << MathematicaOutput(out[out.size()-1]) << " }";
+    return ss.str();
 }
 
 /*
