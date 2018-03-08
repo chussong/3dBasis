@@ -102,6 +102,12 @@ inline std::string MVectorOut(std::string mVector) {
 	return mVector;
 }
 
+// this should output an exact decimal form of "out"; in particular, it should
+// not use the "e" notation
+inline std::string MathematicaOutput(const coeff_class out) {
+    std::string output = std::to_string(static_cast<builtin_class>(out));
+    return output;
+}
 
 inline std::string MathematicaOutput(const DMatrix& out) {
 	std::stringstream stream;
@@ -109,16 +115,16 @@ inline std::string MathematicaOutput(const DMatrix& out) {
 	for (Eigen::Index row = 0; row < out.rows() - 1; ++row) {
 		stream << "{";
 		for (Eigen::Index col = 0; col < out.cols() - 1; ++col) {
-			stream << out(row, col) << ", ";
+			stream << MathematicaOutput(out(row, col)) << ", ";
 		}
-		stream << out(row, out.cols()-1) << "},\n";
+		stream << MathematicaOutput(out(row, out.cols()-1)) << "},\n";
 	}
 
 	stream << "{";
 	for (Eigen::Index col = 0; col < out.cols() - 1; ++col) {
-		stream << out(out.rows()-1, col) << ", ";
+		stream << MathematicaOutput(out(out.rows()-1, col)) << ", ";
 	}
-	stream << out(out.rows()-1, out.cols()-1) << "}}";
+	stream << MathematicaOutput(out(out.rows()-1, out.cols()-1)) << "}}";
 	stream.flush();
 	return stream.str();
 }

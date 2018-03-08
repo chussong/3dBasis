@@ -36,6 +36,7 @@ int main(int argc, char* argv[]) {
 			}
 			*args.outputStream << std::endl;
 		}
+        if (args.outputStream != &std::cout) delete args.outputStream;
 		return EXIT_SUCCESS;
 	}
 
@@ -55,8 +56,8 @@ void ComputeBasisStates(const Arguments& args) {
 	int degree = args.degree + args.numP; // add required Dirichlet derivatives
 	int options = args.options;
 
-	*args.outputStream << "Orthogonal basis states with N=" << numP << ", L="
-		<< degree << " (including Dirichlet derivatives)." << std::endl;
+	*args.outputStream << "(*Orthogonal basis states with N=" << numP << ", L="
+		<< degree << " (including Dirichlet derivatives).*)" << std::endl;
 	
 	std::vector<Basis<Mono>> allEvenBases;
 	std::vector<Basis<Mono>> allOddBases;
@@ -66,10 +67,10 @@ void ComputeBasisStates(const Arguments& args) {
 		allOddBases.push_back(degBasis.OddBasis());
 	}
 
-	*args.outputStream << "EVEN STATE ORTHOGONALIZATION" << std::endl;
+	*args.outputStream << "(*EVEN STATE ORTHOGONALIZATION*)" << std::endl;
     ComputeBasisStates_SameParity(allEvenBases, args);
 
-	*args.outputStream << "ODD STATE ORTHOGONALIZATION" << std::endl;
+	*args.outputStream << "(*ODD STATE ORTHOGONALIZATION*)" << std::endl;
     ComputeBasisStates_SameParity(allOddBases, args);
 
 	*args.outputStream << std::endl;
@@ -81,15 +82,16 @@ void ComputeBasisStates_SameParity(const std::vector<Basis<Mono>>& inputBases,
     std::vector<Poly> orthogonalized = Orthogonalize(inputBases, outStream);
 
 	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
-	outStream << "Minimal basis: " << minimalBasis << std::endl;
+	outStream << "minimalBasis = " << minimalBasis << std::endl;
 	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
 	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
 		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
 				orthogonalized[i] );
 	}
 
-    outStream << "Polynomials on this basis (as rows, not columns!):\n"
-        << MathematicaOutput(polysOnMinBasis.transpose()) << std::endl;
+    outStream << "(*Polynomials on this basis (as rows, not columns!):*)\n"
+        "polysOnMinBasis = " << MathematicaOutput(polysOnMinBasis.transpose()) 
+        << std::endl;
 }
 
 DMatrix ComputeHamiltonian(const Arguments& args) {
@@ -97,8 +99,8 @@ DMatrix ComputeHamiltonian(const Arguments& args) {
 	int degree = args.degree + args.numP; // add required Dirichlet derivatives
 	int options = args.options;
 
-	*args.outputStream << "Matrix element test with N=" << numP << ", L="
-		<< degree << " (including Dirichlet derivatives)." << std::endl;
+	*args.outputStream << "(*Matrix element test with N=" << numP << ", L="
+		<< degree << " (including Dirichlet derivatives).*)" << std::endl;
 	
 	std::vector<Basis<Mono>> allEvenBases;
 	std::vector<Basis<Mono>> allOddBases;
@@ -108,10 +110,10 @@ DMatrix ComputeHamiltonian(const Arguments& args) {
 		allOddBases.push_back(degBasis.OddBasis());
 	}
 
-	*args.outputStream << "EVEN STATE ORTHOGONALIZATION" << std::endl;
+	*args.outputStream << "(*EVEN STATE ORTHOGONALIZATION*)" << std::endl;
     DMatrix evenHam = ComputeHamiltonian_SameParity(allEvenBases, args);
 
-	*args.outputStream << "ODD STATE ORTHOGONALIZATION" << std::endl;
+	*args.outputStream << "(*ODD STATE ORTHOGONALIZATION*)" << std::endl;
     DMatrix oddHam  = ComputeHamiltonian_SameParity(allOddBases, args);
 
 	*args.outputStream << std::endl;
@@ -127,7 +129,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
     std::vector<Poly> orthogonalized = Orthogonalize(inputBases, outStream);
 
 	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
-	outStream << "Minimal basis: " << minimalBasis << std::endl;
+	outStream << "minimalBasis = " << minimalBasis << std::endl;
 	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
 	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
 		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
@@ -137,9 +139,10 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
     DMatrix discPolys = DiscretizePolys(polysOnMinBasis, minimalBasis, 
             args.partitions);
 	if (&outStream != &std::cout) {
-		outStream << "Polynomials on this basis (as rows, not columns!):\n"
-			<< MathematicaOutput(polysOnMinBasis.transpose()) << std::endl;
-        outStream << "And discretized:\n"
+		outStream << "(*Polynomials on this basis (as rows, not columns!):*)\n"
+			<< "polysOnMinBasis = " 
+            << MathematicaOutput(polysOnMinBasis.transpose()) << std::endl;
+        outStream << "(*And discretized:*)\ndiscretePolys = "
             << MathematicaOutput(discPolys.transpose()) << std::endl;
 	}
 
@@ -153,7 +156,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
 	timer.Start();
 	DMatrix monoMassMatrix(MassMatrix(minimalBasis));
     if (&outStream != &std::cout) {
-        outStream << "Here is the monomial mass matrix we computed:\n"
+        outStream << "minBasisMassMatrix = "
             << MathematicaOutput(monoMassMatrix) << std::endl;
     } else {
         outStream << "Here is the monomial mass matrix we computed:\n"
@@ -163,7 +166,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
     DMatrix discMonoMass = PartitionMu_Mass(minimalBasis, monoMassMatrix, 
             args.partitions, args.partitionWidth);
     if (&outStream != &std::cout) {
-        outStream << "Here it is discretized by mu:\n"
+        outStream << "discretizedMinBasisMass = "
             << MathematicaOutput(discMonoMass) << std::endl;
     } else {
         outStream << "Here it is discretized by mu:\n"
@@ -172,7 +175,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
 
 	DMatrix polyMassMatrix = discPolys.transpose()*discMonoMass*discPolys;
 	if (&outStream != &std::cout) {
-		outStream << "Mass matrix between basis states:\n"
+		outStream << "basisStateMassMatrix = "
 			<< MathematicaOutput(polyMassMatrix) << std::endl;
 	} else {
 		outStream << "Computed this mass matrix from the basis in " 
@@ -237,24 +240,24 @@ int ParseOptions(std::vector<std::string> options) {
 	int ret = 0;
 	for(auto& opt : options){
 		if(opt.compare(0, 2, "-d") == 0){
-			ret = ret | OPT_DEBUG;
-			ret = ret | OPT_OUTPUT;
+			ret |= OPT_DEBUG;
+			ret |= OPT_OUTPUT;
 			continue;
 		}
 		if(opt.compare(0, 2, "-i") == 0){
-			ret = ret | OPT_IPTEST;
+			ret |= OPT_IPTEST;
 			continue;
 		}
 		if(opt.compare(0, 2, "-m") == 0){
-			ret = ret | OPT_MULTINOMTEST;
+			ret |= OPT_MULTINOMTEST;
 			continue;
 		}
 		if(opt.compare(0, 2, "-M") == 0){
-			ret = ret | OPT_ALLMINUS;
+			ret |= OPT_ALLMINUS;
 			continue;
 		}
 		if(opt.compare(0, 2, "-o") == 0){
-			ret = ret | OPT_OUTPUT;
+			ret |= OPT_OUTPUT;
 			continue;
 		}
         if(opt.compare(0, 2, "-s") == 0){
@@ -266,7 +269,7 @@ int ParseOptions(std::vector<std::string> options) {
             continue;
         }
 		if(opt.compare(0, 2, "-v") == 0){
-			ret = ret | OPT_VERSION;
+			ret |= OPT_VERSION;
 			continue;
 		}
 		if(opt.compare(0, 1, "-") == 0){
