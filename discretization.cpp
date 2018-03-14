@@ -26,6 +26,7 @@ DVector MuIntegral_Mass(const Mono& A, const Mono& B,
 	return output;
 }
 
+// this is a placeholder, obviously
 DVector MuIntegral_InnerProduct(const Mono& A, const Mono& B, 
 		const std::size_t partitions, const coeff_class partitionWidth) {
     return MuIntegral_Mass(A, B, partitions, partitionWidth);
@@ -49,6 +50,27 @@ DMatrix PartitionMu_Mass(const Basis<Mono>& minimalBasis, const DMatrix& mass,
 		}
 	}
 	return output;
+}
+
+// for each monomial in the basis, create a vector with 1/sqrt(IPintegral) over
+// each mu window. Return these as a matrix; the full basis state will then be
+// [\sum_b X_{ib} Y_{bp} M_b], where X is the polysOnMinBasis matrix, Y is the
+// output of this function, and M is the minBasis
+DMatrix DiscretizeMonos(const Basis<Mono>& minBasis, 
+        const std::size_t partitions, const coeff_class partWidth) {
+    DMatrix output(minBasis.size(), partitions);
+    for (std::size_t i = 0; i < minBasis.size(); ++i) {
+        DVector IP = MuIntegral_InnerProduct(
+                    minBasis[i], minBasis[i], partitions, partWidth );
+        for (std::size_t p = 0; p < partitions; ++p) {
+            auto root = std::sqrt<builtin_class>(IP(p));
+            if (root.imag() != 0) {
+                throw std::logic_error("DiscretizeMonos: negative IP given.");
+            }
+            output(i, p) = 1/root.real();
+        }
+    }
+    return output;
 }
 
 // take a matrix whose columns are the polynomials expressed in terms of a 

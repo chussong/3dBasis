@@ -165,7 +165,7 @@ coeff_class MatrixTerm_Direct(const Mono& A, const Mono& B, const MATRIX_TYPE ty
 
 	// this somewhat dubious adjustment is presumably due to an error in
 	// Zuhair's formula (the adjustment appears in his code as well)
-	if (A.NParticles() >= 3) total /= 2;
+	// if (A.NParticles() >= 3) total /= 2;
 
 	return degeneracy*A.Coeff()*B.Coeff()*total;
 }
@@ -340,7 +340,7 @@ const std::vector<MatrixTerm_Intermediate>& InteractionTermsFromXY(
 // things like dividing by P or \mu
 //
 // note that I'm storing the Dirichlet-mandated P_- on each particle but Zuhair
-// isn't, so we have to subtract that off
+// isn't, so we have to subtract that off; that is, this computes Fbar, not F
 std::array<std::string,2> ExtractXY(const Mono& extractFromThis) {
 	std::string x, y;
 	for (auto i = 0u; i < extractFromThis.NParticles(); ++i) {
@@ -740,16 +740,18 @@ coeff_class PrefactorN(const char n) {
     return 2/inverse;
 }
 
+// this follows (4.6) and (4.7) in Matt's notes
 coeff_class InnerProductPrefactor(const char n) {
-	return MassMatrixPrefactor(n)/n;
-}
-
-coeff_class MassMatrixPrefactor(const char n) {
-	coeff_class denominator = std::tgamma(n); // tgamma is the "true" gamma fcn
-	denominator *= std::pow(16, n-1);
+	coeff_class denominator = std::tgamma(n+1); // tgamma = "true" gamma fcn
+	denominator *= std::pow(8, n-1);
 	denominator *= std::pow(M_PI, 2*n-3);
 	//std::cout << "PREFACTOR: " << 2/denominator << std::endl;
-	return 2/denominator;
+	return 1/denominator;
+}
+
+// as seen in (4.12) in Matt's notes
+coeff_class MassMatrixPrefactor(const char n) {
+	return n*InnerProductPrefactor(n);
 }
 
 coeff_class InteractionMatrixPrefactor(const char n) {
@@ -775,11 +777,11 @@ coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
 	// is n-1 with the last component being meaningless. All but the last 
 	// one are short, while the last one is long
 	//
-	// these have constant terms which differ from Zuhair's because his i
-	// starts at 1 instead of 0
+	// these have constant terms which differ from Nikhil's because his i
+	// starts at 1 instead of 0, so I use (i+1) instead
 	if (n >= 3) {
 		for (auto i = 0u; i < n-3; ++i) {
-			output *= ThetaIntegral_Short(n-3 - i + term.sinTheta[i],
+			output *= ThetaIntegral_Short(n - (i+1) - 2 + term.sinTheta[i],
 					term.cosTheta[i] );
 		}
 		output *= ThetaIntegral_Long(term.sinTheta[n-3], term.cosTheta[n-3]);
@@ -832,6 +834,9 @@ coeff_class DoAllIntegrals(InteractionTerm_Step2& term, const MATRIX_TYPE type){
 //
 // follows the conventions of Zuhair's 5.34; a is the exponent of u_i+ and
 // b is the exponent of u_i-
+//
+// this can also be thought of as the integral over z, where a is the exponent
+// of sqrt(z) and b is the exponent of sqrt(1 - z)
 builtin_class UIntegral(const builtin_class a, const builtin_class b) {
 	//std::cout << "UIntegral(" << a << ", " << b << ")" << std::endl;
 	std::array<builtin_class,2> abArray{{a,b}};

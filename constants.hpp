@@ -29,7 +29,9 @@ typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, 1> DVector;
 
 // also define a built-in class to which coeff_class is implicitly convertible
 // to help with template resolution in stdlib functions. If coeff_class is
-// built-in, then this can just be the same thing.
+// built-in, then this can just be the same thing; otherwise, it should be
+// something with specializations for std::sqrt, etc. You could also just define
+// new specializations for these functions.
 //
 // this is generally used for comparing things to "zero", so it's okay if some
 // precision is lost

@@ -415,12 +415,12 @@ inline std::list<Triplet> splitBasis<T>::ExpressPoly(const Poly& toExpress,
 
 // Priority for sorting monomials within a basis. The point of this is to get
 // the orthogonalization that we want from Gram-Schmidt, so it favors states 
-// with lower P_\perp, and then states with a lower degree as a tiebreaker.
+// with lower degree, and then states with lower total p_\perp as a tiebreaker.
 inline bool SortPriority(const Mono& A, const Mono& B) {
-	if (A.TotalPt() != B.TotalPt()) {
+	if (A.Degree() != B.Degree()) {
+		return A.Degree() < B.Degree();
+	} else {
 		return A.TotalPt() < B.TotalPt();
-	} else { // i.e. if both have the same totalPt
-		return A.TotalPm() < B.TotalPm();
 	}
 }
 
@@ -447,7 +447,8 @@ inline Basis<Mono> MinimalBasis(const std::vector<Poly>& polynomials) {
 	}
 	std::vector<Mono> allUsedMonos(combinedPoly.size());
 	for (auto i = 0u; i < combinedPoly.size(); ++i) {
-		allUsedMonos[i] = combinedPoly[i]/combinedPoly[i].Coeff();
+		allUsedMonos[i] = combinedPoly[i];
+		allUsedMonos[i].Coeff() = 1;
 	}
 	return Basis<Mono>(allUsedMonos);
 }

@@ -27,6 +27,8 @@ DVector MuIntegral_InnerProduct(const Mono& A, const Mono& B,
 DMatrix PartitionMu_Mass(const Basis<Mono>& minimalBasis, const DMatrix& mass,
 		const std::size_t partitions, const coeff_class partWidth);
 
+DMatrix DiscretizeMonos(const Basis<Mono>& minBasis, 
+        const std::size_t partitions, const coeff_class partWidth);
 DMatrix DiscretizePolys(const DMatrix& polysOnMinBasis, 
         const Basis<Mono>& minBasis, const std::size_t partitions);
 

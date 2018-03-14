@@ -36,18 +36,24 @@ int main(int argc, char* argv[]) {
 			}
 			*args.outputStream << std::endl;
 		}
-        if (args.outputStream != &std::cout) delete args.outputStream;
+        if (args.outputStream->rdbuf() != std::cout.rdbuf()) {
+            delete args.outputStream;
+        }
 		return EXIT_SUCCESS;
 	}
 
     if (args.options & OPT_STATESONLY) {
         ComputeBasisStates(args);
-        if (args.outputStream != &std::cout) delete args.outputStream;
+        if (args.outputStream->rdbuf() != std::cout.rdbuf()) {
+            delete args.outputStream;
+        }
         return EXIT_SUCCESS;
     }
 
 	DMatrix hamiltonian = ComputeHamiltonian(args);
-	if (args.outputStream != &std::cout) delete args.outputStream;
+	if (args.outputStream->rdbuf() != std::cout.rdbuf()) {
+        delete args.outputStream;
+    }
 	return EXIT_SUCCESS;
 }
 
@@ -82,7 +88,12 @@ void ComputeBasisStates_SameParity(const std::vector<Basis<Mono>>& inputBases,
     std::vector<Poly> orthogonalized = Orthogonalize(inputBases, outStream);
 
 	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
-	outStream << "minimalBasis = " << MathematicaOutput(minimalBasis) << std::endl;
+    if (outStream.rdbuf() == std::cout.rdbuf()) {
+        outStream << "Minimal basis: " << minimalBasis << std::endl;
+    } else {
+        outStream << "minimalBasis = " << MathematicaOutput(minimalBasis) 
+            << std::endl;
+    }
 	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
 	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
 		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
@@ -129,7 +140,12 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
     std::vector<Poly> orthogonalized = Orthogonalize(inputBases, outStream);
 
 	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
-	outStream << "minimalBasis = " << MathematicaOutput(minimalBasis) << std::endl;
+    if (outStream.rdbuf() == std::cout.rdbuf()) {
+        outStream << "Minimal basis: " << minimalBasis << std::endl;
+    } else {
+        outStream << "minimalBasis = " << MathematicaOutput(minimalBasis) 
+            << std::endl;
+    }
 	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
 	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
 		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
@@ -138,7 +154,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
     // outStream << "polysOnMinBasis:\n" << polysOnMinBasis << std::endl;
     DMatrix discPolys = DiscretizePolys(polysOnMinBasis, minimalBasis, 
             args.partitions);
-	if (&outStream != &std::cout) {
+	if (outStream.rdbuf() != std::cout.rdbuf()) {
 		outStream << "(*Polynomials on this basis (as rows, not columns!):*)\n"
 			<< "polysOnMinBasis = " 
             << MathematicaOutput(polysOnMinBasis.transpose()) << std::endl;
@@ -155,7 +171,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
 
 	timer.Start();
 	DMatrix monoMassMatrix(MassMatrix(minimalBasis));
-    if (&outStream != &std::cout) {
+    if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "minBasisMassMatrix = "
             << MathematicaOutput(monoMassMatrix) << std::endl;
     } else {
@@ -165,7 +181,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
 
     DMatrix discMonoMass = PartitionMu_Mass(minimalBasis, monoMassMatrix, 
             args.partitions, args.partitionWidth);
-    if (&outStream != &std::cout) {
+    if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "discretizedMinBasisMass = "
             << MathematicaOutput(discMonoMass) << std::endl;
     } else {
@@ -174,7 +190,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
     }
 
 	DMatrix polyMassMatrix = discPolys.transpose()*discMonoMass*discPolys;
-	if (&outStream != &std::cout) {
+	if (outStream.rdbuf() != std::cout.rdbuf()) {
 		outStream << "basisStateMassMatrix = "
 			<< MathematicaOutput(polyMassMatrix) << std::endl;
 	} else {
