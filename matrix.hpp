@@ -21,22 +21,24 @@
 // these should be the only functions you have to call from other files -------
 
 coeff_class InnerFock(const Mono& A, const Mono& B);
-DMatrix GramFock(const Basis<Mono>& basis);
-DMatrix MassMatrix(const Basis<Mono>& basis);
-DMatrix InteractionMatrix(const Basis<Mono>& basis);
+DMatrix GramFock(const Basis<Mono>& basis, const std::size_t partitions, 
+        const coeff_class partWidth);
+DMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
+        const coeff_class partWidth);
+DMatrix InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
+        const coeff_class partWidth);
 
 // internal stuff -------------------------------------------------------------
 
 namespace MatrixInternal {
-
-enum MATRIX_TYPE { MAT_INNER, MAT_MASS, MAT_INTER_SAME_N, MAT_INTER_N_PLUS_2 };
 
 // this seems to be necessary if I've declared any operator<< inside of
 // MatrixInternal, which I've done for YTerm and MatrixTerm_Intermediate
 using ::operator<<;
 
 // the main point of this header
-DMatrix Matrix(const Basis<Mono>& basis, const MATRIX_TYPE type);
+DMatrix Matrix(const Basis<Mono>& basis, const std::size_t partitions, 
+        const coeff_class partWidth, const MATRIX_TYPE type);
 coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type);
 
 // five structs used in the coordinate transformations for MatrixTerm

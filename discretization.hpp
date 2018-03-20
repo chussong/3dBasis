@@ -20,16 +20,20 @@
 // the kinetic term, it's the identity, whereas for the mass term it's \mu^2
 
 char MuExponent(const Mono& A, const Mono& B);
-DVector MuIntegral_Mass(const Mono& A, const Mono& B, 
-		const std::size_t partitions, const coeff_class partitionWidth);
-DVector MuIntegral_InnerProduct(const Mono& A, const Mono& B, 
-		const std::size_t partitions, const coeff_class partitionWidth);
+DVector MuIntegral(const Mono& A, const Mono& B, const std::size_t partitions,
+        const coeff_class partitionWidth, const MATRIX_TYPE calculationType);
+DVector MuIntegral_Body(const char muExp, const std::size_t partitions,
+                const coeff_class partitionWidth);
 DMatrix PartitionMu_Mass(const Basis<Mono>& minimalBasis, const DMatrix& mass,
 		const std::size_t partitions, const coeff_class partWidth);
+
+DMatrix MuPart(const Basis<Mono>& minBasis, const std::size_t partitions, 
+        const coeff_class partWidth, MATRIX_TYPE calculationType);
 
 DMatrix DiscretizeMonos(const Basis<Mono>& minBasis, 
         const std::size_t partitions, const coeff_class partWidth);
 DMatrix DiscretizePolys(const DMatrix& polysOnMinBasis, 
-        const Basis<Mono>& minBasis, const std::size_t partitions);
+        const Basis<Mono>& minBasis, const std::size_t partitions,
+        const coeff_class partWidth);
 
 #endif

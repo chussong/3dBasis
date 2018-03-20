@@ -85,7 +85,8 @@ void ComputeBasisStates(const Arguments& args) {
 void ComputeBasisStates_SameParity(const std::vector<Basis<Mono>>& inputBases,
                                     const Arguments& args) {
     std::ostream& outStream = *args.outputStream;
-    std::vector<Poly> orthogonalized = Orthogonalize(inputBases, outStream);
+    std::vector<Poly> orthogonalized = Orthogonalize(inputBases, 
+            args.partitions, args.partitionWidth, outStream);
 
 	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
     if (outStream.rdbuf() == std::cout.rdbuf()) {
@@ -137,7 +138,8 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
                                       const Arguments& args) {
     Timer timer;
     std::ostream& outStream = *args.outputStream;
-    std::vector<Poly> orthogonalized = Orthogonalize(inputBases, outStream);
+    std::vector<Poly> orthogonalized = Orthogonalize(inputBases, 
+            args.partitions, args.partitionWidth, outStream);
 
 	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
     if (outStream.rdbuf() == std::cout.rdbuf()) {
@@ -153,7 +155,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
 	}
     // outStream << "polysOnMinBasis:\n" << polysOnMinBasis << std::endl;
     DMatrix discPolys = DiscretizePolys(polysOnMinBasis, minimalBasis, 
-            args.partitions);
+            args.partitions, args.partitionWidth);
 	if (outStream.rdbuf() != std::cout.rdbuf()) {
 		outStream << "(*Polynomials on this basis (as rows, not columns!):*)\n"
 			<< "polysOnMinBasis = " 
@@ -170,7 +172,8 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
 		// << std::endl << gram2BasisStates << std::endl;
 
 	timer.Start();
-	DMatrix monoMassMatrix(MassMatrix(minimalBasis));
+	DMatrix monoMassMatrix(MassMatrix(minimalBasis, args.partitions,
+                    args.partitionWidth));
     if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "minBasisMassMatrix = "
             << MathematicaOutput(monoMassMatrix) << std::endl;
@@ -189,15 +192,15 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
             << discMonoMass << std::endl;
     }
 
-	DMatrix polyMassMatrix = discPolys.transpose()*discMonoMass*discPolys;
-	if (outStream.rdbuf() != std::cout.rdbuf()) {
-		outStream << "basisStateMassMatrix = "
-			<< MathematicaOutput(polyMassMatrix) << std::endl;
-	} else {
-		outStream << "Computed this mass matrix from the basis in " 
-			<< timer.TimeElapsedInWords() << ", getting this matrix:\n"
-			<< polyMassMatrix << std::endl;
-	}
+    DMatrix polyMassMatrix = discPolys*discMonoMass*discPolys.transpose();
+    if (outStream.rdbuf() != std::cout.rdbuf()) {
+            outStream << "basisStateMassMatrix = "
+                    << MathematicaOutput(polyMassMatrix) << std::endl;
+    } else {
+            outStream << "Computed this mass matrix from the basis in " 
+                    << timer.TimeElapsedInWords() << ", getting this matrix:\n"
+                    << polyMassMatrix << std::endl;
+    }
 
     return DMatrix();
 }

@@ -2,7 +2,8 @@
 
 // return the number of independent vectors in the basis
 std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases, 
-		std::ostream&) {
+		const std::size_t partitions, const coeff_class partWidth, 
+                std::ostream&) {
 	Timer timer;
 	Basis<Mono> unifiedBasis = CombineBases(inputBases);
 	Normalize(unifiedBasis);
@@ -12,7 +13,7 @@ std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
 	// comment one or the other of these to decide which inner product to use.
 	// Ideally, we would like to use GramFock/InnerFock only
 	// DMatrix gram = GramMatrix(unifiedBasis, cache, kCache);
-	DMatrix gram = GramFock(unifiedBasis);
+	DMatrix gram = GramFock(unifiedBasis, partitions, partWidth);
 	if(gram.rows() == 0) return {};
 	
 	std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()

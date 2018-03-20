@@ -3,25 +3,28 @@
 // Fock space inner product between two monomials
 coeff_class InnerFock(const Mono& A, const Mono& B) {
 	//B.ChangePm(0, B.Pm(0)+1); // this will be reverted in MatrixTerm below
-	return MatrixInternal::MatrixTerm(A, B, MatrixInternal::MAT_INNER);
+	return MatrixInternal::MatrixTerm(A, B, MAT_INNER);
 	//return MatrixInternal::MatrixTerm(A, B, MatrixInter::MAT_INNER)/A.NParticles();
 }
 
 // creates a gram matrix for the given basis using the Fock space inner product
-DMatrix GramFock(const Basis<Mono>& basis) {
-    return MatrixInternal::Matrix(basis, MatrixInternal::MAT_INNER);
+DMatrix GramFock(const Basis<Mono>& basis, const std::size_t partitions, 
+        const coeff_class partWidth) {
+    return MatrixInternal::Matrix(basis, partitions, partWidth, MAT_INNER);
 }
 
 // creates a mass matrix M for the given monomials. To get the mass matrix of a 
 // basis of primary operators, one must express the primaries as a matrix of 
 // vectors, A, and multiply A^T M A.
-DMatrix MassMatrix(const Basis<Mono>& basis) {
-    return MatrixInternal::Matrix(basis, MatrixInternal::MAT_MASS);
+DMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
+        const coeff_class partWidth) {
+    return MatrixInternal::Matrix(basis, partitions, partWidth, MAT_MASS);
 }
 
 // creates a matrix of n->n interactions between the given basis's monomials
-DMatrix InteractionMatrix(const Basis<Mono>& basis) {
-    return MatrixInternal::Matrix(basis, MatrixInternal::MAT_INTER_SAME_N);
+DMatrix InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
+        const coeff_class partWidth) {
+    return MatrixInternal::Matrix(basis, partitions, partWidth, MAT_INTER_SAME_N);
 }
 
 namespace MatrixInternal {
@@ -109,16 +112,32 @@ std::ostream& operator<<(std::ostream& os, const InteractionTerm_Step2& out) {
 // generically return direct or interaction matrix of the specified type
 //
 // NOTE: we will have to do discretizations before this function returns
-DMatrix Matrix(const Basis<Mono>& basis, const MATRIX_TYPE type) {
-	DMatrix matrix(basis.size(), basis.size());
-	for (std::size_t i = 0; i < basis.size(); ++i) {
-		matrix(i, i) = MatrixInternal::MatrixTerm(basis[i], basis[i], type);
-		for (std::size_t j = i+1; j < basis.size(); ++j) {
-			matrix(i, j) = MatrixInternal::MatrixTerm(basis[i], basis[j], type);
-			matrix(j, i) = matrix(i, j);
-		}
-	}
-	return matrix;
+DMatrix Matrix(const Basis<Mono>& basis, const std::size_t partitions, 
+        const coeff_class partWidth, const MATRIX_TYPE type) {
+    DMatrix fockPart(basis.size(), basis.size());
+    for (std::size_t i = 0; i < basis.size(); ++i) {
+            fockPart(i, i) = MatrixTerm(basis[i], basis[i], type);
+            for (std::size_t j = i+1; j < basis.size(); ++j) {
+                    fockPart(i, j) = MatrixTerm(basis[i], basis[j], type);
+                    fockPart(j, i) = fockPart(i, j);
+            }
+    }
+
+    DMatrix muPart = MuPart(basis, partitions, partWidth, type);
+
+    // I believe this could actually be done as a matrix multiplication?
+    DMatrix output = DMatrix::Zero(basis.size()*partitions, 
+                                    basis.size()*partitions);
+    for (std::size_t vectorA = 0; vectorA < basis.size(); ++vectorA) {
+        for (std::size_t vectorB = 0; vectorB < basis.size(); ++vectorB) {
+            for (std::size_t part = 0; part < partitions; ++part) {
+                output(vectorA*partitions + part, vectorB*partitions + part)
+                    = fockPart(vectorA, vectorB)
+                        *muPart(vectorA, vectorB*partitions + part);
+            }
+        }
+    }
+    return output;
 }
 
 coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type) {

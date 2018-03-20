@@ -12,7 +12,7 @@
 #include <algorithm>	// std::remove_if
 #include <type_traits>	// std::is_same
 
-constexpr char VERSION[] = "0.9.1";
+constexpr char VERSION[] = "0.9.2";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"

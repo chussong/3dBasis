@@ -17,7 +17,8 @@
 // this should be the only function called from outside of this file ----------
 
 std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases, 
-		std::ostream& outStream);
+		const std::size_t partitions, const coeff_class partWidth,
+                std::ostream& outStream);
 
 // custom gram-schmidt --------------------------------------------------------
 

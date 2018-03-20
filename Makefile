@@ -38,7 +38,8 @@ gram-schmidt.o: gram-schmidt.cpp constants.hpp timer.hpp basis.hpp mono.hpp \
 	poly.hpp matrix.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-matrix.o: matrix.cpp matrix.hpp multinomial.hpp mono.hpp basis.hpp io.hpp
+matrix.o: matrix.cpp matrix.hpp multinomial.hpp mono.hpp basis.hpp io.hpp \
+    	discretization.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 discretization.o: discretization.cpp discretization.hpp constants.hpp mono.hpp \

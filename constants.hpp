@@ -93,8 +93,8 @@ struct Arguments {
 	coeff_class delta = 0;
 	int options = 0;
 	std::ostream* outputStream = &std::cout;
-	std::size_t partitions = 10; // \mu partitions per operator pair
-	coeff_class partitionWidth = 0.1;
+	std::size_t partitions = 4; // \mu partitions per operator pair
+	coeff_class partitionWidth = 0.25;
 };
 
 struct particle {
@@ -111,6 +111,9 @@ enum options { OPT_BRUTE = 1 << 0, OPT_VERSION = 1 << 1, OPT_DEBUG = 1 << 2,
 				OPT_OUTPUT = 1 << 7, OPT_IPTEST = 1 << 8, OPT_ALLMINUS = 1 << 9,
 				OPT_MULTINOMTEST = 1 << 10, OPT_TEST = 1 << 11,
                 OPT_STATESONLY = 1 << 12 };
+
+enum MATRIX_TYPE { MAT_KINETIC, MAT_INNER, MAT_MASS, MAT_INTER_SAME_N, 
+    MAT_INTER_N_PLUS_2 };
 
 /******************************************************************************/
 /***** Compile-time constant math functions                               *****/
