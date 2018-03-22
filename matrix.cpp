@@ -1,14 +1,30 @@
 #include "matrix.hpp"
 
-// Fock space inner product between two monomials
+// Fock space part (ONLY) of the inner product between two monomials
 coeff_class InnerFock(const Mono& A, const Mono& B) {
-	//B.ChangePm(0, B.Pm(0)+1); // this will be reverted in MatrixTerm below
-	return MatrixInternal::MatrixTerm(A, B, MAT_INNER);
-	//return MatrixInternal::MatrixTerm(A, B, MatrixInter::MAT_INNER)/A.NParticles();
+    //B.ChangePm(0, B.Pm(0)+1); // this will be reverted in MatrixTerm below
+    return MatrixInternal::MatrixTerm(A, B, MAT_INNER);
+    //return MatrixInternal::MatrixTerm(A, B, MatrixInter::MAT_INNER)/A.NParticles();
+}
+
+// inner product between two partitions of monomials
+coeff_class InnerProduct(const Mono& A, const Mono& B, const std::size_t part, 
+        const std::size_t partitions, const coeff_class partWidth) {
+    DVector muIntegrals = MuIntegral(A, B, partitions, partWidth, MAT_INNER);
+    return MatrixInternal::MatrixTerm(A, B, MAT_INNER)*muIntegrals(part);
 }
 
 // creates a gram matrix for the given basis using the Fock space inner product
-DMatrix GramFock(const Basis<Mono>& basis, const std::size_t partitions, 
+//
+// this returns the rank 2 matrix containing only the Fock part of the product
+DMatrix GramFock(const Basis<Mono>& basis) {
+    return MatrixInternal::Matrix(basis, 0, 0, MAT_INNER);
+}
+
+// creates a gram matrix for the given basis using the Fock space inner product
+// 
+// this returns the rank 4 tensor relating states with different partitions
+DMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
         const coeff_class partWidth) {
     return MatrixInternal::Matrix(basis, partitions, partWidth, MAT_INNER);
 }
@@ -123,7 +139,12 @@ DMatrix Matrix(const Basis<Mono>& basis, const std::size_t partitions,
             }
     }
 
-    DMatrix muPart = MuPart(basis, partitions, partWidth, type);
+    // partitions == 0 means that the Fock part has been requested by itself
+    if (partitions == 0) {
+        return fockPart;
+    }
+
+    /*DMatrix muPart = MuPart(basis, partitions, partWidth, type);
 
     // I believe this could actually be done as a matrix multiplication?
     DMatrix output = DMatrix::Zero(basis.size()*partitions, 
@@ -137,7 +158,11 @@ DMatrix Matrix(const Basis<Mono>& basis, const std::size_t partitions,
             }
         }
     }
-    return output;
+    return output;*/
+
+    DMatrix muTotal = MuTotal(basis, partitions, partWidth, type);
+    // std::cout << "discretization matrix:\n" << muTotal << std::endl;
+    return fockPart.cwiseProduct(muTotal);
 }
 
 coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type) {
@@ -149,64 +174,64 @@ coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type) {
 }
 
 coeff_class MatrixTerm_Direct(const Mono& A, const Mono& B, const MATRIX_TYPE type) {
-	//std::cout << "TERM: " << A.HumanReadable() << " x " << B.HumanReadable() 
-		//<< std::endl;
+    //std::cout << "TERM: " << A.HumanReadable() << " x " << B.HumanReadable() 
+            //<< std::endl;
 
-	// degeneracy factors result from turning the ordered monomials into 
-	// symmetric polynomials
-	coeff_class degeneracy = 1;
-	degeneracy *= Factorial(A.NParticles());
-	for (auto& count : B.CountIdentical()) degeneracy *= Factorial(count);
+    // degeneracy factors result from turning the ordered monomials into 
+    // symmetric polynomials
+    coeff_class degeneracy = 1;
+    degeneracy *= Factorial(A.NParticles());
+    for (auto& count : B.CountIdentical()) degeneracy *= Factorial(count);
 
-	std::vector<std::size_t> permA(A.PermutationVector());
-	std::vector<std::size_t> permB(B.PermutationVector());
-	std::array<std::string,2> xAndy_A, xAndy_B;
-	std::vector<MatrixTerm_Final> fFromA, fFromB, combinedFs;
-	coeff_class total = 0;
-	// there's no reason to be using these permutation vectors instead of 
-	// permuting xAndy directly
-	// do {
-		fFromA = MatrixTermsFromMono_Permuted(A, permA);
-		// xAndy_A = ExtractXY(A);
-		// xAndy_A = PermuteXandY(xAndy_A, permA);
-		do {
-			fFromB = MatrixTermsFromMono_Permuted(B, permB);
-			combinedFs = CombineTwoFs(fFromA, fFromB);
-			// std::array<std::string,2> xAndy_B = ExtractXY(B);
-			// xAndy_B = PermuteXandY(xAndy_B, permB);
-			// xAndy_B = CombineXandY(xAndy_A, xAndy_B);
-			// combinedFs = MatrixTermsFromXandY(xAndy_B, A.NParticles());
-			total += FinalResult(combinedFs, type);
-		} while (std::next_permutation(permB.begin(), permB.end()));
-	// } while (std::next_permutation(permA.begin(), permA.end()));
-	
+    std::vector<std::size_t> permA(A.PermutationVector());
+    std::vector<std::size_t> permB(B.PermutationVector());
+    std::array<std::string,2> xAndy_A, xAndy_B;
+    std::vector<MatrixTerm_Final> fFromA, fFromB, combinedFs;
+    coeff_class total = 0;
+    // there's no reason to be using these permutation vectors instead of 
+    // permuting xAndy directly
+    // do {
+        fFromA = MatrixTermsFromMono_Permuted(A, permA);
+        // xAndy_A = ExtractXY(A);
+        // xAndy_A = PermuteXandY(xAndy_A, permA);
+        do {
+            fFromB = MatrixTermsFromMono_Permuted(B, permB);
+            combinedFs = CombineTwoFs(fFromA, fFromB);
+            // std::array<std::string,2> xAndy_B = ExtractXY(B);
+            // xAndy_B = PermuteXandY(xAndy_B, permB);
+            // xAndy_B = CombineXandY(xAndy_A, xAndy_B);
+            // combinedFs = MatrixTermsFromXandY(xAndy_B, A.NParticles());
+            total += FinalResult(combinedFs, type);
+        } while (std::next_permutation(permB.begin(), permB.end()));
+    // } while (std::next_permutation(permA.begin(), permA.end()));
+    
     total *= Prefactor(A, B, type);
 
-	// this somewhat dubious adjustment is presumably due to an error in
-	// Zuhair's formula (the adjustment appears in his code as well)
-	// if (A.NParticles() >= 3) total /= 2;
+    // this somewhat dubious adjustment is presumably due to an error in
+    // Zuhair's formula (the adjustment appears in his code as well)
+    // if (A.NParticles() >= 3) total /= 2;
 
-	return degeneracy*A.Coeff()*B.Coeff()*total;
+    return degeneracy*A.Coeff()*B.Coeff()*total;
 }
 
 // the "inter" here means interacting, not intermediate, which is a bad name!
 std::vector<InteractionTerm_Output> MatrixTerm_Inter(const Mono& A, const Mono& B, 
         const MATRIX_TYPE type) {
-	//std::cout << "INTERACTION: " << A.HumanReadable() << " x " 
-        //<< B.HumanReadable() << std::endl;
+    //std::cout << "INTERACTION: " << A.HumanReadable() << " x " 
+    //<< B.HumanReadable() << std::endl;
 
-	// degeneracy factors result from turning the ordered monomials into 
-	// symmetric polynomials
-	coeff_class degeneracy = 1;
-	// degeneracy *= Factorial(A.NParticles());
+    // degeneracy factors result from turning the ordered monomials into 
+    // symmetric polynomials
+    coeff_class degeneracy = 1;
+    // degeneracy *= Factorial(A.NParticles());
     // degeneracy *= Factorial(B.NParticles());
-	for (auto& count : A.CountIdentical()) degeneracy *= Factorial(count);
-	for (auto& count : B.CountIdentical()) degeneracy *= Factorial(count);
+    for (auto& count : A.CountIdentical()) degeneracy *= Factorial(count);
+    for (auto& count : B.CountIdentical()) degeneracy *= Factorial(count);
 
     coeff_class prefactor = degeneracy*A.Coeff()*B.Coeff()*Prefactor(A, B, type);
 
-	// std::vector<std::size_t> permA(A.PermutationVector());
-	// std::vector<std::size_t> permB(B.PermutationVector());
+    // std::vector<std::size_t> permA(A.PermutationVector());
+    // std::vector<std::size_t> permB(B.PermutationVector());
     // NOTE: this is obviously silly; just change ExtractXY to output a string
     std::array<std::string,2> tempXY = ExtractXY(A);
     std::string xAndy_A = tempXY[0] + tempXY[1];
@@ -215,25 +240,25 @@ std::vector<InteractionTerm_Output> MatrixTerm_Inter(const Mono& A, const Mono& 
     std::vector<MatrixTerm_Intermediate> fFromA, fFromB;
 	std::vector<InteractionTerm_Step2> combinedFs;
     std::vector<InteractionTerm_Output> output;
-	// there's no reason to be using these permutation vectors instead of 
-	// permuting xAndy directly
-	do {
-		// fFromA = InteractionTermsFromXY(xAndy_A, permA);
-		fFromA = InteractionTermsFromXY(xAndy_A);
-		do {
-			// fFromB = InteractionTermsFromXY(xAndy_B, permB);
-			fFromB = InteractionTermsFromXY(xAndy_B);
-			combinedFs = CombineInteractionFs(fFromA, fFromB);
+    // there's no reason to be using these permutation vectors instead of 
+    // permuting xAndy directly
+    do {
+        // fFromA = InteractionTermsFromXY(xAndy_A, permA);
+        fFromA = InteractionTermsFromXY(xAndy_A);
+        do {
+            // fFromB = InteractionTermsFromXY(xAndy_B, permB);
+            fFromB = InteractionTermsFromXY(xAndy_B);
+            combinedFs = CombineInteractionFs(fFromA, fFromB);
             auto newTerms = InteractionOutput(combinedFs, type, prefactor);
-			output.insert(output.end(), newTerms.begin(), newTerms.end());
-		} while (PermuteXY(xAndy_B));
-	} while (PermuteXY(xAndy_A));
-		// } while (std::next_permutation(permB.begin(), permB.end()));
-	// } while (std::next_permutation(permA.begin(), permA.end()));
-	
-	// this somewhat dubious adjustment is presumably due to an error in
-	// Zuhair's formula (the adjustment appears in his code as well)
-	// if (A.NParticles() >= 3) total /= 2;
+            output.insert(output.end(), newTerms.begin(), newTerms.end());
+        } while (PermuteXY(xAndy_B));
+    } while (PermuteXY(xAndy_A));
+            // } while (std::next_permutation(permB.begin(), permB.end()));
+    // } while (std::next_permutation(permA.begin(), permA.end()));
+    
+    // this somewhat dubious adjustment is presumably due to an error in
+    // Zuhair's formula (the adjustment appears in his code as well)
+    // if (A.NParticles() >= 3) total /= 2;
 
     return output;
 }

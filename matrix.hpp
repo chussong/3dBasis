@@ -21,7 +21,10 @@
 // these should be the only functions you have to call from other files -------
 
 coeff_class InnerFock(const Mono& A, const Mono& B);
-DMatrix GramFock(const Basis<Mono>& basis, const std::size_t partitions, 
+DMatrix GramFock(const Basis<Mono>& basis);
+coeff_class InnerProduct(const Mono& A, const Mono& B, 
+        const std::size_t partitions, const coeff_class partWidth);
+DMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
         const coeff_class partWidth);
 DMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
         const coeff_class partWidth);

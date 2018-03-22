@@ -10,9 +10,13 @@ char MuExponent(const Mono& A, const Mono& B) {
 }
 
 DVector MuIntegral(const Mono& A, const Mono& B, const std::size_t partitions,
-        const coeff_class partitionWidth, const MATRIX_TYPE calculationType) {
+        const coeff_class partWidth, const MATRIX_TYPE calculationType) {
     if (calculationType == MAT_INNER || calculationType == MAT_MASS) {
-        return MuIntegral_Body(MuExponent(A, B), partitions, partitionWidth);
+        DVector output = MuIntegral_Body(MuExponent(A, B), partitions, partWidth); 
+        for (Eigen::Index k = 0; k < output.size(); ++k) {
+            output(k) *= MuNorm(A, k, partWidth)*MuNorm(B, k, partWidth)/M_PI;
+        }
+        return output;
     } else {
         return DVector::Zero(partitions);
     }
@@ -28,12 +32,40 @@ DVector MuIntegral_Body(const char muExp, const std::size_t partitions,
     coeff_class left = 0;
     coeff_class right = 0;
     for (std::size_t i = 0; i < partitions; ++i) {
-            left = right;
-            right += partitionWidth;
-            output[i] = 4 * (std::pow<double>(right, muExp+1) 
-                    - std::pow<double>(left, muExp+1)) / (muExp + 1);
+        left = right;
+        right += partitionWidth;
+        output[i] = (std::pow<double>(right, muExp+1) 
+                - std::pow<double>(left, muExp+1)) / (muExp + 1);
+        // std::cout << "Integral(" << (int)muExp << ", " << i << ", " 
+            // << partitionWidth << ") = " << output[i] << std::endl;
     }
     return output;
+}
+
+// normalization for mu integrals; this is the script N_{n, \lambda, k} in
+// Zuhair's notes
+coeff_class MuNorm(const Mono& A, const std::size_t k, 
+        const coeff_class partWidth) {
+    // auto exponent = A.NParticles() - 1 + 2*A.TotalPt();
+    auto exponent = MuExponent(A, A) + 1;
+    coeff_class left = k*partWidth;
+    coeff_class right = (k+1)*partWidth;
+
+    // coeff_class denom = std::pow<builtin_class>(right, exponent);
+    // denom -= std::pow<builtin_class>(left, exponent);
+    // denom /= M_PI*exponent;
+
+    coeff_class square = M_PI*exponent/(std::pow<builtin_class>(right, exponent)
+            - std::pow<builtin_class>(left, exponent));
+
+    auto output = std::sqrt<builtin_class>(square);
+    if (output.imag() != 0) {
+        std::cerr << "Warning: MuNorm(" << A << ", " << k << ", " << partWidth
+            << ") is complex!?" << std::endl;
+    }
+    // std::cout << "MuNorm(" << A << ", " << k << ", " << partWidth << ") = "
+        // << output.real() << std::endl;
+    return output.real()/2;
 }
 
 // expands a mass matrix with the mu factors elided into one with them partially
@@ -42,19 +74,19 @@ DVector MuIntegral_Body(const char muExp, const std::size_t partitions,
 // so simple for the interaction term
 DMatrix PartitionMu_Mass(const Basis<Mono>& minimalBasis, const DMatrix& mass,
 		const std::size_t partitions, const coeff_class partWidth) {
-	DMatrix output = DMatrix::Zero(mass.rows()*partitions, mass.cols()*partitions);
-	for (Eigen::Index row = 0; row < mass.rows(); ++row) {
-		for (Eigen::Index col = 0; col < mass.cols(); ++col) {
-			DVector integrated = MuIntegral(minimalBasis[row], 
-					minimalBasis[col], partitions, partWidth,
-                                        MAT_MASS);
-			for (std::size_t p = 0; p < partitions; ++p) {
-				output(row*partitions + p, col*partitions + p) 
-					= mass(row, col) * integrated(p);
-			}
-		}
-	}
-	return output;
+    DMatrix output = DMatrix::Zero(mass.rows()*partitions, mass.cols()*partitions);
+    for (Eigen::Index row = 0; row < mass.rows(); ++row) {
+        for (Eigen::Index col = 0; col < mass.cols(); ++col) {
+            DVector integrated = MuIntegral(minimalBasis[row], 
+                            minimalBasis[col], partitions, partWidth,
+                            MAT_MASS);
+            for (std::size_t p = 0; p < partitions; ++p) {
+                    output(row*partitions + p, col*partitions + p) 
+                            = mass(row, col) * integrated(p);
+            }
+        }
+    }
+    return output;
 }
 
 // for each monomial in the basis, create a vector with 1/sqrt(IPintegral) over
@@ -102,6 +134,25 @@ DMatrix MuPart(const Basis<Mono>& minBasis, const std::size_t partitions,
     return output;
 }
 
+// return the mu integral, summed over all partitions, for each pair of
+// monomials in the given basis
+DMatrix MuTotal(const Basis<Mono>& minBasis, const std::size_t partitions,
+        const coeff_class partWidth, const MATRIX_TYPE calculationType) {
+    DMatrix output(minBasis.size(), minBasis.size());
+    for (Eigen::Index row = 0; row < output.rows(); ++row) {
+        DVector windows = MuIntegral(minBasis[row], minBasis[row], partitions,
+                partWidth, calculationType);
+        output(row, row) = windows.sum();
+        for (Eigen::Index col = row+1; col < output.cols(); ++col) {
+            DVector windows = MuIntegral(minBasis[row], minBasis[col], 
+                    partitions, partWidth, calculationType);
+            output(row, col) = windows.sum();
+            output(col, row) = output(row, col);
+        }
+    }
+    return output;
+}
+
 // take a matrix whose columns are the polynomials expressed in terms of a 
 // minimal basis and discretize it according to the above procedure.
 //
@@ -116,18 +167,25 @@ DMatrix MuPart(const Basis<Mono>& minBasis, const std::size_t partitions,
 DMatrix DiscretizePolys(const DMatrix& polysOnMinBasis, 
         const Basis<Mono>& minBasis, const std::size_t partitions,
         const coeff_class partWidth) {
-    /**************************************************************************/
-    /* DANGER! STUFF BELOW IS WRONG! THE OFF-DIAGONAL ENTRIES ARE NOT ZERO!!! */
-    /**************************************************************************/
-    DMatrix discMinBasis = DiscretizeMonos(minBasis, partitions, partWidth);
     // expand discretized mono matrix into one that transforms polysOnMinBasis
     // (rank 2) into polysOnDiscretizedMinBasis, the rank 3 tensor above. This
     // means translating "partition p" into "partition p of monomial b".
+    //
+    // in other words: if this matrix is Y, Y_{bb'p} = MuIntegral(b, b', p)
+
     DMatrix matrixY = DMatrix::Zero(minBasis.size(), minBasis.size()*partitions);
-    for (Eigen::Index row = 0; row < discMinBasis.rows(); ++row) {
-        for (Eigen::Index col = 0; col < discMinBasis.cols(); ++col) {
-            matrixY(row, row*partitions + col) = discMinBasis(row, col);
+    for (std::size_t i = 0; i < minBasis.size(); ++i) {
+        // for (std::size_t j = 0; j < minBasis.size(); ++j) {
+            // DVector integrals = MuIntegral(minBasis[i], minBasis[j], 
+                    // partitions, partWidth, MAT_INNER);
+            // for (std::size_t part = 0; part < partitions; ++part) {
+                // matrixY(i, j*partitions + part) = integrals(part);
+            // }
+        // }
+        for (std::size_t part = 0; part < partitions; ++part) {
+            matrixY(i, i*partitions + part) = 1;
         }
     }
+
     return polysOnMinBasis * matrixY;
 }

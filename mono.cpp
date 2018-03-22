@@ -64,10 +64,11 @@ bool Mono::operator==(const Mono& other) const{
 }
 
 std::ostream& operator<<(std::ostream& os, const Mono& out){
-	if (std::abs<builtin_class>(out.coeff - 1) < EPSILON) {
-		return os << out.particles;
-	}
-	return os << out.coeff << " * " << out.particles;
+    // if (std::abs<builtin_class>(out.coeff - 1) < EPSILON) {
+        // return os << out.particles;
+    // }
+    // return os << out.coeff << " * " << out.particles;
+    return os << out.HumanReadable();
 }
 
 std::string MathematicaOutput(const Mono& out) {

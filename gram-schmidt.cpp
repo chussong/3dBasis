@@ -10,10 +10,7 @@ std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
 	// without the following stream, unifiedBasis segfaults
 	// outStream << "Normalized initial basis: " << unifiedBasis << std::endl;
 
-	// comment one or the other of these to decide which inner product to use.
-	// Ideally, we would like to use GramFock/InnerFock only
-	// DMatrix gram = GramMatrix(unifiedBasis, cache, kCache);
-	DMatrix gram = GramFock(unifiedBasis, partitions, partWidth);
+	DMatrix gram = GramFock(unifiedBasis);
 	if(gram.rows() == 0) return {};
 	
 	std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()

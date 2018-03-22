@@ -57,80 +57,94 @@ int main(int argc, char* argv[]) {
 	return EXIT_SUCCESS;
 }
 
-void ComputeBasisStates(const Arguments& args) {
-	int numP = args.numP;
-	int degree = args.degree + args.numP; // add required Dirichlet derivatives
-	int options = args.options;
+// return basis polynomials. They are NOT normalized w.r.t. partitions
+std::vector<Poly> ComputeBasisStates(const Arguments& args) {
+    int numP = args.numP;
+    int degree = args.degree + args.numP; // add required Dirichlet derivatives
+    int options = args.options;
 
-	*args.outputStream << "(*Orthogonal basis states with N=" << numP << ", L="
-		<< degree << " (including Dirichlet derivatives).*)" << std::endl;
-	
-	std::vector<Basis<Mono>> allEvenBases;
-	std::vector<Basis<Mono>> allOddBases;
-	for (int deg = numP; deg <= degree; ++deg) {
-		splitBasis<Mono> degBasis(numP, deg, options);
-		allEvenBases.push_back(degBasis.EvenBasis());
-		allOddBases.push_back(degBasis.OddBasis());
-	}
+    *args.outputStream << "(*Orthogonal basis states with N=" << numP << ", L="
+            << degree << " (including Dirichlet derivatives).*)" << std::endl;
+    
+    std::vector<Basis<Mono>> allEvenBases;
+    std::vector<Basis<Mono>> allOddBases;
+    for (int deg = numP; deg <= degree; ++deg) {
+            splitBasis<Mono> degBasis(numP, deg, options);
+            allEvenBases.push_back(degBasis.EvenBasis());
+            allOddBases.push_back(degBasis.OddBasis());
+    }
 
-	*args.outputStream << "(*EVEN STATE ORTHOGONALIZATION*)" << std::endl;
-    ComputeBasisStates_SameParity(allEvenBases, args);
+    *args.outputStream << "(*EVEN STATE ORTHOGONALIZATION*)" << std::endl;
+    std::vector<Poly> basisEven = ComputeBasisStates_SameParity(allEvenBases, args);
 
-	*args.outputStream << "(*ODD STATE ORTHOGONALIZATION*)" << std::endl;
-    ComputeBasisStates_SameParity(allOddBases, args);
+    *args.outputStream << "(*ODD STATE ORTHOGONALIZATION*)" << std::endl;
+    std::vector<Poly> basisOdd = ComputeBasisStates_SameParity(allOddBases, args);
 
-	*args.outputStream << std::endl;
+    *args.outputStream << std::endl;
+
+    basisEven.insert(basisEven.end(), basisOdd.begin(), basisOdd.end());
+    return basisEven;
 }
 
-void ComputeBasisStates_SameParity(const std::vector<Basis<Mono>>& inputBases,
-                                    const Arguments& args) {
+// return basis polynomials. They are NOT normalized w.r.t. partitions
+std::vector<Poly> ComputeBasisStates_SameParity(
+        const std::vector<Basis<Mono>>& inputBases, const Arguments& args) {
     std::ostream& outStream = *args.outputStream;
     std::vector<Poly> orthogonalized = Orthogonalize(inputBases, 
             args.partitions, args.partitionWidth, outStream);
 
-	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
-    if (outStream.rdbuf() == std::cout.rdbuf()) {
-        outStream << "Minimal basis: " << minimalBasis << std::endl;
-    } else {
-        outStream << "minimalBasis = " << MathematicaOutput(minimalBasis) 
-            << std::endl;
-    }
-	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
-	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
-		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
-				orthogonalized[i] );
-	}
+    // Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
+    // if (outStream.rdbuf() == std::cout.rdbuf()) {
+        // outStream << "Minimal basis: " << minimalBasis << std::endl;
+    // } else {
+        // outStream << "minimalBasis = " << MathematicaOutput(minimalBasis) 
+            // << std::endl;
+    // }
 
-    outStream << "(*Polynomials on this basis (as rows, not columns!):*)\n"
-        "polysOnMinBasis = " << MathematicaOutput(polysOnMinBasis.transpose()) 
-        << std::endl;
+    return orthogonalized;
 }
 
+DMatrix PolysOnMinBasis(const Basis<Mono>& minimalBasis,
+        const std::vector<Poly> orthogonalized, std::ostream& outStream) {
+    DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
+    for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
+            polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
+                            orthogonalized[i] );
+    }
+
+    // outStream << "(*Polynomials on this basis (as rows, not columns!):*)\n"
+        // "polysOnMinBasis = " << MathematicaOutput(polysOnMinBasis.transpose()) 
+        // << std::endl;
+
+    return polysOnMinBasis;
+}
+    
+
 DMatrix ComputeHamiltonian(const Arguments& args) {
-	int numP = args.numP;
-	int degree = args.degree + args.numP; // add required Dirichlet derivatives
-	int options = args.options;
+    int numP = args.numP;
+    int degree = args.degree + args.numP; // add required Dirichlet derivatives
+    int options = args.options;
 
-	*args.outputStream << "(*Matrix element test with N=" << numP << ", L="
-		<< degree << " (including Dirichlet derivatives).*)" << std::endl;
-	
-	std::vector<Basis<Mono>> allEvenBases;
-	std::vector<Basis<Mono>> allOddBases;
-	for(int deg = numP; deg <= degree; ++deg){
-		splitBasis<Mono> degBasis(numP, deg, options);
-		allEvenBases.push_back(degBasis.EvenBasis());
-		allOddBases.push_back(degBasis.OddBasis());
-	}
+    *args.outputStream << "(*Matrix element test with N=" << numP << ", L="
+            << degree << " (including Dirichlet derivatives).*)" << std::endl;
+    
+    std::vector<Basis<Mono>> allEvenBases;
+    std::vector<Basis<Mono>> allOddBases;
+    for(int deg = numP; deg <= degree; ++deg){
+            splitBasis<Mono> degBasis(numP, deg, options);
+            allEvenBases.push_back(degBasis.EvenBasis());
+            allOddBases.push_back(degBasis.OddBasis());
+    }
 
-	*args.outputStream << "(*EVEN STATE ORTHOGONALIZATION*)" << std::endl;
+    *args.outputStream << "(*EVEN STATE ORTHOGONALIZATION*)" << std::endl;
     DMatrix evenHam = ComputeHamiltonian_SameParity(allEvenBases, args);
 
-	*args.outputStream << "(*ODD STATE ORTHOGONALIZATION*)" << std::endl;
+    *args.outputStream << "(*ODD STATE ORTHOGONALIZATION*)" << std::endl;
     DMatrix oddHam  = ComputeHamiltonian_SameParity(allOddBases, args);
 
-	*args.outputStream << std::endl;
+    *args.outputStream << std::endl;
 
-	return DMatrix();
+    return DMatrix();
 }
 
 // the portion of the hamiltonian computation which assumes equal pt parity
@@ -138,42 +152,41 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
                                       const Arguments& args) {
     Timer timer;
     std::ostream& outStream = *args.outputStream;
-    std::vector<Poly> orthogonalized = Orthogonalize(inputBases, 
-            args.partitions, args.partitionWidth, outStream);
+    std::vector<Poly> orthogonalized = ComputeBasisStates_SameParity(inputBases,
+            args);
 
-	Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
+    Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
     if (outStream.rdbuf() == std::cout.rdbuf()) {
         outStream << "Minimal basis: " << minimalBasis << std::endl;
     } else {
         outStream << "minimalBasis = " << MathematicaOutput(minimalBasis) 
             << std::endl;
     }
-	DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
-	for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
-		polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
-				orthogonalized[i] );
-	}
+
+    DMatrix polysOnMinBasis = PolysOnMinBasis(minimalBasis, orthogonalized,
+            outStream);
+
     // outStream << "polysOnMinBasis:\n" << polysOnMinBasis << std::endl;
     DMatrix discPolys = DiscretizePolys(polysOnMinBasis, minimalBasis, 
             args.partitions, args.partitionWidth);
-	if (outStream.rdbuf() != std::cout.rdbuf()) {
-		outStream << "(*Polynomials on this basis (as rows, not columns!):*)\n"
-			<< "polysOnMinBasis = " 
-            << MathematicaOutput(polysOnMinBasis.transpose()) << std::endl;
+    if (outStream.rdbuf() != std::cout.rdbuf()) {
+        outStream << "(*Polynomials on this basis (as rows, not columns!):*)\n"
+                << "polysOnMinBasis = " 
+        << MathematicaOutput(polysOnMinBasis.transpose()) << std::endl;
         outStream << "(*And discretized:*)\ndiscretePolys = "
             << MathematicaOutput(discPolys.transpose()) << std::endl;
-	}
+    }
 
-	// std::cout << "Fock space inner product for confirmation; monos:" << std::endl;
-	// DMatrix gram2(GramFock(minimalBasis));
-	// DMatrix gram2BasisStates = 
-		// polysOnMinBasis.transpose() * gram2 * polysOnMinBasis;
-	// std::cout << gram2 << std::endl << "basis states:" 
-		// << std::endl << gram2BasisStates << std::endl;
+    // std::cout << "Fock space inner product for confirmation; monos:" << std::endl;
+    // DMatrix gram2(GramFock(minimalBasis));
+    // DMatrix gram2BasisStates = 
+            // polysOnMinBasis.transpose() * gram2 * polysOnMinBasis;
+    // std::cout << gram2 << std::endl << "basis states:" 
+            // << std::endl << gram2BasisStates << std::endl;
 
-	timer.Start();
-	DMatrix monoMassMatrix(MassMatrix(minimalBasis, args.partitions,
-                    args.partitionWidth));
+    timer.Start();
+    DMatrix monoMassMatrix(MassMatrix(minimalBasis, args.partitions,
+                args.partitionWidth));
     if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "minBasisMassMatrix = "
             << MathematicaOutput(monoMassMatrix) << std::endl;
@@ -182,24 +195,27 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
             << monoMassMatrix << std::endl;
     }
 
-    DMatrix discMonoMass = PartitionMu_Mass(minimalBasis, monoMassMatrix, 
-            args.partitions, args.partitionWidth);
-    if (outStream.rdbuf() != std::cout.rdbuf()) {
-        outStream << "discretizedMinBasisMass = "
-            << MathematicaOutput(discMonoMass) << std::endl;
-    } else {
-        outStream << "Here it is discretized by mu:\n"
-            << discMonoMass << std::endl;
-    }
+    // DMatrix discMonoMass = PartitionMu_Mass(minimalBasis, monoMassMatrix, 
+            // args.partitions, args.partitionWidth);
+    // if (outStream.rdbuf() != std::cout.rdbuf()) {
+        // outStream << "discretizedMinBasisMass = "
+            // << MathematicaOutput(discMonoMass) << std::endl;
+    // } else {
+        // outStream << "Here it is discretized by mu:\n"
+            // << discMonoMass << std::endl;
+    // }
 
-    DMatrix polyMassMatrix = discPolys*discMonoMass*discPolys.transpose();
+    DMatrix polyMassMatrix = polysOnMinBasis*monoMassMatrix*polysOnMinBasis.transpose();
     if (outStream.rdbuf() != std::cout.rdbuf()) {
-            outStream << "basisStateMassMatrix = "
-                    << MathematicaOutput(polyMassMatrix) << std::endl;
+        outStream << "basisStateMassMatrix = "
+                << MathematicaOutput(polyMassMatrix) << std::endl;
     } else {
-            outStream << "Computed this mass matrix from the basis in " 
-                    << timer.TimeElapsedInWords() << ", getting this matrix:\n"
-                    << polyMassMatrix << std::endl;
+        outStream << "Computed a mass matrix for the basis in " 
+                << timer.TimeElapsedInWords() << ", getting this:\n"
+                << polyMassMatrix << std::endl;
+        EigenSolver solver(polyMassMatrix.cast<builtin_class>());
+        outStream << "Here are the eigenvalues:\n" << solver.eigenvalues()
+            << std::endl;
     }
 
     return DMatrix();

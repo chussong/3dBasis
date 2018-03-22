@@ -24,11 +24,15 @@ DVector MuIntegral(const Mono& A, const Mono& B, const std::size_t partitions,
         const coeff_class partitionWidth, const MATRIX_TYPE calculationType);
 DVector MuIntegral_Body(const char muExp, const std::size_t partitions,
                 const coeff_class partitionWidth);
+coeff_class MuNorm(const Mono& A, const std::size_t k, 
+        const coeff_class partWidth);
 DMatrix PartitionMu_Mass(const Basis<Mono>& minimalBasis, const DMatrix& mass,
 		const std::size_t partitions, const coeff_class partWidth);
 
 DMatrix MuPart(const Basis<Mono>& minBasis, const std::size_t partitions, 
         const coeff_class partWidth, MATRIX_TYPE calculationType);
+DMatrix MuTotal(const Basis<Mono>& minBasis, const std::size_t partitions,
+        const coeff_class partWidth, const MATRIX_TYPE calculationType);
 
 DMatrix DiscretizeMonos(const Basis<Mono>& minBasis, 
         const std::size_t partitions, const coeff_class partWidth);
