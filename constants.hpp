@@ -88,13 +88,13 @@ constexpr coeff_class EPSILON = 1e-8;
 constexpr unsigned int MAX_THREADS = 8u;
 
 struct Arguments {
-	int numP = -1;
-	int degree = -1;
-	coeff_class delta = 0;
-	int options = 0;
-	std::ostream* outputStream = &std::cout;
-	std::size_t partitions = 4; // \mu partitions per operator pair
-	coeff_class partitionWidth = 0.25;
+    int numP = -1;
+    int degree = -1;
+    coeff_class delta = 0;
+    int options = 0;
+    std::ostream* outputStream = &std::cout;
+    std::size_t partitions = 4; // \mu partitions per operator pair
+    coeff_class partitionWidth = 0.25;
 };
 
 struct particle {

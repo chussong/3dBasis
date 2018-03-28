@@ -15,6 +15,25 @@ bool RunAllTests() {
     result &= MatrixInternal::PermuteXY();
     result &= MatrixInternal::InteractionTermsFromXY();
     result &= MatrixInternal::CombineInteractionFs();
+    result &= RIntegral();
+
+    int numP = 3;
+    int degree = 7;
+    std::size_t partitions = 4;
+    coeff_class partWidth = 0.5;
+    std::vector<Basis<Mono>> allEvenBases;
+    std::vector<Basis<Mono>> allOddBases;
+    for (int deg = numP; deg <= degree; ++deg) {
+            splitBasis<Mono> degBasis(numP, deg, 0);
+            allEvenBases.push_back(degBasis.EvenBasis());
+            allOddBases.push_back(degBasis.OddBasis());
+    }
+    std::vector<Poly> evenStates = ::Orthogonalize(allEvenBases, 
+            partitions, partWidth, std::cout);
+    std::vector<Poly> oddStates = ::Orthogonalize(allOddBases, 
+            partitions, partWidth, std::cout);
+    Basis<Mono> minBasis = ::MinimalBasis(evenStates);
+    result &= Test::InteractionMatrix(minBasis, partitions, partWidth);
 
     return result;
 }
@@ -116,4 +135,29 @@ bool CombineInteractionFs() {
 }
 
 } // namespace MatrixInternal
+
+bool RIntegral() {
+    std::cout << "----- ::RIntegral -----" << std::endl;
+    for (coeff_class a = 1; a < 5; ++a) {
+        for (coeff_class b = 1; b < 5; ++b) {
+            for (coeff_class c = 1; c < 5; ++c) {
+                for (coeff_class alpha = 0.125; alpha <= 1.0; alpha += 0.125) {
+                    std::cout << std::vector<coeff_class>{a, b, c, alpha}
+                        << " = " << ::RIntegral(a, b, c, alpha) << std::endl;
+                }
+            }
+        }
+    }
+    std::cout << "----- PASSED -----" << std::endl;
+    return true;
+}
+
+bool InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions,
+        const coeff_class partWidth) {
+    std::cout << "----- ::InteractionMatrix -----" << std::endl;
+    std::cout << ::InteractionMatrix(basis, partitions, partWidth) << std::endl;
+    std::cout << "----- PASSED -----" << std::endl;
+    return true;
+}
+
 } // namespace Test

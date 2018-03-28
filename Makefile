@@ -46,7 +46,7 @@ discretization.o: discretization.cpp discretization.hpp constants.hpp mono.hpp \
 	basis.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-test.o: test.cpp test.hpp io.hpp
+test.o: test.cpp test.hpp io.hpp discretization.hpp matrix.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 clean:

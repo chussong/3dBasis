@@ -153,6 +153,173 @@ DMatrix MuTotal(const Basis<Mono>& minBasis, const std::size_t partitions,
     return output;
 }
 
+void InteractionCache::SetPartitions(const std::size_t partitions, 
+        const coeff_class partWidth) {
+    this->partitions = partitions;
+    this->partWidth = partWidth;
+}
+
+bool InteractionCache::HasPartitions(const std::size_t partitions,
+        const coeff_class partWidth) {
+    return (partitions == this->partitions && partWidth == this->partWidth);
+}
+
+void InteractionCache::Emplace(const std::array<char,3>& key, 
+        const coeff_class value) {
+    cache.emplace(key, value);
+}
+
+bool InteractionCache::Contains(const std::array<char,3>& key) {
+    return (cache.count(key) != 0);
+}
+
+const coeff_class& InteractionCache::operator[](const std::array<char,3>& key)
+    const {
+    return cache.at(key);
+}
+
+void InteractionCache::Clear() {
+    cache.clear();
+}
+
+namespace {
+    InteractionCache intCache;
+} // anonymous namespace
+
+// Interestingly, there appears to be an analytic answer to this: (-1)^a \pi
+// ( (2 b! pFq({0.5, 0.5+a, -c}, {1.5, 1.5+a+b}, 1)) +
+// (c! Gamma[a] Gamma[1.5+a+b] pFq_reg({a, 0.5+a, -b}, {1+a, 1.5+a+c}, 1)) )
+// / (4 Gamma[0.5-a] Gamma[1.5+a+b])
+// NOTE: the a,b,c given above are the exponents of r^2, 1-r^2, 1-(ar)^2,
+// so they're half of the entries of the r array
+//
+// the analytic answer has a couple of interesting properties: first, for 
+// half-integer a, it's 0 due to the gamma function in the denominator, but most
+// importantly both of those pFq functions are just finite polynomials due to
+// the negative integers in the p lists
+coeff_class InteractionMu(const std::array<char,3> r, 
+        const std::size_t partitions, const coeff_class partWidth) {
+    if (!intCache.Contains(r)) {
+        // for trapezoid rule, need values at exterior points without "*2",
+        // meaning, values at alpha = 0 and alpha = inf
+        coeff_class sum = 0;
+        for (std::size_t winA = 0; winA <= partitions; ++winA) {
+            sum += RIntegral(r[0], r[1], r[2], 1);
+            for (std::size_t winB = winA+1; winB < partitions; ++winB) {
+                coeff_class alpha = (winA*partWidth) / (winB*partWidth);
+
+                sum += RIntegral(r[0], r[1], r[2], alpha);
+                // Below is the contribution from (winA, winB) <-> (winB, winA);
+                // this relation appears to be valid in general, irrespective of
+                // the min(1/a, 1) in the upper bound of the integral. That is,
+                // I(a, b, c, 1/alpha) = alpha^(2a+1) I(a, c, b, alpha)
+                sum += std::pow<builtin_class>(alpha, 2*r[0]+1)
+                    * RIntegral(r[0], r[2], r[1], alpha);
+            }
+        }
+        intCache.Emplace(r, partWidth*sum);
+    }
+
+    return intCache[r];
+}
+
+// r integral if \alpha < 1; {a, b, c} are the respective exponents of 
+// {r^2, 1 - r^2, 1 - \alpha^2 r^2}
+//
+// WARNING: IF ALPHA > 1, THIS IS WRONG; THIS MAY LEAD TO TROUBLE WITH THE UPPER
+// BOUND OF THE INTEGRAL BEING MIN(1/ALPHA, 1)
+//
+// FIXME: IT SEEMS THERE IS ACTUALLY AN ANALYTIC ANSWER FOR THE INTEGRAL OF THIS
+// BETWEEN x1 AND x2; IT'S A COUPLE OF pFq FUNCTIONS WHICH ARE A FINITE-DEGREE
+// POLYNOMIAL. SHOULD USE THAT INSTEAD OF AVERAGING THIS
+coeff_class RIntegral(const char twoA, const char twoB, const char twoC, 
+        const coeff_class alpha) {
+    coeff_class a = static_cast<coeff_class>(twoA)/2;
+    coeff_class b = static_cast<coeff_class>(twoB)/2;
+    coeff_class c = static_cast<coeff_class>(twoC)/2;
+    coeff_class logOutput = (2*c)*std::log<builtin_class>(alpha).real();
+    logOutput += std::lgamma(static_cast<builtin_class>(0.5 + a + c));
+    logOutput += std::lgamma(static_cast<builtin_class>(1.0 + b));
+    logOutput -= std::lgamma(static_cast<builtin_class>(1.5 + a + b + c));
+    coeff_class output = std::exp<builtin_class>(logOutput).real()/2;
+    if (twoC%2 == 1) output = -output;
+
+    // gsl_sf_result hyper;
+    // int errorCode = gsl_sf_hyperg_2F1_e(-b, -0.5-a-b-c, 0.5-a-b, alpha*alpha, &hyper);
+    // if (errorCode != 0) {
+        // std::cerr << "Error in RIntegral->gsl_sf_hyperg_2F1\n";
+        // errorCode = gsl_sf_hyperg_2F1_renorm_e(-b, -0.5-a-b-c, 0.5-a-b, alpha*alpha, &hyper);
+        // if (errorCode != 0) {
+            // std::cerr << "Renormalized one returned error too: " 
+                // << gsl_strerror(errorCode) << std::endl;
+        // }
+    // }
+    // return output*(hyper.val);
+
+    return output*Hypergeometric2F1(-c, -0.5-a-b-c, 0.5-a-c, 1/(alpha*alpha));
+}
+
+// ------------------------- TEMPORARY, JUST FOR TESTING ----------------------
+// this is hyperg_2F1_series from GSL, copied here because it has static linkage
+coeff_class Hypergeometric2F1(const coeff_class a, const coeff_class b,
+        const coeff_class c, const coeff_class x) {
+    coeff_class sum_pos = 1.0;
+    coeff_class sum_neg = 0.0;
+    coeff_class del_pos = 1.0;
+    coeff_class del_neg = 0.0;
+    coeff_class del = 1.0;
+    coeff_class del_prev;
+    coeff_class k = 0.0;
+    int i = 0;
+
+    coeff_class result;
+
+    if(std::abs<builtin_class>(c) < EPSILON) {
+        GSL_ERROR ("c singularity", GSL_EDOM);
+    }
+
+    do {
+        if(++i > 30000) {
+            result = sum_pos - sum_neg;
+            GSL_ERROR ("didn't converge", GSL_EMAXITER);
+        }
+        del_prev = del;
+        del *= (a+k)*(b+k) * x / ((c+k) * (k+1.0));  /* Gauss series */
+
+        if(del > 0.0) {
+            del_pos  =  del;
+            sum_pos +=  del;
+        }
+        else if(del == 0.0) {
+            /* Exact termination (a or b was a negative integer).
+            */
+            del_pos = 0.0;
+            del_neg = 0.0;
+            break;
+        }
+        else {
+            del_neg  = -del;
+            sum_neg -=  del;
+        }
+
+        /*
+         * This stopping criteria is taken from the thesis
+         * "Computation of Hypergeometic Functions" by J. Pearson, pg. 31
+         * (http://people.maths.ox.ac.uk/porterm/research/pearson_final.pdf)
+         * and fixes bug #45926
+         */
+        if (std::abs<builtin_class>(del_prev / (sum_pos - sum_neg)) < EPSILON &&
+            std::abs<builtin_class>(del / (sum_pos - sum_neg)) < EPSILON)
+            break;
+
+        k += 1.0;
+    } while(std::abs<builtin_class>((del_pos + del_neg)/(sum_pos-sum_neg)) > EPSILON);
+
+    result = sum_pos - sum_neg;
+
+    return result;
+}
+
 // take a matrix whose columns are the polynomials expressed in terms of a 
 // minimal basis and discretize it according to the above procedure.
 //

@@ -42,51 +42,52 @@ using ::operator<<;
 // the main point of this header
 DMatrix Matrix(const Basis<Mono>& basis, const std::size_t partitions, 
         const coeff_class partWidth, const MATRIX_TYPE type);
-coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type);
+coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type,
+        const std::size_t partitions, const coeff_class partWidth);
 
 // five structs used in the coordinate transformations for MatrixTerm
 
 struct YTerm {
-	coeff_class coeff;
-	std::string y;
+    coeff_class coeff;
+    std::string y;
 
-	YTerm() = delete;
-	YTerm(const coeff_class coeff, const std::string& y, 
-			const std::string& nAndm);
-	
-	char operator[](std::size_t i) const { return y[i]; }
-	std::size_t size() const { return y.size(); }
+    YTerm() = delete;
+    YTerm(const coeff_class coeff, const std::string& y, 
+            const std::string& nAndm);
+    
+    char operator[](std::size_t i) const { return y[i]; }
+    std::size_t size() const { return y.size(); }
 };
 std::ostream& operator<<(std::ostream& os, const YTerm& out);
 
 struct MatrixTerm_Intermediate {
-	coeff_class coefficient = 1;
-	std::vector<char> uPlus;
-	std::vector<char> uMinus;
-	std::vector<char> yTilde;
+    coeff_class coefficient = 1;
+    std::vector<char> uPlus;
+    std::vector<char> uMinus;
+    std::vector<char> yTilde;
 
-	MatrixTerm_Intermediate() = default;
-	explicit MatrixTerm_Intermediate(const size_t n);
-	void Resize(const size_t n);
+    MatrixTerm_Intermediate() = default;
+    explicit MatrixTerm_Intermediate(const size_t n);
+    void Resize(const size_t n);
 };
 MatrixTerm_Intermediate operator*(const MatrixTerm_Intermediate& A,
 			MatrixTerm_Intermediate B);
 std::ostream& operator<<(std::ostream& os, const MatrixTerm_Intermediate& out);
 
 struct MatrixTerm_Final {
-	coeff_class coefficient = 1;
-	std::vector<char> uPlus;
-	std::vector<char> uMinus;
-	std::vector<char> sinTheta;
-	std::vector<char> cosTheta;
+    coeff_class coefficient = 1;
+    std::vector<char> uPlus;
+    std::vector<char> uMinus;
+    std::vector<char> sinTheta;
+    std::vector<char> cosTheta;
 
-	MatrixTerm_Final() = default;
-	explicit MatrixTerm_Final(const size_t n);
-	// maybe should be rvalue references instead? hopefully it compiles the same
-	MatrixTerm_Final(const coeff_class coefficient, 
-			const std::vector<char>& uPlus, const std::vector<char>& uMinus, 
-			const std::vector<char>& sinTheta, const std::vector<char>& cosTheta);
-	void Resize(const size_t n);
+    MatrixTerm_Final() = default;
+    explicit MatrixTerm_Final(const size_t n);
+    // maybe should be rvalue references instead? hopefully it compiles the same
+    MatrixTerm_Final(const coeff_class coefficient, 
+                    const std::vector<char>& uPlus, const std::vector<char>& uMinus, 
+                    const std::vector<char>& sinTheta, const std::vector<char>& cosTheta);
+    void Resize(const size_t n);
 };
 
 struct InteractionTerm_Step2 {
@@ -119,15 +120,7 @@ std::vector<InteractionTerm_Output> MatrixTerm_Inter(
         const Mono& A, const Mono& B, const MATRIX_TYPE type);
 
 // coordinate transform functions, called from MatrixTerm
-std::vector<MatrixTerm_Final> MatrixTermsFromMono(const Mono& input);
-std::vector<MatrixTerm_Final> MatrixTermsFromMono_Permuted(const Mono& input,
-		const std::vector<std::size_t>& permutationVector);
-std::vector<MatrixTerm_Final> MatrixTermsFromXandY(
-		const std::array<std::string,2>& xAndy, const int nParticles);
 std::array<std::string,2> ExtractXY(const Mono& extractFromThis);
-std::array<std::string,2> PermuteXandY(
-		const std::array<std::string,2>& xAndy,
-		const std::vector<std::size_t>& permutationVector);
 bool PermuteXY(std::string& xAndy);
 std::array<std::string,2> CombineXandY(const std::array<std::string,2>& xAndy_A,
 		std::array<std::string,2> xAndy_B);
@@ -155,6 +148,7 @@ coeff_class YTildeCoefficient(const char a, const char l,
 // functions specific to DIRECT computations
 std::vector<char> AddVectors(const std::vector<char>& A, 
 		const std::vector<char>& B);
+const std::vector<MatrixTerm_Final>& DirectTermsFromXY(const std::string& xAndy);
 std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& F1,
 		const std::vector<MatrixTerm_Final>& F2);
 /*std::vector<char> AddVectors(const std::vector<char>& A, 

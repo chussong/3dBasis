@@ -11,6 +11,7 @@
 #include <utility>		// std::pair
 #include <algorithm>	// std::remove_if
 #include <type_traits>	// std::is_same
+#include <gsl/gsl_errno.h>  // handling for GSL errors
 
 constexpr char VERSION[] = "0.9.2";
 constexpr char RELEASE_DATE[] = __DATE__;
@@ -32,6 +33,9 @@ constexpr char RELEASE_DATE[] = __DATE__;
 
 Arguments ParseArguments(int argc, char* argv[]);
 int ParseOptions(std::vector<std::string> options);
+void GSLErrorHandler(const char* reason, const char* file, int line, int err);
+
+// actual computations --------------------------------------------------------
 
 std::vector<Poly> ComputeBasisStates(const Arguments& args);
 std::vector<Poly> ComputeBasisStates_SameParity(

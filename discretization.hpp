@@ -3,6 +3,11 @@
 
 #include <vector>
 #include <cmath>
+#include <unordered_map>
+
+#include <boost/functional/hash.hpp>
+#include <gsl/gsl_sf_hyperg.h>
+#include <gsl/gsl_errno.h>
 
 #include "constants.hpp"
 #include "mono.hpp"
@@ -19,6 +24,24 @@
 // where f(\mu) is a function which differs for different Hamiltonian terms. For
 // the kinetic term, it's the identity, whereas for the mass term it's \mu^2
 
+class InteractionCache {
+    std::size_t partitions;
+    coeff_class partWidth;
+    std::unordered_map< std::array<char,3>, coeff_class, 
+        boost::hash<std::array<char,3>> > cache;
+
+    public:
+        void SetPartitions(const std::size_t partitions, 
+                const coeff_class partWidth);
+        bool HasPartitions(const std::size_t partitions,
+                const coeff_class partWidth);
+
+        void Emplace(const std::array<char,3>& key, const coeff_class value);
+        bool Contains(const std::array<char,3>& key);
+        const coeff_class& operator[](const std::array<char,3>& key) const;
+        void Clear();
+};
+
 char MuExponent(const Mono& A, const Mono& B);
 DVector MuIntegral(const Mono& A, const Mono& B, const std::size_t partitions,
         const coeff_class partitionWidth, const MATRIX_TYPE calculationType);
@@ -33,6 +56,13 @@ DMatrix MuPart(const Basis<Mono>& minBasis, const std::size_t partitions,
         const coeff_class partWidth, MATRIX_TYPE calculationType);
 DMatrix MuTotal(const Basis<Mono>& minBasis, const std::size_t partitions,
         const coeff_class partWidth, const MATRIX_TYPE calculationType);
+
+coeff_class InteractionMu(const std::array<char,3> r, 
+        const std::size_t partitions, const coeff_class partWidth);
+coeff_class RIntegral(const char a, const char b, const char c, 
+        const coeff_class alpha);
+coeff_class Hypergeometric2F1(const coeff_class a, const coeff_class b,
+        const coeff_class c, const coeff_class x);
 
 DMatrix DiscretizeMonos(const Basis<Mono>& minBasis, 
         const std::size_t partitions, const coeff_class partWidth);
