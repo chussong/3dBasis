@@ -52,8 +52,10 @@ coeff_class MuNorm(const Mono& A, const std::size_t k,
 DMatrix PartitionMu_Mass(const Basis<Mono>& minimalBasis, const DMatrix& mass,
 		const std::size_t partitions, const coeff_class partWidth);
 
-DMatrix MuPart(const Basis<Mono>& minBasis, const std::size_t partitions, 
-        const coeff_class partWidth, MATRIX_TYPE calculationType);
+DMatrix MuPart(const Mono& A, const Mono& B, const std::size_t partitions, 
+        const coeff_class partWidth, const MATRIX_TYPE type);
+DMatrix MuPart_Kinetic(const std::size_t partitions, 
+        const coeff_class partWidth);
 DMatrix MuTotal(const Basis<Mono>& minBasis, const std::size_t partitions,
         const coeff_class partWidth, const MATRIX_TYPE calculationType);
 
@@ -67,7 +69,6 @@ coeff_class Hypergeometric2F1(const coeff_class a, const coeff_class b,
 DMatrix DiscretizeMonos(const Basis<Mono>& minBasis, 
         const std::size_t partitions, const coeff_class partWidth);
 DMatrix DiscretizePolys(const DMatrix& polysOnMinBasis, 
-        const Basis<Mono>& minBasis, const std::size_t partitions,
-        const coeff_class partWidth);
+        const std::size_t partitions);
 
 #endif

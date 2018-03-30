@@ -28,6 +28,8 @@ DMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions,
         const coeff_class partWidth);
 DMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
         const coeff_class partWidth);
+DMatrix KineticMatrix(const Basis<Mono>& basis, const std::size_t partitions,
+        const coeff_class partWidth);
 DMatrix InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
         const coeff_class partWidth);
 
@@ -146,15 +148,9 @@ coeff_class YTildeCoefficient(const char a, const char l,
 		//const std::vector<char>& mVector);
 
 // functions specific to DIRECT computations
-std::vector<char> AddVectors(const std::vector<char>& A, 
-		const std::vector<char>& B);
 const std::vector<MatrixTerm_Final>& DirectTermsFromXY(const std::string& xAndy);
 std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& F1,
 		const std::vector<MatrixTerm_Final>& F2);
-/*std::vector<char> AddVectors(const std::vector<char>& A, 
-		std::vector<char> B, const std::vector<std::size_t>& permVector);
-std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& F1,
-		const std::vector<MatrixTerm_Final>& F2, std::vector<std::size_t>& perm);*/
 coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
 		const MATRIX_TYPE type);
 

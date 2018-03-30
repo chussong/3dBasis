@@ -169,8 +169,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
             outStream);
 
     // outStream << "polysOnMinBasis:\n" << polysOnMinBasis << std::endl;
-    DMatrix discPolys = DiscretizePolys(polysOnMinBasis, minimalBasis, 
-            args.partitions, args.partitionWidth);
+    DMatrix discPolys = DiscretizePolys(polysOnMinBasis, args.partitions);
     if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "(*Polynomials on this basis (as rows, not columns!):*)\n"
                 << "polysOnMinBasis = " 
@@ -207,7 +206,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
             // << discMonoMass << std::endl;
     // }
 
-    DMatrix polyMassMatrix = polysOnMinBasis*monoMassMatrix*polysOnMinBasis.transpose();
+    DMatrix polyMassMatrix = discPolys.transpose()*monoMassMatrix*discPolys;
     if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "basisStateMassMatrix = "
                 << MathematicaOutput(polyMassMatrix) << std::endl;
@@ -220,7 +219,44 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
             << std::endl;
     }
 
-    return DMatrix();
+    DMatrix monoKineticMatrix(KineticMatrix(minimalBasis, args.partitions,
+                args.partitionWidth));
+    if (outStream.rdbuf() != std::cout.rdbuf()) {
+        outStream << "minBasisKineticMatrix = "
+            << MathematicaOutput(monoKineticMatrix) << std::endl;
+    } else {
+        outStream << "Here is the monomial kinetic matrix we computed:\n"
+            << monoKineticMatrix << std::endl;
+    }
+
+    DMatrix polyKineticMatrix = discPolys.transpose()*monoKineticMatrix*discPolys;
+    if (outStream.rdbuf() != std::cout.rdbuf()) {
+        outStream << "basisStateKineticMatrix = "
+                << MathematicaOutput(polyKineticMatrix) << std::endl;
+    } else {
+        outStream << "Computed a kinetic matrix for the basis in " 
+                << timer.TimeElapsedInWords() << ", getting this:\n"
+                << polyKineticMatrix << std::endl;
+        EigenSolver solver(polyKineticMatrix.cast<builtin_class>());
+        outStream << "Here are the eigenvalues:\n" << solver.eigenvalues()
+            << std::endl;
+    }
+
+    DMatrix hamiltonian = polyMassMatrix + polyKineticMatrix;
+    if (outStream.rdbuf() != std::cout.rdbuf()) {
+        outStream << "hamiltonian = "
+                << MathematicaOutput(hamiltonian) << std::endl;
+    } else {
+        outStream << "Computed a Hamiltonian matrix for the basis in " 
+                << timer.TimeElapsedInWords() << ", getting this:\n"
+                << hamiltonian << std::endl;
+        EigenSolver solver(hamiltonian.cast<builtin_class>());
+        outStream << "Here are the eigenvalues:\n" << solver.eigenvalues()
+            << std::endl;
+    }
+
+
+    return hamiltonian;
 }
 
 Arguments ParseArguments(int argc, char* argv[]) {

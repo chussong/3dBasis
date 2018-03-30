@@ -98,18 +98,18 @@ struct Arguments {
 };
 
 struct particle {
-	char pm;	// P_-
-	char pt; // P_\perp
+    char pm;	// P_-
+    char pt; // P_\perp
 
-	bool operator==(const particle& other) const;
-	bool operator!=(const particle& other) const { return !(*this == other); }
+    bool operator==(const particle& other) const;
+    bool operator!=(const particle& other) const { return !(*this == other); }
 };
 
 enum options { OPT_BRUTE = 1 << 0, OPT_VERSION = 1 << 1, OPT_DEBUG = 1 << 2,
-				OPT_PARITYONLY = 1 << 3, OPT_EQNMOTION = 1 << 4,
-				OPT_MSORTING = 1 << 5, OPT_DIRICHLET = 1 << 6,
-				OPT_OUTPUT = 1 << 7, OPT_IPTEST = 1 << 8, OPT_ALLMINUS = 1 << 9,
-				OPT_MULTINOMTEST = 1 << 10, OPT_TEST = 1 << 11,
+                OPT_PARITYONLY = 1 << 3, OPT_EQNMOTION = 1 << 4,
+                OPT_MSORTING = 1 << 5, OPT_DIRICHLET = 1 << 6,
+                OPT_OUTPUT = 1 << 7, OPT_IPTEST = 1 << 8, OPT_ALLMINUS = 1 << 9,
+                OPT_MULTINOMTEST = 1 << 10, OPT_TEST = 1 << 11,
                 OPT_STATESONLY = 1 << 12 };
 
 enum MATRIX_TYPE { MAT_KINETIC, MAT_INNER, MAT_MASS, MAT_INTER_SAME_N, 
@@ -120,15 +120,15 @@ enum MATRIX_TYPE { MAT_KINETIC, MAT_INNER, MAT_MASS, MAT_INTER_SAME_N,
 /******************************************************************************/
 
 constexpr coeff_class Pochhammer(const coeff_class A, const int n) {
-	coeff_class ret = 1;
-	for(int i = 0; i < n; ++i){
-		ret *= A + i;
-	}
-	return ret;
+    coeff_class ret = 1;
+    for(int i = 0; i < n; ++i){
+        ret *= A + i;
+    }
+    return ret;
 }
 
 constexpr coeff_class Factorial(const int n) {
-	return Pochhammer(1, n);
+    return Pochhammer(1, n);
 }
 
 // this would be constexpr instead of inline if the cmath functions were 
@@ -145,12 +145,25 @@ constexpr coeff_class Factorial(const int n) {
 
 // return total size of a vector of containers
 template<class T>
-inline size_t TotalSize(const std::vector<T>& vectorOfContainers) {
-	size_t totalSize = 0;
-	for(const T& element : vectorOfContainers){
-		totalSize += element.size();
-	}
-	return totalSize;
+inline std::size_t TotalSize(const std::vector<T>& vectorOfContainers) {
+    std::size_t totalSize = 0;
+    for(const T& element : vectorOfContainers){
+        totalSize += element.size();
+    }
+    return totalSize;
+}
+
+// return the vector sum of A and B
+template<typename T>
+std::vector<T> AddVectors(const std::vector<T>& A, const std::vector<T>& B) {
+    const std::vector<T>* aP = &A;
+    const std::vector<T>* bP = &B;
+    if (A.size() < B.size()) std::swap(aP, bP);
+    std::vector<T> output(*aP);
+    for (typename std::vector<T>::size_type i = 0; i < bP->size(); ++i) {
+        output[i] += (*bP)[i];
+    }
+    return output;
 }
 
 #endif

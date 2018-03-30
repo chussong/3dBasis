@@ -113,23 +113,27 @@ DMatrix DiscretizeMonos(const Basis<Mono>& minBasis,
     return output;
 }
 
-// same as above, except instead of a rank 2 tensor giving "integral over
-// partition p" it's a rank 3 tensor giving "integral with monomial b over
-// partition p"
-DMatrix MuPart(const Basis<Mono>& minBasis, const std::size_t partitions, 
-        const coeff_class partWidth, MATRIX_TYPE calculationType) {
-    // expand discretized mono matrix into one that transforms polysOnMinBasis
-    // (rank 2) into polysOnDiscretizedMinBasis, the rank 3 tensor above. This
-    // means translating "partition p" into "partition p of monomial b".
-    DMatrix output(minBasis.size(), minBasis.size()*partitions);
-    for (std::size_t monoA = 0; monoA < minBasis.size(); ++monoA) {
-        for (std::size_t monoB = 0; monoB < minBasis.size(); ++monoB) {
-            DVector integral = MuIntegral(minBasis[monoA], minBasis[monoB], 
-                    partitions, partWidth, calculationType);
-            for (std::size_t part = 0; part < partitions; ++part) {
-                output(monoA, monoB*partitions + part) = integral(part);
-            }
-        }
+// given monomials A and B, give the PxP tensor representing block A,B of the
+// specified matrix
+DMatrix MuPart(const Mono& A, const Mono& B, const std::size_t partitions, 
+        const coeff_class partWidth, const MATRIX_TYPE type) {
+    if (type == MAT_INNER || type == MAT_MASS) {
+        return DMatrix::Identity(partitions, partitions);
+    } else if (type == MAT_KINETIC) {
+        return MuPart_Kinetic(partitions, partWidth);
+    } else {
+        std::cerr << "Error: the requested MuPart type has not yet been "
+            << "implemented." << std::endl;
+        throw std::logic_error("MuPart: type not implemented");
+    }
+}
+
+DMatrix MuPart_Kinetic(const std::size_t partitions, 
+        const coeff_class partWidth) {
+    DMatrix output = DMatrix::Zero(partitions, partitions);
+    for (std::size_t k = 0; k < partitions; ++k) {
+        output(k, k) = partWidth*partWidth;
+        output(k, k) *= (k*k + (k+1)*(k+1))/2;
     }
     return output;
 }
@@ -320,39 +324,21 @@ coeff_class Hypergeometric2F1(const coeff_class a, const coeff_class b,
     return result;
 }
 
-// take a matrix whose columns are the polynomials expressed in terms of a 
-// minimal basis and discretize it according to the above procedure.
-//
-// each basis state is S_{i,p} = [\sum_b X_{ib} Y_{bp} M_{bp}], where X is 
-// polysOnMinBasis, Y is the matrix from DiscretizeMonos (discMinBasis), 
-// and M is minBasis split into partitions
-//
-// the matrix returned from this is effectively the rank 3 tensor S_{ibp},
-// because the column index corresponds to j = P*b + p, where P is the total
-// number of partitions. This means we should contract it with a rank 2 tensor
-// M_{bp} in order to get a vector of S_i
+// Take a non-discretized polysOnMinBasis matrix and return one that expresses
+// the k'th slice of each polynomial in terms of the k'th slices of its 
+// constituent monomials
 DMatrix DiscretizePolys(const DMatrix& polysOnMinBasis, 
-        const Basis<Mono>& minBasis, const std::size_t partitions,
-        const coeff_class partWidth) {
-    // expand discretized mono matrix into one that transforms polysOnMinBasis
-    // (rank 2) into polysOnDiscretizedMinBasis, the rank 3 tensor above. This
-    // means translating "partition p" into "partition p of monomial b".
-    //
-    // in other words: if this matrix is Y, Y_{bb'p} = MuIntegral(b, b', p)
+        const std::size_t partitions) {
+    if (partitions == 0) return polysOnMinBasis;
 
-    DMatrix matrixY = DMatrix::Zero(minBasis.size(), minBasis.size()*partitions);
-    for (std::size_t i = 0; i < minBasis.size(); ++i) {
-        // for (std::size_t j = 0; j < minBasis.size(); ++j) {
-            // DVector integrals = MuIntegral(minBasis[i], minBasis[j], 
-                    // partitions, partWidth, MAT_INNER);
-            // for (std::size_t part = 0; part < partitions; ++part) {
-                // matrixY(i, j*partitions + part) = integrals(part);
-            // }
-        // }
-        for (std::size_t part = 0; part < partitions; ++part) {
-            matrixY(i, i*partitions + part) = 1;
+    DMatrix output(polysOnMinBasis.rows()*partitions,
+            polysOnMinBasis.cols()*partitions);
+    for (Eigen::Index i = 0; i < polysOnMinBasis.rows(); ++i) {
+        for (Eigen::Index j = 0; j < polysOnMinBasis.cols(); ++j) {
+            output.block(i*partitions, j*partitions, partitions, partitions) = 
+                polysOnMinBasis(i, j)*DMatrix::Identity(partitions, partitions);
         }
     }
 
-    return polysOnMinBasis * matrixY;
+    return output;
 }
