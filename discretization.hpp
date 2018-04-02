@@ -13,21 +13,27 @@
 #include "mono.hpp"
 #include "basis.hpp"
 
-// takes a vector of polynomial states and expands each one into many states 
-// with \mu integrated over a small window
-
-// steps:
-// 1. determine spectral density \rho(\mu), which is the square inner product of
-// O with all \mu_i for which \mu_i^2 == \mu^2. It should be a polynomial in \mu
-// normalized so that it gives 1 when integrated over any single \mu window
-// 2. each operator given expands into a block of \int d\mu^2 \rho(\mu) f(\mu) O
-// where f(\mu) is a function which differs for different Hamiltonian terms. For
-// the kinetic term, it's the identity, whereas for the mass term it's \mu^2
+// struct DiscMono {
+    // const Mono& mono;
+    // const std::size_t slice;
+// 
+    // DiscMono(const Mono& mono, const std::size_t k): mono(mono), slice(k) {}
+// };
+// 
+// class DiscBasis {
+    // Basis<Mono> basis;
+    // std::size_t partitions;
+// 
+    // public:
+        // DiscMono operator()(const std::size_t m, const std::size_t k) {
+            // return DiscMono(basis[m], k);
+        // }
+// };
 
 class InteractionCache {
     std::size_t partitions;
     coeff_class partWidth;
-    std::unordered_map< std::array<char,3>, coeff_class, 
+    std::unordered_map< std::array<char,3>, DMatrix, 
         boost::hash<std::array<char,3>> > cache;
 
     public:
@@ -36,9 +42,9 @@ class InteractionCache {
         bool HasPartitions(const std::size_t partitions,
                 const coeff_class partWidth);
 
-        void Emplace(const std::array<char,3>& key, const coeff_class value);
+        void Emplace(const std::array<char,3>& key, DMatrix value);
         bool Contains(const std::array<char,3>& key);
-        const coeff_class& operator[](const std::array<char,3>& key) const;
+        const DMatrix& operator[](const std::array<char,3>& key) const;
         void Clear();
 };
 
@@ -59,7 +65,7 @@ DMatrix MuPart_Kinetic(const std::size_t partitions,
 DMatrix MuTotal(const Basis<Mono>& minBasis, const std::size_t partitions,
         const coeff_class partWidth, const MATRIX_TYPE calculationType);
 
-coeff_class InteractionMu(const std::array<char,3> r, 
+DMatrix InteractionMu(const std::array<char,3> r, 
         const std::size_t partitions, const coeff_class partWidth);
 coeff_class RIntegral(const char a, const char b, const char c, 
         const coeff_class alpha);

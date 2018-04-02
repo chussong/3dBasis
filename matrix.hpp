@@ -119,10 +119,11 @@ struct InteractionTerm_Output {
 coeff_class MatrixTerm_Direct(
         const Mono& A, const Mono& B, const MATRIX_TYPE type);
 std::vector<InteractionTerm_Output> MatrixTerm_Inter(
-        const Mono& A, const Mono& B, const MATRIX_TYPE type);
+        const Mono& A, const Mono& B);
+coeff_class MatrixTerm_NPlus2(const Mono& A, const Mono& B);
 
 // coordinate transform functions, called from MatrixTerm
-std::array<std::string,2> ExtractXY(const Mono& extractFromThis);
+std::string ExtractXY(const Mono& extractFromThis);
 bool PermuteXY(std::string& xAndy);
 std::array<std::string,2> CombineXandY(const std::array<std::string,2>& xAndy_A,
 		std::array<std::string,2> xAndy_B);
@@ -166,16 +167,25 @@ std::vector<InteractionTerm_Output> InteractionOutput(
         std::vector<InteractionTerm_Step2>& combinedFs, 
         const MATRIX_TYPE type, const coeff_class prefactor);
 
+// functions specific to N PLUS 2 computations
+std::vector<MatrixTerm_Final> ThetaFromYTilde_NPlus2(
+        std::vector<MatrixTerm_Intermediate>& intermediateTerms);
+const std::vector<MatrixTerm_Final>& TermsFromXY_NPlus2(
+        const std::string& xAndy);
+coeff_class FinalResult_NPlus2(const std::vector<MatrixTerm_Final>& combinedFs);
+
 // numerical prefactors used in the various computations
 coeff_class Prefactor(const Mono& A, const Mono& B, const MATRIX_TYPE type);
 coeff_class PrefactorN(const char n);
 coeff_class InnerProductPrefactor(const char n);
 coeff_class MassMatrixPrefactor(const char n);
 coeff_class InteractionMatrixPrefactor(const char n);
+coeff_class NPlus2MatrixPrefactor(const char n);
 
 // integrals used in FinalResult
 coeff_class DoAllIntegrals(const MatrixTerm_Final& term);
 coeff_class DoAllIntegrals(InteractionTerm_Step2& term, const MATRIX_TYPE type);
+coeff_class DoAllIntegrals_NPlus2(const MatrixTerm_Final& term);
 builtin_class UIntegral(const builtin_class a, const builtin_class b);
 builtin_class ThetaIntegral_Short(const builtin_class a, const builtin_class b);
 builtin_class ThetaIntegral_Long(const builtin_class a, const builtin_class b);

@@ -169,15 +169,15 @@ bool InteractionCache::HasPartitions(const std::size_t partitions,
 }
 
 void InteractionCache::Emplace(const std::array<char,3>& key, 
-        const coeff_class value) {
-    cache.emplace(key, value);
+        DMatrix value) {
+    cache.emplace(key, std::move(value));
 }
 
 bool InteractionCache::Contains(const std::array<char,3>& key) {
     return (cache.count(key) != 0);
 }
 
-const coeff_class& InteractionCache::operator[](const std::array<char,3>& key)
+const DMatrix& InteractionCache::operator[](const std::array<char,3>& key)
     const {
     return cache.at(key);
 }
@@ -201,27 +201,32 @@ namespace {
 // half-integer a, it's 0 due to the gamma function in the denominator, but most
 // importantly both of those pFq functions are just finite polynomials due to
 // the negative integers in the p lists
-coeff_class InteractionMu(const std::array<char,3> r, 
+//
+// this function returns the block of the interaction matrix corresponding to
+// one pair of monomials. The sum of all of these blocks will be the block's
+// actual value.
+DMatrix InteractionMu(const std::array<char,3> r, 
         const std::size_t partitions, const coeff_class partWidth) {
     if (!intCache.Contains(r)) {
         // for trapezoid rule, need values at exterior points without "*2",
         // meaning, values at alpha = 0 and alpha = inf
-        coeff_class sum = 0;
+        DMatrix block(partitions, partitions);
         for (std::size_t winA = 0; winA <= partitions; ++winA) {
-            sum += RIntegral(r[0], r[1], r[2], 1);
+            block(winA, winA) = partWidth*RIntegral(r[0], r[1], r[2], 1);
             for (std::size_t winB = winA+1; winB < partitions; ++winB) {
                 coeff_class alpha = (winA*partWidth) / (winB*partWidth);
 
-                sum += RIntegral(r[0], r[1], r[2], alpha);
+                block(winA, winB) = partWidth*RIntegral(r[0], r[1], r[2], alpha);
                 // Below is the contribution from (winA, winB) <-> (winB, winA);
                 // this relation appears to be valid in general, irrespective of
                 // the min(1/a, 1) in the upper bound of the integral. That is,
                 // I(a, b, c, 1/alpha) = alpha^(2a+1) I(a, c, b, alpha)
-                sum += std::pow<builtin_class>(alpha, 2*r[0]+1)
+                block(winB, winA) = partWidth
+                    * std::pow<builtin_class>(alpha, 2*r[0]+1)
                     * RIntegral(r[0], r[2], r[1], alpha);
             }
         }
-        intCache.Emplace(r, partWidth*sum);
+        intCache.Emplace(r, block);
     }
 
     return intCache[r];
