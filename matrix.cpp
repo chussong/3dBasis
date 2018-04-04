@@ -362,6 +362,7 @@ const std::vector<MatrixTerm_Intermediate>& InteractionTermsFromXY(
             for (std::size_t i = 0; i < term.uPlus.size(); ++i) {
                 term.uPlus[i] += uFromX[i];
                 term.uMinus[i] += uFromX[term.uPlus.size() + i];
+                // term.coeff *= std::pow(std::sqrt(2), term.uPlus[i] + term.uMinus[i]);
             }
         }
         intermediateCache.emplace(xAndy, std::move(terms));
@@ -752,19 +753,11 @@ namespace {
     std::unordered_map<char, coeff_class> nPlus2PrefactorCache;
 } // anonymous namespace
 
-// this is the script N_O as defined in Matt's notes, 2^(1-n)/n!(2\pi)^(2n-3)
-coeff_class PrefactorN(const char n) {
-    coeff_class inverse = std::tgamma(n+1);
-    inverse *= std::pow(8, n-1);    // are we sure this shouldn't be 16?
-    inverse *= std::pow(M_PI, 2*n-3);
-    return 2/inverse;
-}
-
 // this follows (2.2) in Matrix Formulas.pdf
 coeff_class InnerProductPrefactor(const char n) {
     if (ipPrefactorCache.count(n) == 0) {
         coeff_class denominator = std::tgamma(n+1); // tgamma = "true" gamma fcn
-        denominator *= std::pow(8, n-1);
+        denominator *= std::pow(16, n-1);
         denominator *= std::pow(M_PI, 2*n-3);
         //std::cout << "PREFACTOR: " << 1/denominator << std::endl;
         ipPrefactorCache.emplace(n, 1/denominator);
@@ -775,27 +768,28 @@ coeff_class InnerProductPrefactor(const char n) {
 
 // this follows (2.3) in Matrix Formulas.pdf
 coeff_class MassMatrixPrefactor(const char n) {
-    return n*InnerProductPrefactor(n);
+    // return n*InnerProductPrefactor(n); // if we're permuting M^2, remove n
+    return InnerProductPrefactor(n);
 }
 
 coeff_class InteractionMatrixPrefactor(const char n) {
     if (sameNPrefactorCache.count(n) == 0) {
-        coeff_class value = PrefactorN(n);
-        value *= n*(n-1);
-        value /= 64 * M_PI;
-        sameNPrefactorCache.emplace(n, value);
+        coeff_class denominator = std::tgamma(n-1);
+        denominator *= std::pow(M_PI*M_PI, n-1);
+        denominator *= 4*std::pow(16, n);
+        sameNPrefactorCache.emplace(n, 1/denominator);
     }
-    
+
     return sameNPrefactorCache[n];
 }
 
 coeff_class NPlus2MatrixPrefactor(const char n) {
     if (nPlus2PrefactorCache.count(n) == 0) {
         coeff_class denominator = std::tgamma(n);
-        denominator *= 3;
+        denominator *= 6;
         denominator *= std::pow(M_PI, 2*n);
-        denominator *= std::pow(8, n+1);
-        nPlus2PrefactorCache.emplace(n, 2/denominator);
+        denominator *= std::pow(16, n+1);
+        nPlus2PrefactorCache.emplace(n, 1/denominator);
     }
 
     return nPlus2PrefactorCache[n];
@@ -810,7 +804,7 @@ coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
 
     // do the u integrals first
     for (auto i = 0u; i < n-1; ++i) {
-        output *= UIntegral(term.uPlus[i] + 3, 5*(n - i) - 7 + term.uMinus[i]);
+        output *= UIntegral(term.uPlus[i] + 3, 5*(n - (i+1)) - 2 + term.uMinus[i]);
     }
 
     // now the theta integrals; sineTheta.size() = cosTheta.size() = n-2.
@@ -907,25 +901,25 @@ coeff_class DoAllIntegrals_NPlus2(const MatrixTerm_Final& term) {
     return output;
 }
 
-// this is the integral over the "u" variables; it uses a hypergeometric 
+// this is the integral over the "u" variables (u \el [-1,1]; it uses a 2F1
 // identity to turn 2F1(a, b, c, -1) -> 2^(-a)*2F1(a, c-b, c, 1/2)
 //
 // follows the conventions of Zuhair's 5.34; a is the exponent of u_i+ and
 // b is the exponent of u_i-
 //
 // this can also be thought of as the integral over z, where a is the exponent
-// of sqrt(z) and b is the exponent of sqrt(1 - z)
+// of sqrt(z) and b is the exponent of sqrt(1 - z); in this case z \el [0,1].
 builtin_class UIntegral(const builtin_class a, const builtin_class b) {
-	//std::cout << "UIntegral(" << a << ", " << b << ")" << std::endl;
-	std::array<builtin_class,2> abArray{{a,b}};
-	if (b < a) std::swap(abArray[0], abArray[1]);
-	if (uCache.count(abArray) == 1) return uCache.at(abArray);
+    //std::cout << "UIntegral(" << a << ", " << b << ")" << std::endl;
+    std::array<builtin_class,2> abArray{{a,b}};
+    if (b < a) std::swap(abArray[0], abArray[1]);
+    if (uCache.count(abArray) == 1) return uCache.at(abArray);
 
-	coeff_class ret = gsl_sf_hyperg_2F1(1, (a+b)/2 + 2, b/2 + 2, 0.5)/(b + 2);
-	ret += gsl_sf_hyperg_2F1(1, (a+b)/2 + 2, a/2 + 2, 0.5)/(a + 2);
-	ret *= std::pow(std::sqrt(2), -(a+b));
-	uCache.emplace(abArray, ret);
-	return ret;
+    coeff_class ret = gsl_sf_hyperg_2F1(1, (a+b)/2 + 2, b/2 + 2, 0.5)/(b + 2);
+    ret += gsl_sf_hyperg_2F1(1, (a+b)/2 + 2, a/2 + 2, 0.5)/(a + 2);
+    ret *= std::pow(std::sqrt(2), -(a+b));
+    uCache.emplace(abArray, ret);
+    return ret;
 }
 
 // this is the integral over the "theta" veriables from 0 to pi; it implements 
@@ -935,23 +929,23 @@ builtin_class UIntegral(const builtin_class a, const builtin_class b) {
 // results are cached by (a,b); since a and b are symmetric, we only store the
 // results with a <= b, swapping the two parameters if they're the other order
 builtin_class ThetaIntegral_Short(const builtin_class a, const builtin_class b) {
-	if (static_cast<int>(b) % 2 == 1) return 0;
-	std::array<builtin_class,2> abArray{{a,b}};
-	if (b < a) std::swap(abArray[0], abArray[1]);
-	if (thetaCache.count(abArray) == 1) return thetaCache.at(abArray);
+    if (static_cast<int>(b) % 2 == 1) return 0;
+    std::array<builtin_class,2> abArray{{a,b}};
+    if (b < a) std::swap(abArray[0], abArray[1]);
+    if (thetaCache.count(abArray) == 1) return thetaCache.at(abArray);
 
-	builtin_class ret = std::exp(std::lgamma((1+a)/2) + std::lgamma((1+b)/2) 
-			- std::lgamma((2 + a + b)/2) );
-	thetaCache.emplace(abArray, ret);
-	return ret;
+    builtin_class ret = std::exp(std::lgamma((1+a)/2) + std::lgamma((1+b)/2) 
+                    - std::lgamma((2 + a + b)/2) );
+    thetaCache.emplace(abArray, ret);
+    return ret;
 }
 
 // this is the integral over the "theta" veriables from 0 to 2pi; it implements 
 // Zuhair's 5.36, where a is the exponent of sin(theta) and b is the exponent of
 // cos(theta).
 builtin_class ThetaIntegral_Long(const builtin_class a, const builtin_class b) {
-	if (static_cast<int>(a) % 2 == 1) return 0;
-	return 2*ThetaIntegral_Short(a, b);
+    if (static_cast<int>(a+b) % 2 == 1) return 0;
+    return 2*ThetaIntegral_Short(a, b);
 }
 
 // Integral of r -- the answer depends on alpha, so I think this can not be

@@ -176,7 +176,6 @@ coeff_class FinalResult_NPlus2(const std::vector<MatrixTerm_Final>& combinedFs);
 
 // numerical prefactors used in the various computations
 coeff_class Prefactor(const Mono& A, const Mono& B, const MATRIX_TYPE type);
-coeff_class PrefactorN(const char n);
 coeff_class InnerProductPrefactor(const char n);
 coeff_class MassMatrixPrefactor(const char n);
 coeff_class InteractionMatrixPrefactor(const char n);

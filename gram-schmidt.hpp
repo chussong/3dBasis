@@ -35,7 +35,7 @@ DVector GSProjection(const DVector& toProject, const DVector& projectOnto,
 		const DMatrix& gramMatrix);
 coeff_class GSNorm(const DVector& vector, const DMatrix& gramMatrix);
 std::vector<Poly> GramSchmidt_MatrixOnly(const DMatrix& input, 
-		const std::vector<Basis<Mono>>& inputBases);
+		const Basis<Mono>& inputBases);
 
 // interface with matrix QR decompositions (as alternative to GS) ------------
 

@@ -177,16 +177,16 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
             << MathematicaOutput(discPolys.transpose()) << std::endl;
     }
 
-    // std::cout << "Fock space inner product for confirmation; monos:" << std::endl;
-    // DMatrix gram2(GramFock(minimalBasis));
-    // DMatrix gram2BasisStates = 
-            // polysOnMinBasis.transpose() * gram2 * polysOnMinBasis;
-    // std::cout << gram2 << std::endl << "basis states:" 
-            // << std::endl << gram2BasisStates << std::endl;
+    std::cout << "Fock space inner product for confirmation; monos:" << std::endl;
+    DMatrix discGram(GramMatrix(minimalBasis, args.partitions, args.partWidth));
+    DMatrix discGram_BasisStates = 
+            discPolys.transpose() * discGram * discPolys;
+    std::cout << discGram << std::endl << "basis states:" 
+            << std::endl << discGram_BasisStates << std::endl;
 
     timer.Start();
     DMatrix monoMassMatrix(MassMatrix(minimalBasis, args.partitions,
-                args.partitionWidth));
+                args.partWidth));
     if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "minBasisMassMatrix = "
             << MathematicaOutput(monoMassMatrix) << std::endl;
@@ -196,7 +196,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
     }
 
     // DMatrix discMonoMass = PartitionMu_Mass(minimalBasis, monoMassMatrix, 
-            // args.partitions, args.partitionWidth);
+            // args.partitions, args.partWidth);
     // if (outStream.rdbuf() != std::cout.rdbuf()) {
         // outStream << "discretizedMinBasisMass = "
             // << MathematicaOutput(discMonoMass) << std::endl;
@@ -219,7 +219,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
     }
 
     DMatrix monoKineticMatrix(KineticMatrix(minimalBasis, args.partitions,
-                args.partitionWidth));
+                args.partWidth));
     if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "minBasisKineticMatrix = "
             << MathematicaOutput(monoKineticMatrix) << std::endl;
