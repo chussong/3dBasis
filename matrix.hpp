@@ -22,8 +22,7 @@
 
 coeff_class InnerFock(const Mono& A, const Mono& B);
 DMatrix GramFock(const Basis<Mono>& basis);
-coeff_class InnerProduct(const Mono& A, const Mono& B, 
-        const std::size_t partitions, const coeff_class partWidth);
+coeff_class InnerProduct(const Mono& A, const Mono& B);
 DMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
         const coeff_class partWidth);
 DMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
@@ -44,7 +43,8 @@ using ::operator<<;
 // the main point of this header
 DMatrix Matrix(const Basis<Mono>& basis, const std::size_t partitions, 
         const coeff_class partWidth, const MATRIX_TYPE type);
-coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type,
+coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type);
+DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         const std::size_t partitions, const coeff_class partWidth);
 
 // five structs used in the coordinate transformations for MatrixTerm
@@ -63,7 +63,7 @@ struct YTerm {
 std::ostream& operator<<(std::ostream& os, const YTerm& out);
 
 struct MatrixTerm_Intermediate {
-    coeff_class coefficient = 1;
+    coeff_class coeff = 1;
     std::vector<char> uPlus;
     std::vector<char> uMinus;
     std::vector<char> yTilde;
@@ -77,7 +77,7 @@ MatrixTerm_Intermediate operator*(const MatrixTerm_Intermediate& A,
 std::ostream& operator<<(std::ostream& os, const MatrixTerm_Intermediate& out);
 
 struct MatrixTerm_Final {
-    coeff_class coefficient = 1;
+    coeff_class coeff = 1;
     std::vector<char> uPlus;
     std::vector<char> uMinus;
     std::vector<char> sinTheta;
@@ -86,7 +86,7 @@ struct MatrixTerm_Final {
     MatrixTerm_Final() = default;
     explicit MatrixTerm_Final(const size_t n);
     // maybe should be rvalue references instead? hopefully it compiles the same
-    MatrixTerm_Final(const coeff_class coefficient, 
+    MatrixTerm_Final(const coeff_class coeff, 
                     const std::vector<char>& uPlus, const std::vector<char>& uMinus, 
                     const std::vector<char>& sinTheta, const std::vector<char>& cosTheta);
     void Resize(const size_t n);
@@ -94,7 +94,7 @@ struct MatrixTerm_Final {
 
 struct InteractionTerm_Step2 {
     // coeff(F1) * coeff(F2), not including degeneracies or coeffs of A&B (yet?)
-    coeff_class coefficient;
+    coeff_class coeff;
     // u1+, u1-, u2+, u2-, ... , u(n-1)+, u(n-1)-, u'(n-1)+, u'(n-1)-
     std::vector<char> u;
     // sin(theta_1), cos(theta_1), ... , sin(theta_(n-2)), cos(theta_(n-2))
@@ -106,12 +106,12 @@ std::ostream& operator<<(std::ostream& os, const InteractionTerm_Step2& out);
 
 struct InteractionTerm_Output {
     // entire constant part of term, including prefactors, degeneracies, etc.
-    coeff_class coefficient;
+    coeff_class coeff;
     // r, sqrt(1 - r^2), sqrt(1 - alpha^2 r^2)
     std::array<char,3> r;
 
-    InteractionTerm_Output(coeff_class coefficient, std::array<char,3> r):
-        coefficient(coefficient), r(r) {}
+    InteractionTerm_Output(coeff_class coeff, std::array<char,3> r):
+        coeff(coeff), r(r) {}
 };
 
 // the two functions for actually computing the two types of MatrixTerms:

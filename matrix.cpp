@@ -3,15 +3,14 @@
 // Fock space part (ONLY) of the inner product between two monomials
 coeff_class InnerFock(const Mono& A, const Mono& B) {
     //B.ChangePm(0, B.Pm(0)+1); // this will be reverted in MatrixTerm below
-    return MatrixInternal::MatrixTerm(A, B, MAT_INNER, 0, 0);
+    return MatrixInternal::MatrixTerm(A, B, MAT_INNER);
     //return MatrixInternal::MatrixTerm(A, B, MatrixInter::MAT_INNER)/A.NParticles();
 }
 
 // inner product between two partitions of monomials
-coeff_class InnerProduct(const Mono& A, const Mono& B, const std::size_t part, 
-        const std::size_t partitions, const coeff_class partWidth) {
+coeff_class InnerProduct(const Mono& A, const Mono& B) {
     // DVector muIntegrals = MuIntegral(A, B, partitions, partWidth, MAT_INNER);
-    return MatrixInternal::MatrixTerm(A, B, MAT_INNER, partitions, partWidth);
+    return MatrixInternal::MatrixTerm(A, B, MAT_INNER);
         // *muIntegrals(part);
 }
 
@@ -82,7 +81,7 @@ std::ostream& operator<<(std::ostream& os, const YTerm& out) {
 	return os << out.coeff << " * " << out.y;
 }
 
-MatrixTerm_Intermediate::MatrixTerm_Intermediate(const size_t n): coefficient(1),
+MatrixTerm_Intermediate::MatrixTerm_Intermediate(const size_t n): coeff(1),
 	uPlus(n), uMinus(n), yTilde(n) {
 }
 
@@ -94,7 +93,7 @@ void MatrixTerm_Intermediate::Resize(const size_t n) {
 
 MatrixTerm_Intermediate operator*(
 		const MatrixTerm_Intermediate& A, MatrixTerm_Intermediate B) {
-	B.coefficient *= A.coefficient;
+	B.coeff *= A.coeff;
 	B.uPlus  = AddVectors(A.uPlus , B.uPlus );
 	B.uMinus = AddVectors(A.uMinus, B.uMinus);
 	B.yTilde = AddVectors(A.yTilde, B.yTilde);
@@ -102,20 +101,20 @@ MatrixTerm_Intermediate operator*(
 }
 
 std::ostream& operator<<(std::ostream& os, const MatrixTerm_Intermediate& out) {
-	return os << out.coefficient << " * {" << out.uPlus << ", "
+	return os << out.coeff << " * {" << out.uPlus << ", "
 		<< out.uMinus << ", " << out.yTilde << "}";
 }
 
 // this n would be called (n-1) in Zuhair's equations
-MatrixTerm_Final::MatrixTerm_Final(const size_t n): coefficient(1), uPlus(n), 
+MatrixTerm_Final::MatrixTerm_Final(const size_t n): coeff(1), uPlus(n), 
 	uMinus(n), sinTheta(n-1), cosTheta(n-1) {
 }
 
 // maybe should be rvalue references instead? hopefully it's the same
-MatrixTerm_Final::MatrixTerm_Final(const coeff_class coefficient, 
+MatrixTerm_Final::MatrixTerm_Final(const coeff_class coeff, 
 		const std::vector<char>& uPlus, const std::vector<char>& uMinus, 
 		const std::vector<char>& sinTheta, const std::vector<char>& cosTheta): 
-	coefficient(coefficient), uPlus(uPlus), uMinus(uMinus), sinTheta(sinTheta), 
+	coeff(coeff), uPlus(uPlus), uMinus(uMinus), sinTheta(sinTheta), 
 	cosTheta(cosTheta) {
 }
 
@@ -129,7 +128,7 @@ void MatrixTerm_Final::Resize(const size_t n) {
 }
 
 std::ostream& operator<<(std::ostream& os, const InteractionTerm_Step2& out) {
-    return os << out.coefficient << " * {" << out.u << ", "
+    return os << out.coeff << " * {" << out.u << ", "
         << out.theta << ", " << out.r << "}";
 }
 
@@ -139,35 +138,31 @@ std::ostream& operator<<(std::ostream& os, const InteractionTerm_Step2& out) {
 // fact, we will have to do them inside MatrixTerm
 DMatrix Matrix(const Basis<Mono>& basis, const std::size_t partitions, 
         const coeff_class partWidth, const MATRIX_TYPE type) {
-    DMatrix fockPart(basis.size(), basis.size());
-    for (std::size_t i = 0; i < basis.size(); ++i) {
-        fockPart(i, i) = MatrixTerm(basis[i], basis[i], type, partitions,
-                partWidth);
-        for (std::size_t j = i+1; j < basis.size(); ++j) {
-            fockPart(i, j) = MatrixTerm(basis[i], basis[j], type, partitions, 
-                    partWidth);
-            fockPart(j, i) = fockPart(i, j);
-        }
-    }
-
     // partitions == 0 means that the Fock part has been requested by itself
     if (partitions == 0) {
-        return fockPart;
-    }
-
-    DMatrix output(basis.size()*partitions, basis.size()*partitions);
-    for (std::size_t i = 0; i < basis.size(); ++i) {
-        for (std::size_t j = 0; j < basis.size(); ++j) {
-            output.block(i*partitions, j*partitions, partitions, partitions) = 
-                fockPart(i, j)*
-                MuPart(basis[i], basis[j], partitions, partWidth, type);
+        DMatrix fockPart(basis.size(), basis.size());
+        for (std::size_t i = 0; i < basis.size(); ++i) {
+            fockPart(i, i) = MatrixTerm(basis[i], basis[i], type);
+            for (std::size_t j = i+1; j < basis.size(); ++j) {
+                fockPart(i, j) = MatrixTerm(basis[i], basis[j], type);
+                fockPart(j, i) = fockPart(i, j);
+            }
         }
+
+        return fockPart;
+    } else {
+        DMatrix output(basis.size()*partitions, basis.size()*partitions);
+        for (std::size_t i = 0; i < basis.size(); ++i) {
+            for (std::size_t j = 0; j < basis.size(); ++j) {
+                output.block(i*partitions, j*partitions, partitions, partitions) = 
+                    MatrixBlock(basis[i], basis[j], type, partitions, partWidth);
+            }
+        }
+        return output;
     }
-    return output;
 }
 
-coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type,
-        const std::size_t partitions, const coeff_class partWidth) {
+coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type) {
     if (type == MAT_INNER || type == MAT_MASS) {
         return MatrixTerm_Direct(A, B, type);
     } else if (type == MAT_KINETIC) {
@@ -175,18 +170,24 @@ coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type,
     } else if (type == MAT_INTER_N_PLUS_2) {
         return MatrixTerm_NPlus2(A, B);
     } else if (type == MAT_INTER_SAME_N) {
-        auto terms = MatrixTerm_Inter(A, B);
-        DMatrix sum(partitions, partitions);
-        // FIXME??? Nikhil may have found that terms with any odd numbers in
-        // term.r will end up canceling out
-        for (const auto& term : terms) {
-            std::cout << "Term: " << term.r << std::endl;
-            // sum += term.coefficient*InteractionMu(term.r, partitions, partWidth);
-        }
-        // FIXME this is obviously temporary; we want the whole block
-        return sum(0, 0);
+        throw std::logic_error("MatrixTerm: n-n interaction can't give scalar");
     } else {
         throw std::logic_error("MatrixTerm: unrecognized matrix type");
+    }
+}
+
+DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
+        const std::size_t partitions, const coeff_class partWidth) {
+    if (type == MAT_INTER_SAME_N) {
+        auto terms = MatrixTerm_Inter(A, B);
+        DMatrix output = DMatrix::Zero(partitions, partitions);
+        for (const auto& term : terms) {
+            // std::cout << "Term: " << term.r << std::endl;
+            output += term.coeff*MuPart(term.r, partitions, partWidth);
+        }
+        return output;
+    } else {
+        return MatrixTerm(A, B, type)*MuPart(A, B, partitions, partWidth, type);
     }
 }
 
@@ -445,7 +446,7 @@ std::vector<MatrixTerm_Intermediate> YTildeFromY(const std::string& y) {
         // always do this step even if yTerm[0] == 0 because it puts the
         // coefficient in and provides somewhere for the other terms to combine
         termsFromThisYTerm.emplace_back(1);
-        termsFromThisYTerm.back().coefficient = yTerm.coeff;
+        termsFromThisYTerm.back().coeff = yTerm.coeff;
         termsFromThisYTerm.back().uPlus[0] = yTerm[0];
         termsFromThisYTerm.back().uMinus[0] = yTerm[0];
         termsFromThisYTerm.back().yTilde[0] = yTerm[0];
@@ -513,7 +514,7 @@ std::vector<MatrixTerm_Intermediate> YTildeTerms(
         ret.back().uMinus[i] = l;
         ret.back().yTilde[i] = l;
 
-        ret.back().coefficient = coeff;
+        ret.back().coeff = coeff;
     } while (std::prev_permutation(nAndm.begin()+1, nAndm.end()));
     return ret;
 }
@@ -564,7 +565,7 @@ std::vector<MatrixTerm_Final> ThetaFromYTilde(
             }
         }
         term.yTilde.resize(term.yTilde.size()-1); // so it can become "cosines"
-        ret.emplace_back(term.coefficient,
+        ret.emplace_back(term.coeff,
                 std::move(term.uPlus), 
                 std::move(term.uMinus),
                 std::move(sines),
@@ -594,7 +595,7 @@ std::vector<MatrixTerm_Final> ThetaFromYTilde_NPlus2(
         term.yTilde[term.yTilde.size()-3] = term.yTilde[term.yTilde.size()-1];
         term.yTilde.resize(term.yTilde.size()-2);
 
-        ret.emplace_back(term.coefficient,
+        ret.emplace_back(term.coeff,
                 std::move(term.uPlus), 
                 std::move(term.uMinus),
                 std::move(sines),
@@ -614,7 +615,7 @@ std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& 
     std::vector<MatrixTerm_Final> ret;
     for (auto& term1 : F1) {
         for (auto& term2 : F2) {
-            ret.emplace_back(term1.coefficient * term2.coefficient,
+            ret.emplace_back(term1.coeff * term2.coeff,
                     AddVectors(term1.uPlus, term2.uPlus),
                     AddVectors(term1.uMinus, term2.uMinus),
                     AddVectors(term1.sinTheta, term2.sinTheta),
@@ -640,7 +641,7 @@ std::vector<InteractionTerm_Step2> CombineInteractionFs(
 InteractionTerm_Step2 CombineInteractionFs_OneTerm(
         const MatrixTerm_Intermediate& f1, const MatrixTerm_Intermediate& f2) {
     InteractionTerm_Step2 output;
-    output.coefficient = f1.coefficient * f2.coefficient;
+    output.coeff = f1.coeff * f2.coeff;
 
     output.u.resize(f1.uPlus.size() + f1.uMinus.size() + 2);
     for (std::size_t i = 0; i < f1.uPlus.size()-1; ++i) {
@@ -805,7 +806,7 @@ coeff_class NPlus2MatrixPrefactor(const char n) {
 // do all the integrals for a direct matrix computation
 coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
     std::size_t n = term.uPlus.size() + 1;
-    coeff_class output = term.coefficient;
+    coeff_class output = term.coeff;
 
     // do the u integrals first
     for (auto i = 0u; i < n-1; ++i) {
@@ -824,7 +825,7 @@ coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
         }
         output *= ThetaIntegral_Long(term.sinTheta[n-3], term.cosTheta[n-3]);
     }
-    // std::cout << term.coefficient << " * {" << term.uPlus << ", " << term.uMinus
+    // std::cout << term.coeff << " * {" << term.uPlus << ", " << term.uMinus
         // << ", " << term.sinTheta << ", " << term.cosTheta << "} -> " << output 
         // << std::endl;
     return output;
@@ -874,7 +875,7 @@ coeff_class DoAllIntegrals(InteractionTerm_Step2& term, const MATRIX_TYPE type){
 // do all the integrals for an n+2 interaction computation
 coeff_class DoAllIntegrals_NPlus2(const MatrixTerm_Final& term) {
     std::size_t n = term.uPlus.size() - 1;
-    coeff_class output = term.coefficient;
+    coeff_class output = term.coeff;
 
     // do the non-primed u integrals first
     for (auto i = 0u; i < n-1; ++i) {
@@ -900,7 +901,7 @@ coeff_class DoAllIntegrals_NPlus2(const MatrixTerm_Final& term) {
     // I think this one (the primed one) is guaranteed to be there
     output *= ThetaIntegral_Long(term.sinTheta[n-2], term.cosTheta[n-2]);
 
-    // std::cout << term.coefficient << " * {" << term.uPlus << ", " << term.uMinus
+    // std::cout << term.coeff << " * {" << term.uPlus << ", " << term.uMinus
         // << ", " << term.sinTheta << ", " << term.cosTheta << "} -> " << output 
         // << std::endl;
     return output;

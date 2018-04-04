@@ -92,8 +92,7 @@ std::vector<Poly> ComputeBasisStates(const Arguments& args) {
 std::vector<Poly> ComputeBasisStates_SameParity(
         const std::vector<Basis<Mono>>& inputBases, const Arguments& args) {
     std::ostream& outStream = *args.outputStream;
-    std::vector<Poly> orthogonalized = Orthogonalize(inputBases, 
-            args.partitions, args.partitionWidth, outStream);
+    std::vector<Poly> orthogonalized = Orthogonalize(inputBases, outStream);
 
     // Basis<Mono> minimalBasis(MinimalBasis(orthogonalized));
     // if (outStream.rdbuf() == std::cout.rdbuf()) {

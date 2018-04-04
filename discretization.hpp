@@ -48,32 +48,26 @@ class InteractionCache {
         void Clear();
 };
 
-char MuExponent(const Mono& A, const Mono& B);
-DVector MuIntegral(const Mono& A, const Mono& B, const std::size_t partitions,
-        const coeff_class partitionWidth, const MATRIX_TYPE calculationType);
-DVector MuIntegral_Body(const char muExp, const std::size_t partitions,
-                const coeff_class partitionWidth);
-coeff_class MuNorm(const Mono& A, const std::size_t k, 
-        const coeff_class partWidth);
-DMatrix PartitionMu_Mass(const Basis<Mono>& minimalBasis, const DMatrix& mass,
-		const std::size_t partitions, const coeff_class partWidth);
-
 DMatrix MuPart(const Mono& A, const Mono& B, const std::size_t partitions, 
         const coeff_class partWidth, const MATRIX_TYPE type);
 DMatrix MuPart_Kinetic(const std::size_t partitions, 
         const coeff_class partWidth);
-DMatrix MuTotal(const Basis<Mono>& minBasis, const std::size_t partitions,
-        const coeff_class partWidth, const MATRIX_TYPE calculationType);
 
-DMatrix InteractionMu(const std::array<char,3> r, 
+const DMatrix& MuPart(const std::array<char,3>& r, 
         const std::size_t partitions, const coeff_class partWidth);
 coeff_class RIntegral(const char a, const char b, const char c, 
         const coeff_class alpha);
 coeff_class Hypergeometric2F1(const coeff_class a, const coeff_class b,
         const coeff_class c, const coeff_class x);
 
-DMatrix DiscretizeMonos(const Basis<Mono>& minBasis, 
-        const std::size_t partitions, const coeff_class partWidth);
+coeff_class InteractionWindow(const std::array<char,3>& r,
+        const std::array<coeff_class,2>& mu1,
+        const std::array<coeff_class,2>& mu2);
+coeff_class Hypergeometric3F2(const std::array<coeff_class,3>& a, 
+        const std::array<coeff_class,2>& b, const coeff_class x);
+coeff_class Hypergeometric3F2_Reg(const std::array<coeff_class,3>& a, 
+        const std::array<coeff_class,2>& b, const coeff_class x);
+
 DMatrix DiscretizePolys(const DMatrix& polysOnMinBasis, 
         const std::size_t partitions);
 

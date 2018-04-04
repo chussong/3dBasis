@@ -2,7 +2,6 @@
 
 // return the number of independent vectors in the basis
 std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases, 
-		const std::size_t partitions, const coeff_class partWidth, 
                 std::ostream&) {
 	Timer timer;
 	Basis<Mono> unifiedBasis = CombineBases(inputBases);

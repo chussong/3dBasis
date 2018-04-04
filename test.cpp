@@ -28,10 +28,8 @@ bool RunAllTests() {
             allEvenBases.push_back(degBasis.EvenBasis());
             allOddBases.push_back(degBasis.OddBasis());
     }
-    std::vector<Poly> evenStates = ::Orthogonalize(allEvenBases, 
-            partitions, partWidth, std::cout);
-    std::vector<Poly> oddStates = ::Orthogonalize(allOddBases, 
-            partitions, partWidth, std::cout);
+    std::vector<Poly> evenStates = ::Orthogonalize(allEvenBases, std::cout);
+    std::vector<Poly> oddStates = ::Orthogonalize(allOddBases, std::cout);
     Basis<Mono> minBasis = ::MinimalBasis(evenStates);
     result &= Test::InteractionMatrix(minBasis, partitions, partWidth);
 
