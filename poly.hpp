@@ -17,104 +17,102 @@
 // * The output stream operator std::cout << somePoly prints the Poly as a
 // sum of its constituent monos.
 class Poly {
-	std::vector<Mono> terms;
+    std::vector<Mono> terms;
 
-	public:
-		explicit Poly() {}
-		explicit Poly(const Mono starter) { terms.push_back(starter); }
-		explicit Poly(const std::vector<Mono>& terms);
+    public:
+        explicit Poly() {}
+        explicit Poly(const Mono starter) { terms.push_back(starter); }
+        explicit Poly(const std::vector<Mono>& terms);
 
-		Poly& operator+=(const Mono& x);
-		Poly& operator-=(const Mono& x);
-		Poly& operator+=(const Poly& x);
-		Poly& operator-=(const Poly& x);
+        Poly& operator+=(const Mono& x);
+        Poly& operator-=(const Mono& x);
+        Poly& operator+=(const Poly& x);
+        Poly& operator-=(const Poly& x);
 
-		friend Poly operator+(Poly x, const Poly& y);
-		friend Poly operator-(Poly x, const Poly& y);
-		friend Poly operator+(Poly x, const Mono& y);
-		friend Poly operator-(Poly x, const Mono& y);
-		friend Poly operator+(const Mono& x, Poly y);
-		friend Poly operator-(const Mono& x, Poly y);
+        friend Poly operator+(Poly x, const Poly& y);
+        friend Poly operator-(Poly x, const Poly& y);
+        friend Poly operator+(Poly x, const Mono& y);
+        friend Poly operator-(Poly x, const Mono& y);
+        friend Poly operator+(const Mono& x, Poly y);
+        friend Poly operator-(const Mono& x, Poly y);
 
-		bool operator==(const Poly& other) const;
-		bool operator!=(const Poly& other) const { return !(*this == other); }
+        bool operator==(const Poly& other) const;
+        bool operator!=(const Poly& other) const { return !(*this == other); }
 
-		template<typename T> Poly& operator*=(const T& y);
-		template<typename T> Poly& operator/=(const T& y);
-		template<typename T>
-			friend Poly operator*(Poly x, const T&    y) { return x*=y; }
-		template<typename T>
-			friend Poly operator/(Poly x, const T&    y) { return x/=y; }
-		template<typename T>
-			friend Poly operator*(const T& x,    Poly y) { return y*x; }
-		Poly operator-() const;
+        template<typename T> Poly& operator*=(const T& y);
+        template<typename T> Poly& operator/=(const T& y);
+        template<typename T>
+                friend Poly operator*(Poly x, const T&    y) { return x*=y; }
+        template<typename T>
+                friend Poly operator/(Poly x, const T&    y) { return x/=y; }
+        template<typename T>
+                friend Poly operator*(const T& x,    Poly y) { return y*x; }
+        Poly operator-() const;
 
-		const	Mono& operator[](size_t i)	const	{ return terms[i]; }
-				Mono& operator[](size_t i)			{ return terms[i]; }
-		size_t	size()						const	{return terms.size(); }
-		std::vector<Mono>::const_iterator	begin() const noexcept
-				{ return terms.begin(); }
-		std::vector<Mono>::iterator			begin() noexcept
-				{ return terms.begin(); }
-		std::vector<Mono>::const_iterator	end()	const noexcept
-				{ return terms.end(); }
-		std::vector<Mono>::iterator			end()	noexcept
-				{ return terms.end(); }
+        const	Mono& operator[](size_t i)      const   { return terms[i]; }
+        Mono& operator[](size_t i)                      { return terms[i]; }
+        size_t	size()                          const   {return terms.size(); }
+        std::vector<Mono>::const_iterator               begin() const noexcept
+                        { return terms.begin(); }
+        std::vector<Mono>::iterator                     begin() noexcept
+                        { return terms.begin(); }
+        std::vector<Mono>::const_iterator               end()   const noexcept
+                        { return terms.end(); }
+        std::vector<Mono>::iterator                     end()   noexcept
+                        { return terms.end(); }
 
-		friend std::ostream& operator<<(std::ostream& os, const Poly& out);
-		std::string HumanReadable() const;
+        friend std::ostream& operator<<(std::ostream& os, const Poly& out);
+        std::string HumanReadable() const;
 
-		Poly DerivPm(const int);
-		Poly DerivPm();
+        Poly DerivPm(const int);
+        Poly DerivPm();
 
-		// static coeff_class InnerProduct(const Poly& A, const Poly& B,
-						// const GammaCache& cache, const KVectorCache& kCache);
 };
 
 template<typename T>
 Poly& Poly::operator*=(const T& y){
-	for(Mono& m : terms){
-		m *= y;
-	}
-	return *this;
+    for(Mono& m : terms){
+        m *= y;
+    }
+    return *this;
 }
 
 template<typename T>
 Poly& Poly::operator/=(const T& y){
-	for(Mono& m : terms){
-		m /= y;
-	}
-	return *this;
+    for(Mono& m : terms){
+        m /= y;
+    }
+    return *this;
 }
 
 /*template<typename T>
 Poly operator*(Poly x, const T& y){
-	Poly ret(x);
-	for(Mono& m : ret){
-		m *= y;
-	}
-	return ret;
+    Poly ret(x);
+    for(Mono& m : ret){
+        m *= y;
+    }
+    return ret;
 }*/
 
 /*template<typename T>
 Poly operator/(Poly x, const T& y){
-	Poly ret(x);
-	for(Mono& m : ret){
-		m /= y;
-	}
-	return ret;
+    Poly ret(x);
+    for(Mono& m : ret){
+        m /= y;
+    }
+    return ret;
 }*/
 
 // specialization of vector output template for vectors of polynomials
 template<>
 inline std::ostream& operator<<(std::ostream& os, const std::vector<Poly>& out){
-	if(out.size() == 0) return os << "{ }";
-	os << "{ ";
-	for(auto& element : out){
-		os << element.HumanReadable() << " | ";
-	}
-	os << "\b\b \b}";
-	return os;
+    if(out.size() == 0) return os << "{ }";
+    os << "{ ";
+    for(auto& element : out){
+        os << element.HumanReadable() << " | ";
+    }
+    os << "\b\b \b}";
+    return os;
 }
 
 #endif

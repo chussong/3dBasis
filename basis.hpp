@@ -21,40 +21,40 @@ template<class T> std::ostream& operator<<(std::ostream& os, const Basis<T>& out
 
 template<class T>
 class Basis {
-	std::vector<T> basisVectors;
+    std::vector<T> basisVectors;
 
-	public:
-		explicit Basis(const std::vector<T>& basisVectors): basisVectors(basisVectors) {}
-		Basis(const int numP, int degree, const int options);
-		//explicit Basis(const Basis&) = default;
-		//Basis(Basis&&) = default;
+    public:
+        explicit Basis(const std::vector<T>& basisVectors): basisVectors(basisVectors) {}
+        Basis(const int numP, int degree, const int options);
+        //explicit Basis(const Basis&) = default;
+        //Basis(Basis&&) = default;
 
-		unsigned int FindInBasis(const std::vector<int>& pm,
-				const std::vector<int>& pt) const;
-		unsigned int FindInBasis(const T& wildVector) const;
+        unsigned int FindInBasis(const std::vector<int>& pm,
+                        const std::vector<int>& pt) const;
+        unsigned int FindInBasis(const T& wildVector) const;
 
-		void DeleteOdd();
-		void DeleteEven();
+        void DeleteOdd();
+        void DeleteEven();
 
-		const T& operator[](size_t i) const { return basisVectors[i]; }
-		friend std::ostream& operator<<<T>(std::ostream& os, const Basis<T>& out);
+        const T& operator[](size_t i) const { return basisVectors[i]; }
+        friend std::ostream& operator<<<T>(std::ostream& os, const Basis<T>& out);
 
-		std::size_t size() const { return basisVectors.size(); }
-		typename std::vector<T>::const_iterator		begin() const noexcept
-				{ return basisVectors.begin(); }
-		typename std::vector<T>::iterator			begin() noexcept
-				{ return basisVectors.begin(); }
-		typename std::vector<T>::const_iterator		end()	const noexcept
-				{ return basisVectors.end(); }
-		typename std::vector<T>::iterator			end()	noexcept
-				{ return basisVectors.end(); }
+        std::size_t size() const { return basisVectors.size(); }
+        typename std::vector<T>::const_iterator		begin() const noexcept
+                        { return basisVectors.begin(); }
+        typename std::vector<T>::iterator			begin() noexcept
+                        { return basisVectors.begin(); }
+        typename std::vector<T>::const_iterator		end()	const noexcept
+                        { return basisVectors.end(); }
+        typename std::vector<T>::iterator			end()	noexcept
+                        { return basisVectors.end(); }
 
-		// Triplet ExpressMono(const Mono& toExpress, const int column,
-				// const int rowOffset) const;
-		// std::list<Triplet> ExpressPoly(const Poly& toExpress, 
-				// const int column, const int rowOffset) const;
-		DVector DenseExpressMono(const Mono& toExpress) const;
-		DVector DenseExpressPoly(const Poly& toExpress) const;
+        // Triplet ExpressMono(const Mono& toExpress, const int column,
+                        // const int rowOffset) const;
+        // std::list<Triplet> ExpressPoly(const Poly& toExpress, 
+                        // const int column, const int rowOffset) const;
+        DVector DenseExpressMono(const Mono& toExpress) const;
+        DVector DenseExpressPoly(const Poly& toExpress) const;
 
 };
 
@@ -62,27 +62,27 @@ class Basis {
 // requests. Because this is in two pieces, it can not be iterated through.
 template<class T>
 class splitBasis {
-	Basis<T> evenBasis;
-	Basis<T> oddBasis;
+    Basis<T> evenBasis;
+    Basis<T> oddBasis;
 
-	public:
-		splitBasis(const int numP, const int degree, const int options);
+    public:
+        splitBasis(const int numP, const int degree, const int options);
 
-		std::pair<unsigned int, Basis<T>*> FindInBasis(const std::vector<int>& pm,
-				const std::vector<int>& pt);
-		std::pair<unsigned int, Basis<T>*> FindInBasis(const Mono& wildMono);
+        std::pair<unsigned int, Basis<T>*> FindInBasis(const std::vector<int>& pm,
+                        const std::vector<int>& pt);
+        std::pair<unsigned int, Basis<T>*> FindInBasis(const Mono& wildMono);
 
-		Basis<T>& OddBasis() { return oddBasis; }
-		const Basis<T>& OddBasis() const { return oddBasis; }
-		Basis<T>& EvenBasis() { return evenBasis; }
-		const Basis<T>& EvenBasis() const { return evenBasis; }
+        Basis<T>& OddBasis() { return oddBasis; }
+        const Basis<T>& OddBasis() const { return oddBasis; }
+        Basis<T>& EvenBasis() { return evenBasis; }
+        const Basis<T>& EvenBasis() const { return evenBasis; }
 
-		// std::list<Triplet> ExpressPoly(const Poly& toExpress, const int column,
-				// const int row) const;
+        // std::list<Triplet> ExpressPoly(const Poly& toExpress, const int column,
+                        // const int row) const;
 
-		static bool IsOdd (const Mono& toTest);
-		static bool IsEven(const Mono& toTest);
-		static std::pair<Poly, Poly> OddEvenSplit  (const Poly& toSplit);
+        static bool IsOdd (const Mono& toTest);
+        static bool IsEven(const Mono& toTest);
+        static std::pair<Poly, Poly> OddEvenSplit  (const Poly& toSplit);
 };
 
 // state generation -----------------------------------------------------------
@@ -91,10 +91,10 @@ bool EoMAllowed(const std::vector<particle>& cfg);
 
 template<class T>
 inline Basis<T>::Basis(const int, int, const int) {
-	std::cerr << "Error: ordered to construct a basis by degree for an "
-		<< "underlying type which has not been specialized. Please construct "
-		<< "with a different type or write a specialization for this type."
-		<< std::endl;
+    std::cerr << "Error: ordered to construct a basis by degree for an "
+        << "underlying type which has not been specialized. Please construct "
+        << "with a different type or write a specialization for this type."
+        << std::endl;
 }
 
 template<>

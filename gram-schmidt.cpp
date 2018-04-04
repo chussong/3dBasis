@@ -24,7 +24,8 @@ std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
     // std::vector<Poly> orthogonalized = GramSchmidt_MatrixOnly(gram, unifiedBasis);
 
     std::cout << "Gram-Schmidt performed in " << timer.TimeElapsedInWords()
-        << ", giving " << orthogonalized.size() << " vectors";
+        << ", giving " << orthogonalized.size() << " vector";
+    if (orthogonalized.size() != 1) std::cout << "s";
     if (orthogonalized.size() <= 20) {
         std::cout << ":" << std::endl;
         for(auto& p : orthogonalized) std::cout << p << std::endl;

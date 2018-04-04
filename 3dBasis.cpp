@@ -16,8 +16,8 @@ int main(int argc, char* argv[]) {
     }
 
     if (args.degree == 0 || args.numP == 0){
-        std::cerr << "Error: you must enter a number of particles, a degree, "
-            << "and a value for delta." << std::endl;
+        std::cerr << "Error: you must enter a number of particles and a degree."
+            << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -38,9 +38,9 @@ int main(int argc, char* argv[]) {
             }
             *args.outputStream << std::endl;
         }
-    if (args.outputStream->rdbuf() != std::cout.rdbuf()) {
-        delete args.outputStream;
-    }
+        if (args.outputStream->rdbuf() != std::cout.rdbuf()) {
+            delete args.outputStream;
+        }
         return EXIT_SUCCESS;
     }
 
@@ -66,14 +66,14 @@ std::vector<Poly> ComputeBasisStates(const Arguments& args) {
     int options = args.options;
 
     *args.outputStream << "(*Orthogonal basis states with N=" << numP << ", L="
-            << degree << " (including Dirichlet derivatives).*)" << std::endl;
+        << degree << " (including Dirichlet derivatives).*)" << std::endl;
     
     std::vector<Basis<Mono>> allEvenBases;
     std::vector<Basis<Mono>> allOddBases;
     for (int deg = numP; deg <= degree; ++deg) {
-            splitBasis<Mono> degBasis(numP, deg, options);
-            allEvenBases.push_back(degBasis.EvenBasis());
-            allOddBases.push_back(degBasis.OddBasis());
+        splitBasis<Mono> degBasis(numP, deg, options);
+        allEvenBases.push_back(degBasis.EvenBasis());
+        allOddBases.push_back(degBasis.OddBasis());
     }
 
     *args.outputStream << "(*EVEN STATE ORTHOGONALIZATION*)" << std::endl;
@@ -109,8 +109,8 @@ DMatrix PolysOnMinBasis(const Basis<Mono>& minimalBasis,
         const std::vector<Poly> orthogonalized, std::ostream&) {
     DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
     for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
-            polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
-                            orthogonalized[i] );
+        polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
+                        orthogonalized[i] );
     }
 
     // outStream << "(*Polynomials on this basis (as rows, not columns!):*)\n"
@@ -127,14 +127,14 @@ DMatrix ComputeHamiltonian(const Arguments& args) {
     int options = args.options;
 
     *args.outputStream << "(*Matrix element test with N=" << numP << ", L="
-            << degree << " (including Dirichlet derivatives).*)" << std::endl;
+        << degree << " (including Dirichlet derivatives).*)" << std::endl;
     
     std::vector<Basis<Mono>> allEvenBases;
     std::vector<Basis<Mono>> allOddBases;
     for(int deg = numP; deg <= degree; ++deg){
-            splitBasis<Mono> degBasis(numP, deg, options);
-            allEvenBases.push_back(degBasis.EvenBasis());
-            allOddBases.push_back(degBasis.OddBasis());
+        splitBasis<Mono> degBasis(numP, deg, options);
+        allEvenBases.push_back(degBasis.EvenBasis());
+        allOddBases.push_back(degBasis.OddBasis());
     }
 
     *args.outputStream << "(*EVEN STATE ORTHOGONALIZATION*)" << std::endl;
@@ -177,12 +177,14 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
             << MathematicaOutput(discPolys.transpose()) << std::endl;
     }
 
-    std::cout << "Fock space inner product for confirmation; monos:" << std::endl;
-    DMatrix discGram(GramMatrix(minimalBasis, args.partitions, args.partWidth));
-    DMatrix discGram_BasisStates = 
-            discPolys.transpose() * discGram * discPolys;
-    std::cout << discGram << std::endl << "basis states:" 
-            << std::endl << discGram_BasisStates << std::endl;
+    // if (outStream.rdbuf() == std::cout.rdbuf()) {
+        // outStream << "Fock space inner product for confirmation; monos:" << std::endl;
+        // DMatrix discGram(GramMatrix(minimalBasis, args.partitions, args.partWidth));
+        // DMatrix discGram_BasisStates = 
+                // discPolys.transpose() * discGram * discPolys;
+        // outStream << discGram << std::endl << "basis states:" 
+                // << std::endl << discGram_BasisStates << std::endl;
+    // }
 
     timer.Start();
     DMatrix monoMassMatrix(MassMatrix(minimalBasis, args.partitions,
@@ -355,80 +357,4 @@ int ParseOptions(std::vector<std::string> options) {
 void GSLErrorHandler(const char* reason, const char* file, int line, int err) {
     std::cerr << "GSL Error in " << file << ":" << line << " --- "
         << gsl_strerror(err) << ", " << reason << std::endl;
-}
-
-bool particle::operator==(const particle& other) const {
-	return (pm == other.pm) && (pt == other.pt);
-}
-
-/*
-std::list<Triplet> ConvertToRows(const std::vector<Poly>& polyForms, 
-		const Basis<Mono>& targetBasis, const Eigen::Index rowOffset) {
-	if(polyForms.size() == 0) return std::list<Triplet>();
-	std::list<Triplet> ret = targetBasis.ExpressPoly(polyForms[0], 0,
-			rowOffset);
-	for(auto i = 1u; i < polyForms.size(); ++i){
-		ret.splice(ret.end(), targetBasis.ExpressPoly(polyForms[i], i,
-				rowOffset));
-	}
-	return ret;
-}
-*/
-
-/*Poly ColumnToPoly(const SMatrix& kernelMatrix, const Eigen::Index col, 
-		const Basis<Mono>& startBasis) {
-	Poly ret;
-	if(static_cast<size_t>(kernelMatrix.rows()) != startBasis.size()){
-		std::cerr << "Error: the given Q matrix has " << kernelMatrix.rows()
-			<< " rows, " << "but the given basis has " << startBasis.size() 
-			<< " monomials. These must be the same." << std::endl;
-		return ret;
-	}
-	for(Eigen::Index row = 0; row < kernelMatrix.rows(); ++row){
-		if(kernelMatrix.coeff(row, col) == 0) continue;
-		ret += kernelMatrix.coeff(row, col)*startBasis[row];
-	}
-
-	if(ret.size() == 0) return ret;
-	coeff_class smallestCoeff = std::abs(ret[0].Coeff());
-	for(auto& term : ret) smallestCoeff = std::min(std::abs(term.Coeff()), smallestCoeff);
-	for(auto& term : ret) term /= smallestCoeff;
-	return ret;
-}*/
-
-Poly ColumnToPoly(const DMatrix& kernelMatrix, const Eigen::Index col, 
-		const Basis<Mono>& startBasis) {
-    Poly ret;
-    if(static_cast<size_t>(kernelMatrix.rows()) != startBasis.size()){
-        std::cerr << "Error: the given Q matrix has " << kernelMatrix.rows()
-                << " rows, " << "but the given basis has " << startBasis.size() 
-                << " monomials. These must be the same." << std::endl;
-        return ret;
-    }
-    for(Eigen::Index row = 0; row < kernelMatrix.rows(); ++row){
-        if(kernelMatrix.coeff(row, col) == 0) continue;
-        ret += kernelMatrix.coeff(row, col)*startBasis[row];
-    }
-
-    if(ret.size() == 0) return ret;
-    // coeff_class smallestCoeff = std::abs(ret[0].Coeff());
-    // for(auto& term : ret) smallestCoeff = std::min(std::abs(term.Coeff()), smallestCoeff);
-    // for(auto& term : ret) term /= smallestCoeff;
-    return ret;
-}
-
-void ClearZeros(DMatrix* toClear) {
-    if(!toClear){
-        std::cerr << "Error: asked to clear the zeros from a nullptr instead of"
-                << " a matrix." << std::endl;
-        return;
-    }
-    coeff_class threshold = EPSILON*toClear->cwiseAbs().maxCoeff();
-    for(Eigen::Index row = 0; row < toClear->rows(); ++row){
-        for(Eigen::Index col = 0; col < toClear->cols(); ++col){
-            if(std::abs<builtin_class>((*toClear)(row, col)) < threshold){
-                    (*toClear)(row, col) = 0;
-            }
-        }
-    }
 }

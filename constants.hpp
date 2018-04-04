@@ -98,12 +98,16 @@ struct Arguments {
 };
 
 struct particle {
-    char pm;	// P_-
-    char pt; // P_\perp
+    char pm;    // P_-
+    char pt;    // P_\perp
 
     bool operator==(const particle& other) const;
     bool operator!=(const particle& other) const { return !(*this == other); }
 };
+
+inline bool particle::operator==(const particle& other) const {
+	return (pm == other.pm) && (pt == other.pt);
+}
 
 enum options { OPT_BRUTE = 1 << 0, OPT_VERSION = 1 << 1, OPT_DEBUG = 1 << 2,
                 OPT_PARITYONLY = 1 << 3, OPT_EQNMOTION = 1 << 4,
