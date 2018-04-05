@@ -15,7 +15,7 @@ bool RunAllTests() {
     result &= MatrixInternal::PermuteXY();
     result &= MatrixInternal::InteractionTermsFromXY();
     result &= MatrixInternal::CombineInteractionFs();
-    result &= RIntegral();
+    // result &= RIntegral();
 
     int numP = 3;
     int degree = 7;
@@ -134,21 +134,21 @@ bool CombineInteractionFs() {
 
 } // namespace MatrixInternal
 
-bool RIntegral() {
-    std::cout << "----- ::RIntegral -----" << std::endl;
-    for (coeff_class a = 1; a < 5; ++a) {
-        for (coeff_class b = 1; b < 5; ++b) {
-            for (coeff_class c = 1; c < 5; ++c) {
-                for (coeff_class alpha = 0.125; alpha <= 1.0; alpha += 0.125) {
-                    std::cout << std::vector<coeff_class>{a, b, c, alpha}
-                        << " = " << ::RIntegral(a, b, c, alpha) << std::endl;
-                }
-            }
-        }
-    }
-    std::cout << "----- PASSED -----" << std::endl;
-    return true;
-}
+// bool RIntegral() {
+    // std::cout << "----- ::RIntegral -----" << std::endl;
+    // for (coeff_class a = 1; a < 5; ++a) {
+        // for (coeff_class b = 1; b < 5; ++b) {
+            // for (coeff_class c = 1; c < 5; ++c) {
+                // for (coeff_class alpha = 0.125; alpha <= 1.0; alpha += 0.125) {
+                    // std::cout << std::vector<coeff_class>{a, b, c, alpha}
+                        // << " = " << ::RIntegral(a, b, c, alpha) << std::endl;
+                // }
+            // }
+        // }
+    // }
+    // std::cout << "----- PASSED -----" << std::endl;
+    // return true;
+// }
 
 bool InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions,
         const coeff_class partWidth) {

@@ -187,7 +187,7 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         }
         return output;
     } else {
-        return MatrixTerm(A, B, type)*MuPart(A, B, partitions, partWidth, type);
+        return MatrixTerm(A, B, type)*MuPart(partitions, partWidth, type);
     }
 }
 

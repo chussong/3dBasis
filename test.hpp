@@ -27,7 +27,7 @@ bool CombineInteractionFs();
 
 } // namespace MatrixInternal
 
-bool RIntegral();
+// bool RIntegral();
 bool InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions,
         const coeff_class partWidth);
 

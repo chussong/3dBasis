@@ -32,9 +32,6 @@ typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, 1> DVector;
 // built-in, then this can just be the same thing; otherwise, it should be
 // something with specializations for std::sqrt, etc. You could also just define
 // new specializations for these functions.
-//
-// this is generally used for comparing things to "zero", so it's okay if some
-// precision is lost
 typedef double builtin_class;
 
 // if builtin_class and coeff_class are different, this ostream operator also
