@@ -16,6 +16,7 @@ bool RunAllTests() {
     result &= MatrixInternal::InteractionTermsFromXY();
     result &= MatrixInternal::CombineInteractionFs();
     // result &= RIntegral();
+    result &= Hypergeometric();
 
     int numP = 3;
     int degree = 7;
@@ -31,7 +32,7 @@ bool RunAllTests() {
     std::vector<Poly> evenStates = ::Orthogonalize(allEvenBases, std::cout);
     std::vector<Poly> oddStates = ::Orthogonalize(allOddBases, std::cout);
     Basis<Mono> minBasis = ::MinimalBasis(evenStates);
-    result &= Test::InteractionMatrix(minBasis, partitions, partWidth);
+    // result &= Test::InteractionMatrix(minBasis, partitions, partWidth);
 
     return result;
 }
@@ -149,6 +150,40 @@ bool CombineInteractionFs() {
     // std::cout << "----- PASSED -----" << std::endl;
     // return true;
 // }
+
+bool Hypergeometric() {
+    std::cout << "----- ::HypergeometricPFQ -----" << std::endl;
+    bool passed = true;
+
+    passed &= HypergeometricPFQ_Case<2,1>({{1,2}}, {{3}}, 0.4, 1.38532);
+    passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,2}}, {{3}}, 0.4, 0.69266);
+    passed &= HypergeometricPFQ_Case<2,1>({{1,-2}}, {{3}}, 0.4, 0.76);
+    passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,-2}}, {{3}}, 0.4, 0.38);
+    passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,-2}}, {{-3}}, 0.4, 0.0);
+    passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,2}}, {{-3}}, 0.4, 65.8436);
+
+    passed &= HypergeometricPFQ_Case<3,2>({{1,2,3}}, {{4,5}}, 0.6, 1.24177);
+    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,3}}, {{4,5}}, 0.6, 0.00862338);
+    passed &= HypergeometricPFQ_Case<3,2>({{1,-2,3}}, {{4,5}}, 0.6, 0.8344);
+    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,-2,3}}, {{4,5}}, 0.6, 0.00579444);
+    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,-2,3}}, {{-4,5}}, 0.6, 0.0);
+    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,3}}, {{-4,5}}, 0.6, 58.4183);
+    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,-3}}, {{-4,-5}}, 0.6, 0.0);
+    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,3}}, {{-4,-5}}, 0.6, 4.61311e14);
+
+    // argument x=1 requires special treatment that's not implemented yet
+    // passed &= HypergeometricPFQ_Case<2,1>({{1,2}}, {{4}}, 1.0, 3.0);
+    // passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,2}}, {{4}}, 1.0, 0.5);
+    // passed &= HypergeometricPFQ_Case<3,2>({{1,2,3}}, {{4,5}}, 1.0, 1.56475);
+    // passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,3}}, {{4,5}}, 1.0, 0.0108663);
+
+    if (passed) {
+        std::cout << "----- PASSED -----" << std::endl;
+    } else {
+        std::cout << "----- FAILED -----" << std::endl;
+    }
+    return passed;
+}
 
 bool InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions,
         const coeff_class partWidth) {

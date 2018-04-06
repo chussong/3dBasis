@@ -8,6 +8,7 @@
 #include <vector>
 #include <cmath>
 #include <unordered_map> // for caching integral results
+#include <algorithm> // std::remove_if
 #include <gsl/gsl_sf_hyperg.h>
 #include <boost/functional/hash.hpp>
 

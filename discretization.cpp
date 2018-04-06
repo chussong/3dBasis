@@ -151,6 +151,8 @@ coeff_class InteractionWindow_Equal(const builtin_class a, const builtin_class b
     coeff_class groupB = 0;
     groupB -= mu_ab[0]*mu_ab[0]*Hypergeometric3F2_Reg(
             {{a, 0.5+a, -b}}, {{2.0+a, 1.5+a+c}}, 1);
+    // or {{a, 1.5, 2.0+a+b}}, {{2.0+a, 3.0+b+c}}, 1
+    // or {{2.0, 1.0+c, 3.0+b+c}}, {{3.5+a+b+c, 3.0+c}}, 1
     groupB += a*(mu_ab[1]-mu_ab[0])*(mu_ab[1]+mu_ab[0])*Hypergeometric3F2_Reg(
             {{0.5+a, 1.0+a, -b}}, {{2.0+a, 1.5+a+c}}, 1);
     groupB += mu_ab[0]*mu_ab[0]*std::pow(static_cast<builtin_class>(x), a)
@@ -185,69 +187,13 @@ coeff_class InteractionWindow_Greater(const builtin_class a, const builtin_class
     return overall * hypergeos;
 }
 
-// this 3F2 is based on GSL's series approximation for the 2F1
-coeff_class Hypergeometric3F2(const std::array<builtin_class,3>& a, 
-        const std::array<builtin_class,2>& b, const builtin_class x) {
-    coeff_class sum_pos = 1.0;
-    coeff_class sum_neg = 0.0;
-    coeff_class del_pos = 1.0;
-    coeff_class del_neg = 0.0;
-    coeff_class del = 1.0;
-    coeff_class del_prev;
-    coeff_class k = 0.0;
-    int i = 0;
-
-    coeff_class result;
-
-    do {
-        if(++i > 30000) {
-            result = sum_pos - sum_neg;
-            GSL_ERROR ("didn't converge", GSL_EMAXITER);
-        }
-        del_prev = del;
-        del *= (a[0]+k)*(a[1]+k)*(a[2]+k) * x / ((b[0]+k)*(b[1]+k) * (k+1.0));
-
-        if(del > 0.0) {
-            del_pos  =  del;
-            sum_pos +=  del;
-        }
-        else if(del == 0.0) {
-            /* Exact termination (a, b, or c was a negative integer).
-            */
-            del_pos = 0.0;
-            del_neg = 0.0;
-            break;
-        }
-        else {
-            del_neg  = -del;
-            sum_neg -=  del;
-        }
-
-        /*
-         * This stopping criteria is taken from the thesis
-         * "Computation of Hypergeometic Functions" by J. Pearson, pg. 31
-         * (http://people.maths.ox.ac.uk/porterm/research/pearson_final.pdf)
-         * and fixes bug #45926
-         */
-        if (std::abs<builtin_class>(del_prev / (sum_pos - sum_neg)) < EPSILON &&
-            std::abs<builtin_class>(del / (sum_pos - sum_neg)) < EPSILON)
-            break;
-
-        k += 1.0;
-    } while(std::abs<builtin_class>((del_pos + del_neg)/(sum_pos-sum_neg)) > EPSILON);
-
-    result = sum_pos - sum_neg;
-
-    return result;
-}
-
 coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,3>& a, 
         const std::array<builtin_class,2>& b, const builtin_class x) {
     std::array<builtin_class,6> params = {{a[0], a[1], a[2], b[0], b[1], x}};
     if (hgfrCache.count(params) == 0) {
-        coeff_class reg = std::tgamma(static_cast<builtin_class>(b[0]))
-            * std::tgamma(static_cast<builtin_class>(b[1]));
-        hgfrCache.emplace(params, Hypergeometric3F2(a, b, x) / reg);
+        coeff_class reg = std::tgamma(b[0]) * std::tgamma(b[1]);
+        // hgfrCache.emplace(params, Hypergeometric3F2(a, b, x) / reg);
+        hgfrCache.emplace(params, HypergeometricPFQ<3,2>(a, b, x) / reg);
     }
 
     return hgfrCache[params];

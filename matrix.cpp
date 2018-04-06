@@ -182,8 +182,8 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         auto terms = MatrixTerm_Inter(A, B);
         DMatrix output = DMatrix::Zero(partitions, partitions);
         for (const auto& term : terms) {
-            // std::cout << "Term: " << term.r << std::endl;
-            output += term.coeff*MuPart(term.r, partitions, partWidth);
+            std::cout << "Term: " << term.r << std::endl;
+            // output += term.coeff*MuPart(term.r, partitions, partWidth);
         }
         return output;
     } else {
@@ -636,6 +636,10 @@ std::vector<InteractionTerm_Step2> CombineInteractionFs(
             output.push_back(CombineInteractionFs_OneTerm(f1, f2));
         }
     }
+    // terms with odd powers of r will eventually integrate to 0 so ditch them
+    output.erase(std::remove_if(output.begin(), output.end(),
+                [](const InteractionTerm_Step2& term){return term.r[0]%2 == 1;}),
+            output.end());
     return output;
 }
 
