@@ -127,6 +127,11 @@ coeff_class InteractionWindow_Less(const builtin_class a, const builtin_class b,
         }
     }
 
+    if (std::isnan(static_cast<builtin_class>(hypergeos))) {
+        std::cerr << "Error: InteractionWindow_Less(" << a << ", " << b 
+            << ", " << c << ", " << mu1_ab << ", " << mu2_ab 
+            << ") returns a NaN." << std::endl;
+    }
     return overall * hypergeos;
 }
 
@@ -147,6 +152,10 @@ coeff_class InteractionWindow_Equal(const builtin_class a, const builtin_class b
             {{-0.5, 0.5+a, -c}}, {{1.5, 1.5+a+b}}, x);
     groupA *= 2 * std::sqrt(M_PI);
     groupA *= std::tgamma(static_cast<builtin_class>(1.0 + b));
+    if (std::isnan(static_cast<builtin_class>(groupA))) {
+        std::cerr << "Error: InteractionWindow_Equal(" << a << ", " << b << ", "
+            << c << ", " << mu_ab << ") has a NaN in groupA." << std::endl;
+    }
     
     coeff_class groupB = 0;
     groupB -= mu_ab[0]*mu_ab[0]*Hypergeometric3F2_Reg(
@@ -157,8 +166,13 @@ coeff_class InteractionWindow_Equal(const builtin_class a, const builtin_class b
             {{0.5+a, 1.0+a, -b}}, {{2.0+a, 1.5+a+c}}, 1);
     groupB += mu_ab[0]*mu_ab[0]*std::pow(static_cast<builtin_class>(x), a)
         * Hypergeometric3F2_Reg({{a, 0.5+a, -b}}, {{2.0+a, 1.5+a+c}}, x);
+    // FIXME: the below gamma function diverges when a=0. Is this valid input?
     groupB *= std::tgamma(static_cast<builtin_class>(a));
     groupB *= std::tgamma(static_cast<builtin_class>(1.0 + c));
+    if (std::isnan(static_cast<builtin_class>(groupB))) {
+        std::cerr << "Error: InteractionWindow_Equal(" << a << ", " << b << ", "
+            << c << ", " << mu_ab << ") has a NaN in groupB." << std::endl;
+    }
 
     return overall * (groupA + groupB);
 }
@@ -184,6 +198,11 @@ coeff_class InteractionWindow_Greater(const builtin_class a, const builtin_class
         }
     }
 
+    if (std::isnan(static_cast<builtin_class>(hypergeos))) {
+        std::cerr << "Error: InteractionWindow_Greater(" << a << ", " << b 
+            << ", " << c << ", " << mu1_ab << ", " << mu2_ab 
+            << ") returns a NaN." << std::endl;
+    }
     return overall * hypergeos;
 }
 

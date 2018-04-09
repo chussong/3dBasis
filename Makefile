@@ -43,10 +43,11 @@ matrix.o: matrix.cpp matrix.hpp multinomial.hpp mono.hpp basis.hpp io.hpp \
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 discretization.o: discretization.cpp discretization.hpp constants.hpp mono.hpp \
-	basis.hpp
+	basis.hpp hypergeo.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
-test.o: test.cpp test.hpp io.hpp discretization.hpp matrix.hpp gram-schmidt.hpp
+test.o: test.cpp test.hpp io.hpp discretization.hpp matrix.hpp gram-schmidt.hpp\
+    	hypergeo.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 clean:

@@ -8,6 +8,7 @@
 #include "io.hpp"
 #include "discretization.hpp"
 #include "gram-schmidt.hpp"
+#include "hypergeo.hpp"
 
 // This file contains unit tests for various functions; for a function named
 // Namespace::Function, the test will be Test::Namespace::Function, and will be

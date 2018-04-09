@@ -32,7 +32,7 @@ bool RunAllTests() {
     std::vector<Poly> evenStates = ::Orthogonalize(allEvenBases, std::cout);
     std::vector<Poly> oddStates = ::Orthogonalize(allOddBases, std::cout);
     Basis<Mono> minBasis = ::MinimalBasis(evenStates);
-    // result &= Test::InteractionMatrix(minBasis, partitions, partWidth);
+    result &= Test::InteractionMatrix(minBasis, partitions, partWidth);
 
     return result;
 }

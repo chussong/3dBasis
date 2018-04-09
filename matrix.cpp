@@ -182,8 +182,8 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         auto terms = MatrixTerm_Inter(A, B);
         DMatrix output = DMatrix::Zero(partitions, partitions);
         for (const auto& term : terms) {
-            std::cout << "Term: " << term.r << std::endl;
-            // output += term.coeff*MuPart(term.r, partitions, partWidth);
+            // std::cout << "Term: " << term.r << std::endl;
+            output += term.coeff*MuPart(term.r, partitions, partWidth);
         }
         return output;
     } else {
@@ -835,8 +835,8 @@ coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
 //
 // FIXME: may as well hash the results of this
 coeff_class DoAllIntegrals(InteractionTerm_Step2& term, const MATRIX_TYPE type){
-    std::cout << "DoAllIntegrals(" << term.u << ", " << term.theta << ")"
-        << std::endl;
+    // std::cout << "DoAllIntegrals(" << term.u << ", " << term.theta << ")"
+        // << std::endl;
     auto n = term.u.size()/2;
     // using Nikhil's conventions, adjust exponents before doing integrals
     if (type == MAT_INTER_SAME_N) {
