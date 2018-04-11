@@ -13,7 +13,7 @@
 #include <type_traits>	// std::is_same
 #include <gsl/gsl_errno.h>  // handling for GSL errors
 
-constexpr char VERSION[] = "0.9.5";
+constexpr char VERSION[] = "0.9.6";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"

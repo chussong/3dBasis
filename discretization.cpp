@@ -54,9 +54,16 @@ DMatrix MuPart_Kinetic(const std::size_t partitions,
 namespace {
     std::unordered_map<std::array<char,3>, DMatrix, 
         boost::hash<std::array<char,3>> > intCache;
+    std::unordered_map<std::array<char,2>, DMatrix, 
+        boost::hash<std::array<char,2>> > nPlus2Cache;
+
     std::unordered_map<std::size_t,DMatrix> zeroMatrix;
+
+    // caches for expensive functions
     std::unordered_map<std::array<builtin_class,6>,coeff_class,
         boost::hash<std::array<builtin_class,6>> > hgfrCache;
+    std::unordered_map<std::array<builtin_class,3>,coeff_class,
+        boost::hash<std::array<builtin_class,3>> > betaCache;
 } // anonymous namespace
 
 // this is the MuPart for the same-n interaction matrix
@@ -180,6 +187,7 @@ coeff_class InteractionWindow_Equal(const builtin_class a, const builtin_class b
 coeff_class InteractionWindow_Greater(const builtin_class a, const builtin_class b, 
         const builtin_class c, const std::array<builtin_class,2>& mu1_ab,
         const std::array<builtin_class,2>& mu2_ab) {
+    if (a == 0) return InteractionWindow_Greater_Zero(b, c, mu1_ab, mu2_ab);
     coeff_class overall = std::pow(4, static_cast<builtin_class>(-a-1.0));
     overall *= std::sqrt(M_PI);
     overall *= std::tgamma(static_cast<builtin_class>(2*a));
@@ -206,6 +214,98 @@ coeff_class InteractionWindow_Greater(const builtin_class a, const builtin_class
     return overall * hypergeos;
 }
 
+coeff_class InteractionWindow_Greater_Zero(builtin_class b, 
+        const builtin_class c, const std::array<builtin_class,2>& mu1_ab,
+        const std::array<builtin_class,2>& mu2_ab) {
+    coeff_class overall = M_PI/8;
+    overall *= std::tgamma(1.0 + c) / std::tgamma(1.5 + b + c);
+    // *= (-1)^1+b
+    if (static_cast<int>(std::round(2*b)) % 2 == 1) {
+        return 0; // pure imaginary so it's going to have to cancel
+    } else if (static_cast<int>(std::round(b)) % 2 == 0) {
+        overall = -overall;
+    }
+
+    // *= gamma(-1-b)/cos(\pi b) diverges when 2b is an integer (i.e. always)
+    // but probably cancels against a zero in the sum of the hypergeometrics. 
+    // We can't properly represent this right now, so here's a hack: (FIXME)
+    b += 0.05;
+    overall *= std::tgamma(-1-b) / std::cos(M_PI*b);
+    
+    coeff_class hypergeos = 0;
+    for (std::size_t i = 0; i < 2; ++i) {
+        coeff_class mu1 = mu1_ab[i];
+        for (std::size_t j = 0; j < 2; ++j) {
+            coeff_class mu2 = mu2_ab[j];
+            coeff_class x = (mu1*mu1)/(mu2*mu2);
+            int sign = (i+j)%2 == 0 ? 1 : -1;
+            hypergeos += sign * mu2*mu2 
+                * std::pow(static_cast<builtin_class>(x), -b)
+                * Hypergeometric3F2_Reg(
+                        {{-1.0-b, -b, -0.5-b-c}}, {{0.5-b, 1.0-b}}, x);
+        }
+    }
+
+    // FIXME?? There's also another term that looks purely imaginary so I think
+    // it should have to cancel out, right??
+
+    return overall * hypergeos;
+}
+
+coeff_class NPlus2Window(const char n, const char r,
+        const std::array<builtin_class,2>& mu1_ab,
+        const std::array<builtin_class,2>& mu2_ab) {
+    builtin_class a = r/2.0;
+
+    if (mu1_ab[0] < mu2_ab[0]) {
+        return NPlus2Window_Less(n, a, mu1_ab, mu2_ab);
+    } else if (mu1_ab[0] == mu2_ab[0]) {
+        return NPlus2Window_Equal(n, a, mu1_ab);
+    } else {
+        return NPlus2Window_Greater(n, a, mu1_ab, mu2_ab);
+    }
+}
+
+coeff_class NPlus2Window_Less(const char n, const builtin_class a, 
+        const std::array<builtin_class,2>& mu1_ab,
+        const std::array<builtin_class,2>& mu2_ab) {
+    coeff_class overall = 6.0;
+    if (static_cast<int>(std::round(a))%2 == 0) overall = -overall;
+
+    coeff_class betas = 0;
+    for (std::size_t i = 0; i < 2; ++i) {
+        coeff_class mu1 = mu1_ab[i];
+        for (std::size_t j = 0; j < 2; ++j) {
+            coeff_class mu2 = mu2_ab[j];
+            int sign = (i+j)%2 == 0 ? 1 : -1;
+
+            builtin_class x = (mu2*mu2) / (mu1*mu1);
+
+            betas += sign * (mu2*mu2*mu2*Beta({{x, -0.25 - a - 0.25*n, 1.0 + a}})
+                    - mu1*mu1*mu1*Beta({{x, 1.25 - a - 0.25*n, 1.0 + a}}));
+        }
+    }
+
+    if (std::isnan(static_cast<builtin_class>(betas))) {
+        std::cerr << "Error: NPLus2Window_Less(" << (int)n << ", " << a 
+            << ", " << mu1_ab << ", " << mu2_ab << ") returns a NaN." 
+            << std::endl;
+    }
+    return betas / overall;
+}
+
+// all three window types seem to actually be the same
+coeff_class NPlus2Window_Equal(const char n, const builtin_class a, 
+        const std::array<builtin_class,2>& mu_ab) {
+    return NPlus2Window_Less(n, a, mu_ab, mu_ab);
+}
+
+coeff_class NPlus2Window_Greater(const char n, const builtin_class a, 
+        const std::array<builtin_class,2>& mu1_ab,
+        const std::array<builtin_class,2>& mu2_ab) {
+    return NPlus2Window_Less(n, a, mu1_ab, mu2_ab);
+}
+
 coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,3>& a, 
         const std::array<builtin_class,2>& b, const builtin_class x) {
     std::array<builtin_class,6> params = {{a[0], a[1], a[2], b[0], b[1], x}};
@@ -218,7 +318,39 @@ coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,3>& a,
     return hgfrCache[params];
 }
 
-const DMatrix& MuPart(const char r, const std::size_t partitions,
+// this is the INCOMPLETE BETA FUNCTION, B_args[0](args[1], args[2])
+coeff_class Beta(const std::array<builtin_class,3>& args) {
+    if (betaCache.count(args) == 0) {
+        // need to multiply beta in to go from gsl's regularized IBF -> IBF
+        coeff_class beta = std::exp(std::lgamma(args[1]) + std::lgamma(args[2]) 
+                - std::lgamma(args[1] + args[2]) );
+        betaCache.emplace(args, beta*gsl_sf_beta_inc(args[1], args[2], args[0]));
+    }
+
+    return betaCache[args];
+}
+
+const DMatrix& MuPart(const std::array<char,2>& nr, const std::size_t partitions,
         const coeff_class partWidth) {
-    throw std::logic_error("MuPart for n+2: this function not yet implemented");
+    if (nr[1]%2 == 1) {
+        if (zeroMatrix.count(partitions) == 0) {
+            zeroMatrix.emplace(partitions, DMatrix::Zero(partitions, partitions));
+        }
+        return zeroMatrix[partitions];
+    }
+    if (nPlus2Cache.count(nr) == 0) {
+        DMatrix block(partitions, partitions);
+        for (std::size_t winA = 0; winA < partitions; ++winA) {
+            for (std::size_t winB = 0; winB < partitions; ++winB) {
+                block(winA, winB) = NPlus2Window(nr[0], nr[1], 
+                        {{static_cast<builtin_class>(winA*partWidth),
+                        static_cast<builtin_class>((winA+1)*partWidth)}},
+                        {{static_cast<builtin_class>(winB*partWidth), 
+                        static_cast<builtin_class>((winB+1)*partWidth)}} );
+            }
+        }
+        nPlus2Cache.emplace(nr, std::move(block));
+    }
+
+    return nPlus2Cache[nr];
 }

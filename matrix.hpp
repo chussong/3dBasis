@@ -115,13 +115,35 @@ struct InteractionTerm_Output {
         coeff(coeff), r(r) {}
 };
 
+struct NPlus2Term_Step2 {
+    // coeff(F1) * coeff(F2), not including degeneracies or coeffs of A&B (yet?)
+    coeff_class coeff;
+    // u1+, u1-, u2+, u2-, ..., u(n-1)+, u(n-1)-, u'(n-1)+, u'(n-1)-, u'n+, u'n-
+    std::vector<char> u;
+    // sin(theta_1), cos(theta_1), ... , sin(theta_(n-2)), cos(theta_(n-2)),
+    // sin(theta'), cos(theta')
+    std::vector<char> theta;
+    // r, sqrt(1 - r^2), sqrt(1 - alpha^2 r^2)
+    char r;
+};
+
+struct NPlus2Term_Output {
+    // entire constant part of term, including prefactors, degeneracies, etc.
+    coeff_class coeff;
+    // exponent of r
+    char r;
+
+    NPlus2Term_Output(const coeff_class coeff, const char r):
+        coeff(coeff), r(r) {}
+};
+
 // the two functions for actually computing the two types of MatrixTerms:
 // direct for inner product and mass, inter for interactions
 coeff_class MatrixTerm_Direct(
         const Mono& A, const Mono& B, const MATRIX_TYPE type);
 std::vector<InteractionTerm_Output> MatrixTerm_Inter(
         const Mono& A, const Mono& B);
-coeff_class MatrixTerm_NPlus2(const Mono& A, const Mono& B);
+std::vector<NPlus2Term_Output> MatrixTerm_NPlus2(const Mono& A, const Mono& B);
 
 // coordinate transform functions, called from MatrixTerm
 std::string ExtractXY(const Mono& extractFromThis);
@@ -168,12 +190,13 @@ std::vector<InteractionTerm_Output> InteractionOutput(
         std::vector<InteractionTerm_Step2>& combinedFs, 
         const MATRIX_TYPE type, const coeff_class prefactor);
 
-// functions specific to N PLUS 2 computations
-std::vector<MatrixTerm_Final> ThetaFromYTilde_NPlus2(
-        std::vector<MatrixTerm_Intermediate>& intermediateTerms);
-const std::vector<MatrixTerm_Final>& TermsFromXY_NPlus2(
-        const std::string& xAndy);
-coeff_class FinalResult_NPlus2(const std::vector<MatrixTerm_Final>& combinedFs);
+std::vector<NPlus2Term_Step2> CombineNPlus2Fs(
+        const std::vector<MatrixTerm_Intermediate>& F1, 
+        const std::vector<MatrixTerm_Intermediate>& F2);
+NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
+        const MatrixTerm_Intermediate& f1, const MatrixTerm_Intermediate& f2);
+std::vector<NPlus2Term_Output> NPlus2Output(
+        std::vector<NPlus2Term_Step2>& combinedFs, const coeff_class prefactor);
 
 // numerical prefactors used in the various computations
 coeff_class Prefactor(const Mono& A, const Mono& B, const MATRIX_TYPE type);
@@ -185,7 +208,7 @@ coeff_class NPlus2MatrixPrefactor(const char n);
 // integrals used in FinalResult
 coeff_class DoAllIntegrals(const MatrixTerm_Final& term);
 coeff_class DoAllIntegrals(InteractionTerm_Step2& term, const MATRIX_TYPE type);
-coeff_class DoAllIntegrals_NPlus2(const MatrixTerm_Final& term);
+coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term);
 builtin_class UIntegral(const builtin_class a, const builtin_class b);
 builtin_class ThetaIntegral_Short(const builtin_class a, const builtin_class b);
 builtin_class ThetaIntegral_Long(const builtin_class a, const builtin_class b);
