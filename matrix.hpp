@@ -10,6 +10,7 @@
 #include <unordered_map> // for caching integral results
 #include <algorithm> // std::remove_if
 #include <gsl/gsl_sf_hyperg.h>
+#include <gsl/gsl_sf_gamma.h> // beta function
 #include <boost/functional/hash.hpp>
 
 #include "constants.hpp"
@@ -24,14 +25,10 @@
 coeff_class InnerFock(const Mono& A, const Mono& B);
 DMatrix GramFock(const Basis<Mono>& basis);
 coeff_class InnerProduct(const Mono& A, const Mono& B);
-DMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
-        const coeff_class partWidth);
-DMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
-        const coeff_class partWidth);
-DMatrix KineticMatrix(const Basis<Mono>& basis, const std::size_t partitions,
-        const coeff_class partWidth);
-DMatrix InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
-        const coeff_class partWidth);
+DMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions);
+DMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions);
+DMatrix KineticMatrix(const Basis<Mono>& basis, const std::size_t partitions);
+DMatrix InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions);
 
 // internal stuff -------------------------------------------------------------
 
@@ -43,10 +40,10 @@ using ::operator<<;
 
 // the main point of this header
 DMatrix Matrix(const Basis<Mono>& basis, const std::size_t partitions, 
-        const coeff_class partWidth, const MATRIX_TYPE type);
+        const MATRIX_TYPE type);
 coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type);
 DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
-        const std::size_t partitions, const coeff_class partWidth);
+        const std::size_t partitions);
 
 // five structs used in the coordinate transformations for MatrixTerm
 
@@ -209,7 +206,7 @@ coeff_class NPlus2MatrixPrefactor(const char n);
 coeff_class DoAllIntegrals(const MatrixTerm_Final& term);
 coeff_class DoAllIntegrals(InteractionTerm_Step2& term, const MATRIX_TYPE type);
 coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term);
-builtin_class UIntegral(const builtin_class a, const builtin_class b);
+builtin_class UPlusIntegral(const builtin_class a, const builtin_class b);
 builtin_class ThetaIntegral_Short(const builtin_class a, const builtin_class b);
 builtin_class ThetaIntegral_Long(const builtin_class a, const builtin_class b);
 builtin_class RIntegral(const builtin_class a, const builtin_class alpha);

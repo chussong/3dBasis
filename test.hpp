@@ -25,13 +25,14 @@ namespace MatrixInternal {
 bool PermuteXY();
 bool InteractionTermsFromXY();
 bool CombineInteractionFs();
+bool UPlusIntegral();
+bool UPlusIntegral_Case(const builtin_class a, const builtin_class b, 
+        const builtin_class expected);
 
 } // namespace MatrixInternal
 
-// bool RIntegral();
 bool Hypergeometric();
-bool InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions,
-        const coeff_class partWidth);
+bool InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions);
 
 // templates for testing templates --------------------------------------------
 

@@ -19,15 +19,13 @@ DMatrix DiscretizePolys(const DMatrix& polysOnMinBasis,
 
 // direct matrices ------------------------------------------------------------
 
-DMatrix MuPart(const std::size_t partitions, const coeff_class partWidth, 
-        const MATRIX_TYPE type);
-DMatrix MuPart_Kinetic(const std::size_t partitions, 
-        const coeff_class partWidth);
+DMatrix MuPart(const std::size_t partitions, const MATRIX_TYPE type);
+DMatrix MuPart_Kinetic(const std::size_t partitions);
 
 // same-n interactions --------------------------------------------------------
 
 const DMatrix& MuPart(const std::array<char,3>& r, 
-        const std::size_t partitions, const coeff_class partWidth);
+        const std::size_t partitions);
 coeff_class InteractionWindow(const std::array<char,3>& r,
         const std::array<builtin_class,2>& mu1_ab,
         const std::array<builtin_class,2>& mu2_ab);
@@ -51,8 +49,7 @@ coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,3>& a,
 
 // n+2 interactions -----------------------------------------------------------
 
-const DMatrix& MuPart(const std::array<char,2>& nr, const std::size_t partitions,
-        const coeff_class partWidth);
+const DMatrix& MuPart(const std::array<char,2>& nr, const std::size_t partitions);
 
 coeff_class NPlus2Window(const char n, const char r,
         const std::array<builtin_class,2>& mu1_ab,
@@ -66,6 +63,8 @@ coeff_class NPlus2Window_Greater(const char n, const builtin_class a,
         const std::array<builtin_class,2>& mu1_ab,
         const std::array<builtin_class,2>& mu2_ab);
 
+coeff_class Hypergeometric2F1(const builtin_class a, const builtin_class b,
+        const builtin_class c, const builtin_class x);
 coeff_class Beta(const std::array<builtin_class,3>& args);
 
 #endif

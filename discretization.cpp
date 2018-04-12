@@ -24,14 +24,13 @@ DMatrix DiscretizePolys(const DMatrix& polysOnMinBasis,
 // given monomials A and B, give the PxP tensor representing block A,B of the
 // specified matrix
 //
-// this works for every matrix computation except the same-n interaction,
-// because that one passes different arguments
-DMatrix MuPart(const std::size_t partitions, const coeff_class partWidth, 
-        const MATRIX_TYPE type) {
+// this works for every matrix computation except the interactions, because 
+// they pass different arguments
+DMatrix MuPart(const std::size_t partitions, const MATRIX_TYPE type) {
     if (type == MAT_INNER || type == MAT_MASS) {
         return DMatrix::Identity(partitions, partitions);
     } else if (type == MAT_KINETIC) {
-        return MuPart_Kinetic(partitions, partWidth);
+        return MuPart_Kinetic(partitions);
     } else {
         std::cerr << "Error: the requested MuPart type has not yet been "
             << "implemented." << std::endl;
@@ -39,13 +38,14 @@ DMatrix MuPart(const std::size_t partitions, const coeff_class partWidth,
     }
 }
 
-DMatrix MuPart_Kinetic(const std::size_t partitions, 
-        const coeff_class partWidth) {
+DMatrix MuPart_Kinetic(const std::size_t partitions) {
+    coeff_class partWidth = static_cast<coeff_class>(1) / partitions;
     DMatrix output = DMatrix::Zero(partitions, partitions);
     for (std::size_t k = 0; k < partitions; ++k) {
-        output(k, k) = partWidth*partWidth/2;
-        output(k, k) *= k*k + (k+1)*(k+1);
+        output(k, k) = partWidth/2;
+        output(k, k) *= k + (k+1);
     }
+    // std::cout << "KINETIC BLOCK:\n" << output << std::endl;
     return output;
 }
 
@@ -62,6 +62,8 @@ namespace {
     // caches for expensive functions
     std::unordered_map<std::array<builtin_class,6>,coeff_class,
         boost::hash<std::array<builtin_class,6>> > hgfrCache;
+    std::unordered_map<std::array<builtin_class,4>,coeff_class,
+        boost::hash<std::array<builtin_class,4>> > hg2f1Cache;
     std::unordered_map<std::array<builtin_class,3>,coeff_class,
         boost::hash<std::array<builtin_class,3>> > betaCache;
 } // anonymous namespace
@@ -76,13 +78,15 @@ namespace {
 // corresponding to one pair of monomials. The sum of all of the returned blocks
 // will be the block's actual value.
 const DMatrix& MuPart(const std::array<char,3>& r, 
-        const std::size_t partitions, const coeff_class partWidth) {
+        const std::size_t partitions) {
     if (r[0]%2 == 1) {
         if (zeroMatrix.count(partitions) == 0) {
             zeroMatrix.emplace(partitions, DMatrix::Zero(partitions, partitions));
         }
         return zeroMatrix[partitions];
     }
+
+    coeff_class partWidth = static_cast<coeff_class>(1) / partitions;
     if (intCache.count(r) == 0) {
         DMatrix block(partitions, partitions);
         for (std::size_t winA = 0; winA < partitions; ++winA) {
@@ -252,18 +256,50 @@ coeff_class InteractionWindow_Greater_Zero(builtin_class b,
     return overall * hypergeos;
 }
 
-coeff_class NPlus2Window(const char n, const char r,
+// coeff_class NPlus2Window(const char n, const char r,
+        // const std::array<builtin_class,2>& mu1_ab,
+        // const std::array<builtin_class,2>& mu2_ab) {
+    // builtin_class a = r/2.0;
+// 
+    // if (mu1_ab[0] < mu2_ab[0]) {
+        // return NPlus2Window_Less(n, a, mu1_ab, mu2_ab);
+    // } else if (mu1_ab[0] == mu2_ab[0]) {
+        // return NPlus2Window_Equal(n, a, mu1_ab);
+    // } else {
+        // return NPlus2Window_Greater(n, a, mu1_ab, mu2_ab);
+    // }
+// }
+
+coeff_class NPlus2Window(const char n, const char r, 
         const std::array<builtin_class,2>& mu1_ab,
         const std::array<builtin_class,2>& mu2_ab) {
-    builtin_class a = r/2.0;
+    builtin_class a = 0.5 * r;
+    coeff_class overall = 8.0 / 3.0;
 
-    if (mu1_ab[0] < mu2_ab[0]) {
-        return NPlus2Window_Less(n, a, mu1_ab, mu2_ab);
-    } else if (mu1_ab[0] == mu2_ab[0]) {
-        return NPlus2Window_Equal(n, a, mu1_ab);
-    } else {
-        return NPlus2Window_Greater(n, a, mu1_ab, mu2_ab);
+    coeff_class hypergeos = 0;
+    for (std::size_t i = 0; i < 2; ++i) {
+        coeff_class mu1 = mu1_ab[i];
+        for (std::size_t j = 0; j < 2; ++j) {
+            coeff_class mu2 = mu2_ab[j];
+            int sign = (i+j)%2 == 0 ? 1 : -1;
+
+            builtin_class x = mu1 / mu2;
+
+            coeff_class term = sign * std::pow(mu1, 0.25) * std::pow(mu2, 1.25)
+                * std::pow(x, 0.25*n);
+            hypergeos += term * 
+                Hypergeometric2F1(-a, (n+1.0)/4.0, (n+5.0)/4.0, x) / (n + 1.0);
+            hypergeos -= term * 
+                Hypergeometric2F1(-a, (n-5.0)/4.0, (n-1.0)/4.0, x) / (n - 5.0);
+        }
     }
+
+    if (std::isnan(static_cast<builtin_class>(hypergeos))) {
+        std::cerr << "Error: NPlus2Window(" << (int)n << ", " << a 
+            << ", " << mu1_ab << ", " << mu2_ab << ") returns a NaN." 
+            << std::endl;
+    }
+    return overall * hypergeos;
 }
 
 coeff_class NPlus2Window_Less(const char n, const builtin_class a, 
@@ -306,6 +342,16 @@ coeff_class NPlus2Window_Greater(const char n, const builtin_class a,
     return NPlus2Window_Less(n, a, mu1_ab, mu2_ab);
 }
 
+coeff_class Hypergeometric2F1(const builtin_class a, const builtin_class b,
+        const builtin_class c, const builtin_class x) {
+    const std::array<builtin_class,4> params = {{a, b, c, x}};
+    if (hg2f1Cache.count(params) == 0) {
+        hg2f1Cache.emplace(params, HypergeometricPFQ<2,1>({{a,b}}, {{c}}, x));
+    }
+
+    return hg2f1Cache[params];
+}
+
 coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,3>& a, 
         const std::array<builtin_class,2>& b, const builtin_class x) {
     std::array<builtin_class,6> params = {{a[0], a[1], a[2], b[0], b[1], x}};
@@ -330,14 +376,15 @@ coeff_class Beta(const std::array<builtin_class,3>& args) {
     return betaCache[args];
 }
 
-const DMatrix& MuPart(const std::array<char,2>& nr, const std::size_t partitions,
-        const coeff_class partWidth) {
+const DMatrix& MuPart(const std::array<char,2>& nr, const std::size_t partitions) {
     if (nr[1]%2 == 1) {
         if (zeroMatrix.count(partitions) == 0) {
             zeroMatrix.emplace(partitions, DMatrix::Zero(partitions, partitions));
         }
         return zeroMatrix[partitions];
     }
+
+    coeff_class partWidth = static_cast<coeff_class>(1) / partitions;
     if (nPlus2Cache.count(nr) == 0) {
         DMatrix block(partitions, partitions);
         for (std::size_t winA = 0; winA < partitions; ++winA) {

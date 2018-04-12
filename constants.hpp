@@ -91,7 +91,6 @@ struct Arguments {
     int options = 0;
     std::ostream* outputStream = &std::cout;
     std::size_t partitions = 4; // \mu partitions per operator pair
-    coeff_class partWidth = 0.25;
 };
 
 struct particle {

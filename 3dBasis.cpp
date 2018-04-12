@@ -177,83 +177,61 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
             << MathematicaOutput(discPolys.transpose()) << std::endl;
     }
 
-    // if (outStream.rdbuf() == std::cout.rdbuf()) {
-        // outStream << "Fock space inner product for confirmation; monos:" << std::endl;
-        // DMatrix discGram(GramMatrix(minimalBasis, args.partitions, args.partWidth));
+    if (outStream.rdbuf() != std::cout.rdbuf()) {
+        DMatrix discGram(GramMatrix(minimalBasis, args.partitions));
+        outStream << "minBasisGramMatrix = "
+            << MathematicaOutput(discGram) << std::endl;
         // DMatrix discGram_BasisStates = 
                 // discPolys.transpose() * discGram * discPolys;
         // outStream << discGram << std::endl << "basis states:" 
                 // << std::endl << discGram_BasisStates << std::endl;
-    // }
+    }
 
     timer.Start();
-    DMatrix monoMassMatrix(MassMatrix(minimalBasis, args.partitions,
-                args.partWidth));
+    DMatrix monoMassMatrix(MassMatrix(minimalBasis, args.partitions));
+    DMatrix polyMassMatrix = discPolys.transpose()*monoMassMatrix*discPolys;
+
     if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "minBasisMassMatrix = "
             << MathematicaOutput(monoMassMatrix) << std::endl;
-    } else {
-        outStream << "Here is the monomial mass matrix we computed:\n"
-            << monoMassMatrix << std::endl;
-    }
-
-    // DMatrix discMonoMass = PartitionMu_Mass(minimalBasis, monoMassMatrix, 
-            // args.partitions, args.partWidth);
-    // if (outStream.rdbuf() != std::cout.rdbuf()) {
-        // outStream << "discretizedMinBasisMass = "
-            // << MathematicaOutput(discMonoMass) << std::endl;
-    // } else {
-        // outStream << "Here it is discretized by mu:\n"
-            // << discMonoMass << std::endl;
-    // }
-
-    DMatrix polyMassMatrix = discPolys.transpose()*monoMassMatrix*discPolys;
-    if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "basisStateMassMatrix = "
                 << MathematicaOutput(polyMassMatrix) << std::endl;
+        std::cout << "Mass matrix computed in " << timer.TimeElapsedInWords()
+            << "." << std::endl;
     } else {
-        outStream << "Computed a mass matrix for the basis in " 
-                << timer.TimeElapsedInWords() << ", getting this:\n"
-                << polyMassMatrix << std::endl;
         EigenSolver solver(polyMassMatrix.cast<builtin_class>());
-        outStream << "Here are the eigenvalues:\n" << solver.eigenvalues()
-            << std::endl;
+        outStream << "Computed a mass matrix for the basis in " 
+                << timer.TimeElapsedInWords() << "; its eigenvalues are:\n"
+                << solver.eigenvalues() << std::endl;
     }
 
-    DMatrix monoKineticMatrix(KineticMatrix(minimalBasis, args.partitions,
-                args.partWidth));
+    timer.Start();
+    DMatrix monoKineticMatrix(KineticMatrix(minimalBasis, args.partitions));
+    DMatrix polyKineticMatrix = discPolys.transpose()*monoKineticMatrix*discPolys;
+
     if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "minBasisKineticMatrix = "
             << MathematicaOutput(monoKineticMatrix) << std::endl;
-    } else {
-        outStream << "Here is the monomial kinetic matrix we computed:\n"
-            << monoKineticMatrix << std::endl;
-    }
-
-    DMatrix polyKineticMatrix = discPolys.transpose()*monoKineticMatrix*discPolys;
-    if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "basisStateKineticMatrix = "
                 << MathematicaOutput(polyKineticMatrix) << std::endl;
+        std::cout << "Kinetic matrix computed in " << timer.TimeElapsedInWords()
+            << "." << std::endl;
     } else {
-        outStream << "Computed a kinetic matrix for the basis in " 
-                << timer.TimeElapsedInWords() << ", getting this:\n"
-                << polyKineticMatrix << std::endl;
         EigenSolver solver(polyKineticMatrix.cast<builtin_class>());
-        outStream << "Here are the eigenvalues:\n" << solver.eigenvalues()
-            << std::endl;
+        outStream << "Computed a kinetic matrix for the basis in " 
+                << timer.TimeElapsedInWords() << "; its eigenvalues are:\n"
+                << solver.eigenvalues() << std::endl;
     }
 
-    DMatrix hamiltonian = polyMassMatrix + polyKineticMatrix;
+    coeff_class m = 1;
+    DMatrix hamiltonian = (m*m)*polyMassMatrix + polyKineticMatrix;
     if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "hamiltonian = "
                 << MathematicaOutput(hamiltonian) << std::endl;
     } else {
-        outStream << "Computed a Hamiltonian matrix for the basis in " 
-                << timer.TimeElapsedInWords() << ", getting this:\n"
-                << hamiltonian << std::endl;
         EigenSolver solver(hamiltonian.cast<builtin_class>());
-        outStream << "Here are the eigenvalues:\n" << solver.eigenvalues()
-            << std::endl;
+        outStream << "Here are the Hamiltonian eigenvalues:\n" 
+            << solver.eigenvalues() << std::endl;
     }
 
 
@@ -327,10 +305,6 @@ int ParseOptions(std::vector<std::string> options) {
         }
         if(opt.compare(0, 2, "-M") == 0){
             ret |= OPT_ALLMINUS;
-            continue;
-        }
-        if(opt.compare(0, 2, "-o") == 0){
-            ret |= OPT_OUTPUT;
             continue;
         }
         if(opt.compare(0, 2, "-s") == 0){

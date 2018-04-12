@@ -15,13 +15,13 @@ bool RunAllTests() {
     result &= MatrixInternal::PermuteXY();
     result &= MatrixInternal::InteractionTermsFromXY();
     result &= MatrixInternal::CombineInteractionFs();
+    result &= MatrixInternal::UPlusIntegral();
     // result &= RIntegral();
     result &= Hypergeometric();
 
     int numP = 3;
     int degree = 7;
     std::size_t partitions = 4;
-    coeff_class partWidth = 0.5;
     std::vector<Basis<Mono>> allEvenBases;
     std::vector<Basis<Mono>> allOddBases;
     for (int deg = numP; deg <= degree; ++deg) {
@@ -32,7 +32,7 @@ bool RunAllTests() {
     std::vector<Poly> evenStates = ::Orthogonalize(allEvenBases, std::cout);
     std::vector<Poly> oddStates = ::Orthogonalize(allOddBases, std::cout);
     Basis<Mono> minBasis = ::MinimalBasis(evenStates);
-    result &= Test::InteractionMatrix(minBasis, partitions, partWidth);
+    // result &= Test::InteractionMatrix(minBasis, partitions);
 
     return result;
 }
@@ -133,6 +133,37 @@ bool CombineInteractionFs() {
     return true;
 }
 
+bool UPlusIntegral() {
+    std::cout << "----- ::UPlusIntegral -----" << std::endl;
+    bool passed = true;
+    passed &= UPlusIntegral_Case(5, 2, 0.0634921);
+    passed &= UPlusIntegral_Case(2, 4, 0.0833333);
+    passed &= UPlusIntegral_Case(8, 8, 0.0015873);
+
+    if (passed) {
+        std::cout << "----- PASSED -----" << std::endl;
+        return true;
+    } else {
+        std::cout << "----- FAILED -----" << std::endl;
+        return false;
+    }
+}
+
+bool UPlusIntegral_Case(const builtin_class a, const builtin_class b, 
+        const builtin_class expected) {
+    constexpr builtin_class tol = 1e-5;
+    builtin_class answer = ::MatrixInternal::UPlusIntegral(a, b);
+    std::cerr << "UPlusIntegral(" << a << ", " << b << ") == " << answer;
+    if (std::abs(answer - expected) <= tol*answer) {
+        std::cerr << " == " << expected << " (PASS)" << std::endl;
+        return true;
+    } else {
+        std::cerr << " != " << expected << " (FAIL)" << std::endl;
+        // std::cerr << " (beta: " << gsl_sf_beta(a/2 + 1, b/2 + 1) << ")" << std::endl;
+        return false;
+    }
+}
+
 } // namespace MatrixInternal
 
 // bool RIntegral() {
@@ -185,10 +216,9 @@ bool Hypergeometric() {
     return passed;
 }
 
-bool InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions,
-        const coeff_class partWidth) {
+bool InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
     std::cout << "----- ::InteractionMatrix -----" << std::endl;
-    std::cout << ::InteractionMatrix(basis, partitions, partWidth) << std::endl;
+    std::cout << ::InteractionMatrix(basis, partitions) << std::endl;
     std::cout << "----- PASSED -----" << std::endl;
     return true;
 }

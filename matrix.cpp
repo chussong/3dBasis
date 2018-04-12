@@ -9,7 +9,7 @@ coeff_class InnerFock(const Mono& A, const Mono& B) {
 
 // inner product between two partitions of monomials
 coeff_class InnerProduct(const Mono& A, const Mono& B) {
-    // DVector muIntegrals = MuIntegral(A, B, partitions, partWidth, MAT_INNER);
+    // DVector muIntegrals = MuIntegral(A, B, partitions, MAT_INNER);
     return MatrixInternal::MatrixTerm(A, B, MAT_INNER);
         // *muIntegrals(part);
 }
@@ -18,34 +18,30 @@ coeff_class InnerProduct(const Mono& A, const Mono& B) {
 //
 // this returns the rank 2 matrix containing only the Fock part of the product
 DMatrix GramFock(const Basis<Mono>& basis) {
-    return MatrixInternal::Matrix(basis, 0, 0, MAT_INNER);
+    return MatrixInternal::Matrix(basis, 0, MAT_INNER);
 }
 
 // creates a gram matrix for the given basis using the Fock space inner product
 // 
 // this returns the rank 4 tensor relating states with different partitions
-DMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
-        const coeff_class partWidth) {
-    return MatrixInternal::Matrix(basis, partitions, partWidth, MAT_INNER);
+DMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
+    return MatrixInternal::Matrix(basis, partitions, MAT_INNER);
 }
 
 // creates a mass matrix M for the given monomials. To get the mass matrix of a 
 // basis of primary operators, one must express the primaries as a matrix of 
 // vectors, A, and multiply A^T M A.
-DMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
-        const coeff_class partWidth) {
-    return MatrixInternal::Matrix(basis, partitions, partWidth, MAT_MASS);
+DMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
+    return MatrixInternal::Matrix(basis, partitions, MAT_MASS);
 }
 
-DMatrix KineticMatrix(const Basis<Mono>& basis, const std::size_t partitions,
-        const coeff_class partWidth) {
-    return MatrixInternal::Matrix(basis, partitions, partWidth, MAT_KINETIC);
+DMatrix KineticMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
+    return MatrixInternal::Matrix(basis, partitions, MAT_KINETIC);
 }
 
 // creates a matrix of n->n interactions between the given basis's monomials
-DMatrix InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
-        const coeff_class partWidth) {
-    return MatrixInternal::Matrix(basis, partitions, partWidth, MAT_INTER_SAME_N);
+DMatrix InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
+    return MatrixInternal::Matrix(basis, partitions, MAT_INTER_SAME_N);
 }
 
 namespace MatrixInternal {
@@ -64,10 +60,12 @@ namespace {
     std::unordered_map<std::string, std::vector<MatrixTerm_Final>> nPlus2Cache;
 
     // integrals: map from (a,b)->#
-	std::unordered_map<std::array<builtin_class,2>, builtin_class,
-		boost::hash<std::array<builtin_class,2>> > uCache;
-	std::unordered_map<std::array<builtin_class,2>, builtin_class,
-		boost::hash<std::array<builtin_class,2>> > thetaCache;
+    std::unordered_map<std::array<builtin_class,2>, builtin_class,
+            boost::hash<std::array<builtin_class,2>> > uCache; // FIXME: dep'd
+    std::unordered_map<std::array<builtin_class,2>, builtin_class,
+            boost::hash<std::array<builtin_class,2>> > uPlusCache;
+    std::unordered_map<std::array<builtin_class,2>, builtin_class,
+            boost::hash<std::array<builtin_class,2>> > thetaCache;
 } // anonymous namespace
 
 YTerm::YTerm(const coeff_class coeff, const std::string& y, 
@@ -137,7 +135,7 @@ std::ostream& operator<<(std::ostream& os, const InteractionTerm_Step2& out) {
 // NOTE: we will have to do discretizations before this function returns; in
 // fact, we will have to do them inside MatrixTerm
 DMatrix Matrix(const Basis<Mono>& basis, const std::size_t partitions, 
-        const coeff_class partWidth, const MATRIX_TYPE type) {
+        const MATRIX_TYPE type) {
     // partitions == 0 means that the Fock part has been requested by itself
     if (partitions == 0) {
         DMatrix fockPart(basis.size(), basis.size());
@@ -155,7 +153,7 @@ DMatrix Matrix(const Basis<Mono>& basis, const std::size_t partitions,
         for (std::size_t i = 0; i < basis.size(); ++i) {
             for (std::size_t j = 0; j < basis.size(); ++j) {
                 output.block(i*partitions, j*partitions, partitions, partitions) = 
-                    MatrixBlock(basis[i], basis[j], type, partitions, partWidth);
+                    MatrixBlock(basis[i], basis[j], type, partitions);
             }
         }
         return output;
@@ -177,13 +175,13 @@ coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type) {
 }
 
 DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
-        const std::size_t partitions, const coeff_class partWidth) {
+        const std::size_t partitions) {
     if (type == MAT_INTER_SAME_N) {
         auto terms = MatrixTerm_Inter(A, B);
         DMatrix output = DMatrix::Zero(partitions, partitions);
         for (const auto& term : terms) {
             // std::cout << "Term: " << term.r << std::endl;
-            output += term.coeff*MuPart(term.r, partitions, partWidth);
+            output += term.coeff*MuPart(term.r, partitions);
         }
         return output;
     } else if (type == MAT_INTER_N_PLUS_2) {
@@ -193,11 +191,11 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         for (const auto& term : terms) {
             // std::cout << "Term: " << term.r << std::endl;
             output += term.coeff*MuPart(std::array<char,2>{{n, term.r}}, 
-                    partitions, partWidth);
+                    partitions);
         }
         return output;
     } else {
-        return MatrixTerm(A, B, type)*MuPart(partitions, partWidth, type);
+        return MatrixTerm(A, B, type)*MuPart(partitions, type);
     }
 }
 
@@ -610,6 +608,11 @@ std::vector<InteractionTerm_Step2> CombineInteractionFs(
     output.erase(std::remove_if(output.begin(), output.end(),
                 [](const InteractionTerm_Step2& term){return term.r[0]%2 == 1;}),
             output.end());
+    // FIXME: use the following variant that eliminates all odd powers:
+    // output.erase(std::remove_if(output.begin(), output.end(),
+                // [](const InteractionTerm_Step2& term)
+                // {return term.r[0]%2 == 1 || term.r[1]%2 == 0 || term.r[2]%2 == 0;}),
+            // output.end());
     return output;
 }
 
@@ -781,7 +784,7 @@ namespace {
 coeff_class InnerProductPrefactor(const char n) {
     if (ipPrefactorCache.count(n) == 0) {
         coeff_class denominator = std::tgamma(n+1); // tgamma = "true" gamma fcn
-        denominator *= std::pow(16, n-1);
+        denominator *= std::pow(8, n-1);
         denominator *= std::pow(M_PI, 2*n-3);
         //std::cout << "PREFACTOR: " << 1/denominator << std::endl;
         ipPrefactorCache.emplace(n, 1/denominator);
@@ -800,7 +803,7 @@ coeff_class InteractionMatrixPrefactor(const char n) {
     if (sameNPrefactorCache.count(n) == 0) {
         coeff_class denominator = std::tgamma(n-1);
         denominator *= std::pow(M_PI*M_PI, n-1);
-        denominator *= 4*std::pow(16, n);
+        denominator *= 4*std::pow(8, n);
         sameNPrefactorCache.emplace(n, 1/denominator);
     }
 
@@ -812,7 +815,7 @@ coeff_class NPlus2MatrixPrefactor(const char n) {
         coeff_class denominator = std::tgamma(n);
         denominator *= 6;
         denominator *= std::pow(M_PI, 2*n);
-        denominator *= std::pow(16, n+1);
+        denominator *= std::pow(8, n+1);
         nPlus2PrefactorCache.emplace(n, 1/denominator);
     }
 
@@ -828,7 +831,7 @@ coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
 
     // do the u integrals first
     for (auto i = 0u; i < n-1; ++i) {
-        output *= UIntegral(term.uPlus[i] + 3, 5*(n - (i+1)) - 2 + term.uMinus[i]);
+        output *= UPlusIntegral(term.uPlus[i] + 3, 5*(n - (i+1)) - 2 + term.uMinus[i]);
     }
 
     // now the theta integrals; sineTheta.size() = cosTheta.size() = n-2.
@@ -881,7 +884,7 @@ coeff_class DoAllIntegrals(InteractionTerm_Step2& term, const MATRIX_TYPE type){
     // actually do the integrals below
     coeff_class product = 1;
     for (std::size_t i = 0; i < n; ++i) {
-        product *= UIntegral(term.u[2*i], term.u[2*i + 1]);
+        product *= UPlusIntegral(term.u[2*i], term.u[2*i + 1]);
     }
     for (std::size_t k = 0; k < n-3; ++k) {
         product *= ThetaIntegral_Short(term.theta[2*k], term.theta[2*k + 1]);
@@ -896,12 +899,12 @@ coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
 
     // do the non-primed u integrals first
     for (auto i = 0u; i < n-1; ++i) {
-        output *= UIntegral(term.u[2*i] + 3, 5*(n - i) - 7 + term.u[2*i + 1]);
+        output *= UPlusIntegral(term.u[2*i] + 3, 5*(n - i) - 7 + term.u[2*i + 1]);
     }
 
     // next the two primed u integrals (FIXME: check additions!!)
-    output *= UIntegral(term.u[2*(n-1)] + 1, term.u[2*(n-1) + 1] + 1);
-    output *= UIntegral(term.u[2*n] + 1, term.u[2*n + 1] + 4);
+    output *= UPlusIntegral(term.u[2*(n-1)] + 1, term.u[2*(n-1) + 1] + 1);
+    output *= UPlusIntegral(term.u[2*n] + 1, term.u[2*n + 1] + 4);
 
     // now the theta integrals; there are n-2 "normal" theta integrals, followed
     // by one primed one. The primed and the last normal are long (I think?)
@@ -925,25 +928,15 @@ coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
     return output;
 }
 
-// this is the integral over the "u" variables (u \el [-1,1]; it uses a 2F1
-// identity to turn 2F1(a, b, c, -1) -> 2^(-a)*2F1(a, c-b, c, 1/2)
-//
-// follows the conventions of Zuhair's 5.34; a is the exponent of u_i+ and
-// b is the exponent of u_i-
-//
-// this can also be thought of as the integral over z, where a is the exponent
-// of sqrt(z) and b is the exponent of sqrt(1 - z); in this case z \el [0,1].
-builtin_class UIntegral(const builtin_class a, const builtin_class b) {
-    //std::cout << "UIntegral(" << a << ", " << b << ")" << std::endl;
+// this is the integral of uplus^a uminus^b d(uplus) instead of d(u)
+builtin_class UPlusIntegral(const builtin_class a, const builtin_class b) {
     std::array<builtin_class,2> abArray{{a,b}};
     if (b < a) std::swap(abArray[0], abArray[1]);
-    if (uCache.count(abArray) == 1) return uCache.at(abArray);
+    if (uPlusCache.count(abArray) == 0) {
+        uPlusCache.emplace(abArray, gsl_sf_beta(a/2.0 + 1.0, b/2.0 + 1.0));
+    }
 
-    coeff_class ret = gsl_sf_hyperg_2F1(1, (a+b)/2 + 2, b/2 + 2, 0.5)/(b + 2);
-    ret += gsl_sf_hyperg_2F1(1, (a+b)/2 + 2, a/2 + 2, 0.5)/(a + 2);
-    ret *= std::pow(std::sqrt(2), -(a+b));
-    uCache.emplace(abArray, ret);
-    return ret;
+    return uPlusCache[abArray];
 }
 
 // this is the integral over the "theta" veriables from 0 to pi; it implements 
