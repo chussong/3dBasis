@@ -15,10 +15,11 @@ int main(int argc, char* argv[]) {
         return Test::RunAllTests();
     }
 
-    if (args.degree == 0 || args.numP == 0){
-        std::cerr << "Error: you must enter a number of particles and a degree."
-            << std::endl;
-        return EXIT_FAILURE;
+    if (args.degree == 0 || args.numP == 0) {
+        // std::cerr << "Error: you must enter a number of particles and a degree."
+            // << std::endl;
+        // return EXIT_FAILURE;
+        return GUI::StartGUI(args);
     }
 
     // initialize all multinomials which might come up

@@ -39,7 +39,7 @@ DMatrix MuPart(const std::size_t partitions, const MATRIX_TYPE type) {
 }
 
 DMatrix MuPart_Kinetic(const std::size_t partitions) {
-    coeff_class partWidth = static_cast<coeff_class>(1) / partitions;
+    coeff_class partWidth = coeff_class(1) / partitions;
     DMatrix output = DMatrix::Zero(partitions, partitions);
     for (std::size_t k = 0; k < partitions; ++k) {
         output(k, k) = partWidth/2;
@@ -86,7 +86,7 @@ const DMatrix& MuPart(const std::array<char,3>& r,
         return zeroMatrix[partitions];
     }
 
-    coeff_class partWidth = static_cast<coeff_class>(1) / partitions;
+    coeff_class partWidth = coeff_class(1) / partitions;
     if (intCache.count(r) == 0) {
         DMatrix block(partitions, partitions);
         for (std::size_t winA = 0; winA < partitions; ++winA) {
@@ -384,7 +384,7 @@ const DMatrix& MuPart(const std::array<char,2>& nr, const std::size_t partitions
         return zeroMatrix[partitions];
     }
 
-    coeff_class partWidth = static_cast<coeff_class>(1) / partitions;
+    coeff_class partWidth = coeff_class(1) / partitions;
     if (nPlus2Cache.count(nr) == 0) {
         DMatrix block(partitions, partitions);
         for (std::size_t winA = 0; winA < partitions; ++winA) {

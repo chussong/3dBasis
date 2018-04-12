@@ -12,7 +12,11 @@ Contact email:		chussong@jhu.edu
 3dBasis uses [Eigen](http://eigen.tuxfamily.org/) to perform its basic matrix 
 operations, which is included. You will also need a Basic Linear Algebra
 System (BLAS), which is not included; many systems come with one pre-installed,
-but if yours doesn't, try [OpenBLAS](http://www.openblas.net/).
+but if yours doesn't, try [OpenBLAS](http://www.openblas.net/).  
+
+The work-in-progress GUI uses Qt, an LGPL cross-platform GUI library; this 
+project will be released under the GPL to comply with their licensing 
+requirements, but I haven't actually done this yet.  
 
 ## Installation
 
