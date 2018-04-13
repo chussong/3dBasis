@@ -3,24 +3,24 @@
 namespace GUI {
 
 MainWindow::MainWindow(): textEdit(new QPlainTextEdit) {
-    SetCentralWidget(textEdit);
+    setCentralWidget(textEdit);
 
     CreateActions();
     CreateStatusBar();
 
     ReadSettings();
 
-    Connect(textEdit->document(), &QTextDocument::contentsChanged, this,
+    connect(textEdit->document(), &QTextDocument::contentsChanged, this,
             &MainWindow::DocumentWasModified);
 
 #ifndef QT_NO_SESSIONMANAGER
-    QGuiApplication::setFallbackSessionManagerEnabled(false);
-    Connect(qApp, &QGuiApplication::commitDataRequest, this,
+    QGuiApplication::setFallbackSessionManagementEnabled(false);
+    connect(qApp, &QGuiApplication::commitDataRequest, this,
             &MainWindow::CommitData);
 #endif
 
     SetCurrentFile(QString());
-    SetUnifiedTitleAndToolBarOnMac(true);
+    setUnifiedTitleAndToolBarOnMac(true);
 }
 
 void MainWindow::closeEvent(QCloseEvent* event) {
@@ -84,7 +84,7 @@ void MainWindow::CreateActions() {
     QAction* newAct = new QAction(newIcon, tr("&New"), this);
     newAct->setShortcuts(QKeySequence::New);
     newAct->setStatusTip(tr("Create a new file"));
-    Connect(newAct, &QAction::triggered, this, &MainWindow::NewFile);
+    connect(newAct, &QAction::triggered, this, &MainWindow::NewFile);
     fileMenu->addAction(newAct);
     fileToolBar->addAction(newAct);
 
@@ -93,7 +93,7 @@ void MainWindow::CreateActions() {
     QAction* openAct = new QAction(openIcon, tr("&Open..."), this);
     openAct->setShortcuts(QKeySequence::Open);
     openAct->setStatusTip(tr("Open an existing file"));
-    Connect(openAct, &QAction::triggered, this, &MainWindow::Open);
+    connect(openAct, &QAction::triggered, this, &MainWindow::Open);
     fileMenu->addAction(openAct);
     fileToolBar->addAction(openAct);
 
@@ -102,7 +102,7 @@ void MainWindow::CreateActions() {
     QAction* saveAct = new QAction(saveIcon, tr("&Save..."), this);
     saveAct->setShortcuts(QKeySequence::Save);
     saveAct->setStatusTip(tr("Save current file to disk"));
-    Connect(saveAct, &QAction::triggered, this, &MainWindow::Save);
+    connect(saveAct, &QAction::triggered, this, &MainWindow::Save);
     fileMenu->addAction(saveAct);
     fileToolBar->addAction(saveAct);
 
@@ -130,7 +130,7 @@ void MainWindow::CreateActions() {
     cutAct->setShortcuts(QKeySequence::Cut);
     cutAct->setStatusTip(tr("Cut the current selection's contents to the "
                 "system clipboard."));
-    Connect(cutAct, &QAction::triggered, textEdit, &QPlainTextEdit::cut);
+    connect(cutAct, &QAction::triggered, textEdit, &QPlainTextEdit::cut);
     editMenu->addAction(cutAct);
     editToolBar->addAction(cutAct);
 
@@ -140,7 +140,7 @@ void MainWindow::CreateActions() {
     copyAct->setShortcuts(QKeySequence::Copy);
     copyAct->setStatusTip(tr("Copy the current selection's contents to the "
                 "system clipboard."));
-    Connect(copyAct, &QAction::triggered, textEdit, &QPlainTextEdit::copy);
+    connect(copyAct, &QAction::triggered, textEdit, &QPlainTextEdit::copy);
     editMenu->addAction(copyAct);
     editToolBar->addAction(copyAct);
 
@@ -150,7 +150,7 @@ void MainWindow::CreateActions() {
     pasteAct->setShortcuts(QKeySequence::Paste);
     pasteAct->setStatusTip(tr("Paste the system clipboards's contents into the "
                 "curent selection."));
-    Connect(pasteAct, &QAction::triggered, textEdit, &QPlainTextEdit::paste);
+    connect(pasteAct, &QAction::triggered, textEdit, &QPlainTextEdit::paste);
     editMenu->addAction(pasteAct);
     editToolBar->addAction(pasteAct);
 
@@ -159,7 +159,7 @@ void MainWindow::CreateActions() {
 
     QMenu* helpMenu = menuBar()->addMenu(tr("&Help"));
     QAction* aboutAct = helpMenu->addAction(tr("&About"), this, 
-            *MainWindow::About);
+            &MainWindow::About);
     aboutAct->setStatusTip(tr("Show 3dBasis's About box"));
 
     QAction* aboutQtAct = helpMenu->addAction(tr("About &Qt"), qApp,
@@ -169,9 +169,9 @@ void MainWindow::CreateActions() {
 #ifndef QT_NO_CLIPBOARD
     cutAct->setEnabled(false);
     copyAct->setEnabled(false);
-    Connect(textEdit, &QPlainTextEdit::copyAvailable, cutAct, 
+    connect(textEdit, &QPlainTextEdit::copyAvailable, cutAct, 
             &QAction::setEnabled);
-    Connect(textEdit, &QPlainTextEdit::copyAvailable, copyAct, 
+    connect(textEdit, &QPlainTextEdit::copyAvailable, copyAct, 
             &QAction::setEnabled);
 #endif // !QT_NO_CLIPBOARD
 }
@@ -205,7 +205,7 @@ void MainWindow::WriteSettings() {
 bool MainWindow::MaybeSave() {
     if (!textEdit->document()->isModified()) return true;
     const QMessageBox::StandardButton ret
-        = QMessageBox:warning(this, tr("Application"),
+        = QMessageBox::warning(this, tr("Application"),
                               tr("The document has been modified.\n"
                                   "Do you want to save your changes?"),
                               QMessageBox::Save | QMessageBox::Discard 
@@ -240,7 +240,7 @@ void MainWindow::LoadFile(const QString& fileName) {
     QApplication::restoreOverrideCursor();
 #endif
 
-    setCurrentFile(fileName);
+    SetCurrentFile(fileName);
     statusBar()->showMessage(tr("File loaded"), 2000);
 }
 
@@ -263,12 +263,12 @@ bool MainWindow::SaveFile(const QString& fileName) {
     QApplication::restoreOverrideCursor();
 #endif
 
-    setCurrentFile(fileName);
+    SetCurrentFile(fileName);
     statusBar()->showMessage(tr("File saved"), 2000);
     return true;
 }
 
-void MainWindow::SetCurrentFile(const QString& fileNAme) {
+void MainWindow::SetCurrentFile(const QString& fileName) {
     curFile = fileName;
     textEdit->document()->setModified(false);
     setWindowModified(false);
@@ -282,10 +282,24 @@ QString MainWindow::StrippedName(const QString& fullFileName) {
     return QFileInfo(fullFileName).fileName();
 }
 
-bool StartGUI(const Arguments&) {
-    Q_INIT_RESOURCE(application);
+#ifndef QT_NO_SESSIONMANAGER
+void MainWindow::CommitData(QSessionManager& manager) {
+    if (manager.allowsInteraction()) {
+        if (!MaybeSave()) {
+            manager.cancel();
+        } else {
+            // save without asking
+            if (textEdit->document()->isModified()) Save();
+        }
+    }
+}
+#endif
+
+bool StartGUI(int argc, char** argv, const Arguments&) {
+    // Q_INIT_RESOURCE(application);
+    QResource::registerResource("/home/charles/Dropbox/Research/3dBasis/gui/resources.rcc");
     // QApplication app(argc, argv);
-    QApplication app;
+    QApplication app(argc, argv);
     QCoreApplication::setOrganizationName("CharlesHussong");
     QCoreApplication::setApplicationName("3dBasis");
     QCoreApplication::setApplicationVersion("{VERSION PLACEHOLDER}");

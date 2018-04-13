@@ -1,19 +1,21 @@
 #ifndef MAIN_WINDOW_HPP
 #define MAIN_WINDOW_HPP
 
-#include "QtWidgets"
+#include <QtWidgets/QtWidgets>
 
 // these might be in QtWidgets already?
-#include <QApplication>
-#include <QCommandLineParser>
-#include <QCommandLineOption>
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QCheckBox>
+#include <QtCore/QCommandLineParser>
+#include <QtCore/QCommandLineOption>
 
 #include "constants.hpp"
+#include "calc_widget.hpp"
 
 namespace GUI {
 
 class MainWindow : public QMainWindow {
-    Q_OBJECT // this is a macro :(
+    Q_OBJECT
 
     public:
         MainWindow();
@@ -24,10 +26,10 @@ class MainWindow : public QMainWindow {
         void closeEvent(QCloseEvent* event) override;
 
     private slots:
-        void NewFiles();
+        void NewFile();
         void Open();
-        void Save();
-        void SaveAs();
+        bool Save();
+        bool SaveAs();
         void About();
         void DocumentWasModified();
 #ifndef QT_NO_SESSIONMANAGER
@@ -46,9 +48,10 @@ class MainWindow : public QMainWindow {
 
         QPlainTextEdit* textEdit;
         QString curFile;
+        bool overwriteWithoutPrompting = false;
 };
 
-bool StartGUI(const Arguments& args);
+bool StartGUI(int argc, char** argv, const Arguments& args);
 
 } // namespace GUI
 
