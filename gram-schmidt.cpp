@@ -14,9 +14,9 @@ std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
     
     std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()
         << "." << std::endl;
-    if(TotalSize(inputBases) <= 7){
-        std::cout << gram << std::endl;
-    }
+    // if(TotalSize(inputBases) <= 7){
+        // std::cout << gram << std::endl;
+    // }
 
     // orthogonalize using custom gram-schmidt
     timer.Start();

@@ -15,7 +15,7 @@ MainWindow::MainWindow(const Arguments& args): textEdit(new QPlainTextEdit) {
     calcDock->setWidget(calcWidget);
     addDockWidget(Qt::RightDockWidgetArea, calcDock);
 
-    FileWidget* fileWidget = new FileWidget(args.outputStream);
+    FileWidget* fileWidget = new FileWidget();
     QDockWidget* fileDock = new QDockWidget(tr("File Widget"), this);
     fileDock->setAllowedAreas(Qt::LeftDockWidgetArea
                                 | Qt::RightDockWidgetArea);

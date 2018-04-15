@@ -59,7 +59,7 @@ void CalcWidget::Calculate() {
 }
 
 void CalcWidget::ChangeOutput(std::ostream* newOutStream) {
-    std::cout << "outStream updated" << std::endl;
+    // std::cout << "outStream updated" << std::endl;
     outStream = newOutStream;
 }
 
