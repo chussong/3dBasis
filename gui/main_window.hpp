@@ -4,6 +4,7 @@
 #include <QtWidgets/QtWidgets>
 
 // these might be in QtWidgets already?
+#include <QtWidgets/QDockWidget>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QCheckBox>
 #include <QtCore/QCommandLineParser>
@@ -11,6 +12,7 @@
 
 #include "constants.hpp"
 #include "calc_widget.hpp"
+#include "file_widget.hpp"
 
 namespace GUI {
 
@@ -18,7 +20,7 @@ class MainWindow : public QMainWindow {
     Q_OBJECT
 
     public:
-        MainWindow();
+        MainWindow(const Arguments& args);
 
         void LoadFile(const QString& filename);
 

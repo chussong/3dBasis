@@ -3,10 +3,15 @@
 int Calculate(const Arguments& args) {
     gsl_set_error_handler(&GSLErrorHandler);
 
+    if (args.options & OPT_TEST) {
+        return Test::RunAllTests();
+    }
+
     // initialize all multinomials which might come up
     //
     // this is obviously something of a blunt instrument and could easily be
     // made more efficient
+
     for (int n = 1; n <= args.numP; ++n) {
         std::cout << "Initialize(" << n << ", " << 2*args.degree << ")" 
             << std::endl;

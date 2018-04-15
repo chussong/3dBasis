@@ -12,7 +12,6 @@ constexpr char RELEASE_DATE[] = __DATE__;
 #include "constants.hpp"
 #include "gui/main_window.hpp"
 #include "calculation.hpp"
-#include "test.hpp"
 
 // startup and input parsing --------------------------------------------------
 

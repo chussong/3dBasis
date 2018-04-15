@@ -2,14 +2,32 @@
 
 namespace GUI {
 
-MainWindow::MainWindow(): textEdit(new QPlainTextEdit) {
+MainWindow::MainWindow(const Arguments& args): textEdit(new QPlainTextEdit) {
     setCentralWidget(textEdit);
 
     CreateActions();
     CreateStatusBar();
 
+    CalcWidget* calcWidget = new CalcWidget(args);
+    QDockWidget* calcDock = new QDockWidget(tr("Calc Widget"), this);
+    calcDock->setAllowedAreas(Qt::LeftDockWidgetArea
+                                | Qt::RightDockWidgetArea);
+    calcDock->setWidget(calcWidget);
+    addDockWidget(Qt::RightDockWidgetArea, calcDock);
+
+    FileWidget* fileWidget = new FileWidget(args.outputStream);
+    QDockWidget* fileDock = new QDockWidget(tr("File Widget"), this);
+    fileDock->setAllowedAreas(Qt::LeftDockWidgetArea
+                                | Qt::RightDockWidgetArea);
+    fileDock->setWidget(fileWidget);
+    addDockWidget(Qt::LeftDockWidgetArea, fileDock);
+
+    connect(fileWidget, &FileWidget::OutputChanged,
+            calcWidget, &CalcWidget::ChangeOutput);
+
     ReadSettings();
 
+    textEdit->setReadOnly(true);
     connect(textEdit->document(), &QTextDocument::contentsChanged, this,
             &MainWindow::DocumentWasModified);
 
@@ -295,7 +313,7 @@ void MainWindow::CommitData(QSessionManager& manager) {
 }
 #endif
 
-bool StartGUI(int argc, char** argv, const Arguments&) {
+bool StartGUI(int argc, char** argv, const Arguments& args) {
     // Q_INIT_RESOURCE(application);
     QResource::registerResource("/home/charles/Dropbox/Research/3dBasis/gui/resources.rcc");
     // QApplication app(argc, argv);
@@ -311,10 +329,11 @@ bool StartGUI(int argc, char** argv, const Arguments&) {
     parser.addPositionalArgument("file", "The file to open.");
     parser.process(app);
 
-    MainWindow mainWin;
+    MainWindow mainWin(args);
     if (!parser.positionalArguments().isEmpty()) {
         mainWin.LoadFile(parser.positionalArguments().first());
     }
+
     mainWin.show();
     return app.exec();
 }

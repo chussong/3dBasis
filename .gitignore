@@ -1,6 +1,12 @@
 # Compiled object files
 *.o
 
+# Qt-generated moc files
+*moc_*
+
+# Qt resources
+*.rcc
+
 # Compiled libraries
 *.so
 *.a

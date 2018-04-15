@@ -9,10 +9,6 @@ int main(int argc, char* argv[]) {
         return EXIT_SUCCESS;
     }
 
-    if (args.options & OPT_TEST) {
-        return Test::RunAllTests();
-    }
-
     if (args.degree == 0 || args.numP == 0) {
         // std::cerr << "Error: you must enter a number of particles and a degree."
             // << std::endl;

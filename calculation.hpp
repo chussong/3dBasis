@@ -8,6 +8,7 @@
 
 #include "constants.hpp"
 #include "construction.hpp"
+#include "test.hpp"
 #include "mono.hpp"
 #include "poly.hpp"
 #include "basis.hpp"

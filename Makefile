@@ -22,22 +22,24 @@ EXECUTABLE = 3dBasis
 
 SOURCES = main.cpp calculation.cpp mono.cpp poly.cpp multinomial.cpp \
 	  matrix.cpp gram-schmidt.cpp discretization.cpp test.cpp \
-	  gui/main_window.cpp gui/moc_main_window.cpp resources.qrc
+	  gui/main_window.cpp gui/moc_main_window.cpp gui/calc_widget.cpp \
+	  gui/moc_calc_widget.cpp gui/file_widget.cpp gui/moc_file_widget.cpp
 
-OBJECTS = $(SOURCES:.cpp=.o) resources.rcc
+RESOURCES = gui/resources.rcc
+
+OBJECTS = $(SOURCES:.cpp=.o)
 
 default: $(EXECUTABLE)
 
-$(EXECUTABLE): $(OBJECTS)
-	$(CXX) $+ $(LDFLAGS) -o $@
+$(EXECUTABLE): $(OBJECTS) $(RESOURCES)
+	$(CXX) $(OBJECTS) $(LDFLAGS) -o $@
 
-main.o: main.cpp main.hpp constants.hpp calculation.hpp test.hpp \
-	gui/main_window.hpp
+main.o: main.cpp main.hpp constants.hpp calculation.hpp gui/main_window.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 calculation.o: calculation.cpp calculation.hpp constants.hpp construction.hpp \
 	mono.hpp poly.hpp basis.hpp io.hpp timer.hpp gram-schmidt.hpp \
-	matrix.hpp multinomial.hpp discretization.hpp
+	matrix.hpp multinomial.hpp discretization.hpp test.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 mono.o: mono.cpp mono.hpp io.hpp constants.hpp construction.hpp 
@@ -66,13 +68,32 @@ test.o: test.cpp test.hpp io.hpp discretization.hpp matrix.hpp gram-schmidt.hpp\
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 gui/main_window.o: gui/main_window.cpp gui/main_window.hpp constants.hpp \
-    	calculation.hpp
+    	gui/calc_widget.hpp gui/file_widget.hpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 gui/moc_main_window.o: gui/moc_main_window.cpp
 	$(CXX) $(CXXFLAGS) $< -o $@
 
 gui/moc_main_window.cpp: gui/main_window.hpp
+	moc $< -o $@
+
+gui/calc_widget.o: gui/calc_widget.cpp gui/calc_widget.hpp constants.hpp \
+    	calculation.hpp
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+gui/moc_calc_widget.o: gui/moc_calc_widget.cpp
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+gui/moc_calc_widget.cpp: gui/calc_widget.hpp
+	moc $< -o $@
+
+gui/file_widget.o: gui/file_widget.cpp gui/file_widget.hpp
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+gui/moc_file_widget.o: gui/moc_file_widget.cpp
+	$(CXX) $(CXXFLAGS) $< -o $@
+
+gui/moc_file_widget.cpp: gui/file_widget.hpp
 	moc $< -o $@
 
 gui/resources.rcc: gui/resources.qrc
