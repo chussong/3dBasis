@@ -24,6 +24,8 @@ MainWindow::MainWindow(const Arguments& args): textEdit(new QPlainTextEdit) {
 
     connect(fileWidget, &FileWidget::OutputChanged,
             calcWidget, &CalcWidget::ChangeOutput);
+    connect(fileWidget, &FileWidget::OverwriteWarningSignal,
+            calcWidget, &CalcWidget::GiveOverwriteWarnings);
 
     ReadSettings();
 

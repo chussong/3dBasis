@@ -3,11 +3,12 @@
 namespace GUI {
 
 CalcWidget::CalcWidget(const Arguments& args): outStream(args.outputStream),
-        layout(new QVBoxLayout), inputBoxes(new QFrame), 
+        warningStatus(WARNING_ON), 
         nBox(new QSpinBox), lBox(new QSpinBox), pBox(new QSpinBox), 
         testCheckBox(new QCheckBox("Run &tests only")), 
         goButton(new QPushButton("&go")), progressBar(new QProgressBar) {
     // put the boxes into inputBoxGrid
+    QFrame* inputBoxes = new QFrame;
     QHBoxLayout* inputBoxGrid = new QHBoxLayout;
     inputBoxGrid->addWidget(new QLabel("n"));
     inputBoxGrid->addWidget(nBox);
@@ -32,6 +33,7 @@ CalcWidget::CalcWidget(const Arguments& args): outStream(args.outputStream),
 
     connect(goButton, &QAbstractButton::clicked, this, &CalcWidget::Calculate);
 
+    QVBoxLayout* layout = new QVBoxLayout;
     layout->addWidget(inputBoxes);
     layout->addWidget(testCheckBox);
     layout->addWidget(goButton);
@@ -41,6 +43,17 @@ CalcWidget::CalcWidget(const Arguments& args): outStream(args.outputStream),
 
 void CalcWidget::Calculate() {
     // FIXME: mutex lock or something to make sure this never gets run twice
+
+    // if warning is both on and active, pop up a confirmation box
+    if (warningStatus == (WARNING_ON | WARNING_ACTIVE)) {
+        QMessageBox confirm;
+        confirm.setText("This file has already been written to.");
+        confirm.setInformativeText("Do you want to overwrite it?");
+        confirm.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
+        confirm.setDefaultButton(QMessageBox::Cancel);
+        if (confirm.exec() == QMessageBox::Cancel) return;
+    }
+
     goButton->setEnabled(false);
 
     Arguments args;
@@ -54,6 +67,7 @@ void CalcWidget::Calculate() {
     ::Calculate(args);
     std::cout << "***** Calculation Complete *****" << std::endl;
 
+    if (outStream->rdbuf() != std::cout.rdbuf()) warningStatus |= WARNING_ACTIVE;
     goButton->setEnabled(true);
     // FIXME: release mutex (or whatever else we end up using)
 }
@@ -61,6 +75,16 @@ void CalcWidget::Calculate() {
 void CalcWidget::ChangeOutput(std::ostream* newOutStream) {
     // std::cout << "outStream updated" << std::endl;
     outStream = newOutStream;
+    goButton->setEnabled(outStream != nullptr);
+    warningStatus &= ~WARNING_ACTIVE;
+}
+
+void CalcWidget::GiveOverwriteWarnings(const bool newValue) {
+    if (newValue == true) {
+        warningStatus |= WARNING_ON;
+    } else {
+        warningStatus &= ~WARNING_ON;
+    }
 }
 
 } // namespace GUI

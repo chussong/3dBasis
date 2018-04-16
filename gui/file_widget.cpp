@@ -2,14 +2,16 @@
 
 namespace GUI {
 
-FileWidget::FileWidget(): outStream(nullptr), outPath(new QLineEdit), 
-    dontSave(new QCheckBox), suppressOverwriteWarning(new QCheckBox), 
-    appendContents(new QCheckBox) {
+FileWidget::FileWidget(): outStream(), 
+    outPath(new QLineEdit), dontSave(new QCheckBox), 
+    suppressOverwriteWarning(new QCheckBox), appendContents(new QCheckBox) {
     QVBoxLayout* layout = new QVBoxLayout;
     setLayout(layout);
 
     outPath->setText(tr("output file"));
+    outPath->setEnabled(false);
     dontSave->setText(tr("don't save output"));
+    dontSave->setChecked(true);
     suppressOverwriteWarning->setText(tr("don't warn about overwriting files"));
     appendContents->setText(tr("append to file contents (don't overwrite)"));
 
@@ -33,12 +35,18 @@ FileWidget::FileWidget(): outStream(nullptr), outPath(new QLineEdit),
 
     connect(dontSave, &QCheckBox::stateChanged,
             [=](bool checked){outPath->setEnabled(!checked);});
+
+    connect(suppressOverwriteWarning, &QCheckBox::stateChanged,
+            this, &FileWidget::OverwriteWarningSlot);
 }
 
 // this is for when the FILE needs to be changed; it's not called if only the
 // stream is different
 void FileWidget::ChangeOutputFileName() {
-    if (!outPath->hasAcceptableInput()) return;
+    if (!outPath->hasAcceptableInput()) {
+        DisableOutput();
+        return;
+    }
 
     QFileInfo fileInfo(outPath->text().toLocal8Bit());
     if (fileInfo.exists()) {
@@ -73,18 +81,21 @@ void FileWidget::ChangeOutputFileName() {
 // if this function is called, we assume that the contents of *outPath form a 
 // valid file name
 void FileWidget::ChangeOutputStream() {
-    if (!(dontSave->isChecked() || outPath->hasAcceptableInput())) return;
+    if (!dontSave->isChecked() && !outPath->hasAcceptableInput()) {
+        DisableOutput();
+        return;
+    }
 
     if (dontSave->isChecked()) {
         // if (outStream != nullptr) {
         if (outStream.rdbuf() != std::cout.rdbuf()) {
             std::cout << "outStream set to std::cout" << std::endl;
-            outStream->close();
-            outStream->rdbuf(std::cout.rdbuf());
+            outStream.close();
+            // fileBuffer = outStream.rdbuf(std::cout.rdbuf());
             // emit OutputChanged(outStream.get());
             // outStream->close();
             // outStream = nullptr;
-            // emit OutputChanged(&std::cout);
+            emit OutputChanged(&std::cout);
         }
         return;
     }
@@ -97,15 +108,24 @@ void FileWidget::ChangeOutputStream() {
     }
     std::cout << "outStream set to \"" << 
         (std::string)outPath->text().toLocal8Bit() << "\"" << std::endl;
-    outStream->close();
-    outStream->open(outPath->text().toLocal8Bit(), writeMode);
+    if (outStream.rdbuf() != std::cout.rdbuf()) outStream.close();
+    // outStream.rdbuf(fileBuffer);
+    outStream.open(outPath->text().toLocal8Bit(), writeMode);
     // std::unique_ptr<std::ofstream> newOutStream = std::make_unique<std::ofstream>(
                                                 // outPath->text().toLocal8Bit(), 
                                                 // writeMode);
-    // emit OutputChanged(newOutStream.get());
+    emit OutputChanged(&outStream);
 
     // if (outStream != nullptr) outStream->close();
     // outStream = std::move(newOutStream);
+}
+
+void FileWidget::OverwriteWarningSlot() {
+    emit OverwriteWarningSignal(!suppressOverwriteWarning->isChecked());
+}
+
+void FileWidget::DisableOutput() {
+    emit OutputChanged(nullptr);
 }
 
 } // namespace GUI

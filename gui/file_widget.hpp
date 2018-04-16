@@ -20,17 +20,20 @@ class FileWidget : public QWidget {
 
     public:
         FileWidget();
-        std::ostream* OutStream() const { return outStream.get(); }
+        std::ostream* OutStream() { return &outStream; }
 
     signals:
         void OutputChanged(std::ostream* newOutStream);
+        void OverwriteWarningSignal(const bool newStatus);
 
     private slots:
         void ChangeOutputFileName();
         void ChangeOutputStream();
+        void OverwriteWarningSlot();
 
     private:
-        std::unique_ptr<std::ofstream> outStream;
+        void DisableOutput();
+        std::ofstream outStream;
 
         // QVBoxLayout* layout;
         QLineEdit* outPath;

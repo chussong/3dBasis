@@ -20,16 +20,16 @@ int Calculate(const Arguments& args) {
 
     if (args.options & OPT_STATESONLY) {
         ComputeBasisStates(args);
-        if (args.outputStream->rdbuf() != std::cout.rdbuf()) {
-            delete args.outputStream;
-        }
+        // if (args.outputStream->rdbuf() != std::cout.rdbuf()) {
+            // delete args.outputStream;
+        // }
         return EXIT_SUCCESS;
     }
 
     DMatrix hamiltonian = ComputeHamiltonian(args);
-    if (args.outputStream->rdbuf() != std::cout.rdbuf()) {
-        delete args.outputStream;
-    }
+    // if (args.outputStream->rdbuf() != std::cout.rdbuf()) {
+        // delete args.outputStream;
+    // }
     return EXIT_SUCCESS;
 }
 
