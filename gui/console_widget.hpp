@@ -1,5 +1,5 @@
-#ifndef CONSOLE_HPP
-#define CONSOLE_HPP
+#ifndef CONSOLE_WIDGET_HPP
+#define CONSOLE_WIDGET_HPP
 
 #include <iostream>
 
@@ -8,14 +8,13 @@
 
 namespace GUI {
 
-class Console : public QTextEdit {
+class ConsoleWidget : public QTextEdit {
     Q_OBJECT
 
     public:
-        Console();
+        ConsoleWidget();
 
     private:
-        QTextEdit* display;
         QTextStream* outStream;
 };
 

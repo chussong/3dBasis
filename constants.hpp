@@ -87,10 +87,10 @@ constexpr unsigned int MAX_THREADS = 8u;
 struct Arguments {
     int numP = -1;
     int degree = -1;
-    coeff_class delta = 0;
+    std::size_t partitions = 4; // \mu partitions per operator pair
+    coeff_class msq = 1; // the coefficient of the mass term
     int options = 0;
     std::ostream* outputStream = &std::cout;
-    std::size_t partitions = 4; // \mu partitions per operator pair
 };
 
 struct particle {

@@ -1,14 +1,23 @@
 #ifndef MAIN_WINDOW_HPP
 #define MAIN_WINDOW_HPP
 
-#include <QtWidgets/QtWidgets>
-
-// these might be in QtWidgets already?
+#include <QtCore/QSettings>
+#include <QtCore/QResource>
+#include <QtCore/QCommandLineParser>
+#include <QtCore/QCommandLineOption>
+#include <QtGui/QSessionManager>
+#include <QtWidgets/QDesktopWidget>
+#include <QtWidgets/QMainWindow>
+#include <QtWidgets/QPlainTextEdit>
+#include <QtWidgets/QFileDialog>
+#include <QtWidgets/QMenu>
+#include <QtWidgets/QMenuBar>
+#include <QtWidgets/QToolBar>
+#include <QtWidgets/QStatusBar>
+#include <QtWidgets/QAction>
 #include <QtWidgets/QDockWidget>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QCheckBox>
-#include <QtCore/QCommandLineParser>
-#include <QtCore/QCommandLineOption>
 
 #include "constants.hpp"
 #include "calc_widget.hpp"

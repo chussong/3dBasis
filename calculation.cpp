@@ -197,8 +197,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
                 << solver.eigenvalues() << std::endl;
     }
 
-    coeff_class m = 1;
-    DMatrix hamiltonian = (m*m)*polyMassMatrix + polyKineticMatrix;
+    DMatrix hamiltonian = args.msq*polyMassMatrix + polyKineticMatrix;
     if (outStream.rdbuf() != std::cout.rdbuf()) {
         outStream << "hamiltonian = "
                 << MathematicaOutput(hamiltonian) << std::endl;

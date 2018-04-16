@@ -2,13 +2,17 @@
 
 namespace GUI {
 
+namespace {
+char outPathDefaultText[] = "output file (*.txt)";
+} // anonymous namespace
+
 FileWidget::FileWidget(): outStream(), 
     outPath(new QLineEdit), dontSave(new QCheckBox), 
     suppressOverwriteWarning(new QCheckBox), appendContents(new QCheckBox) {
     QVBoxLayout* layout = new QVBoxLayout;
     setLayout(layout);
 
-    outPath->setText(tr("output file"));
+    outPath->setText(tr(outPathDefaultText));
     outPath->setEnabled(false);
     dontSave->setText(tr("don't save output"));
     dontSave->setChecked(true);
@@ -20,7 +24,6 @@ FileWidget::FileWidget(): outStream(),
     layout->addWidget(suppressOverwriteWarning);
     layout->addWidget(appendContents);
 
-    // FIXME: need validator for outPath
     QRegExp pathRegex("\\w+\\.txt");
     QRegExpValidator* pathValidator = new QRegExpValidator(pathRegex);
     outPath->setValidator(pathValidator);
@@ -59,6 +62,7 @@ void FileWidget::ChangeOutputFileName() {
             if (confirm.exec() == QMessageBox::Yes) {
                 ChangeOutputStream();
             } else {
+                outPath->setText(tr(outPathDefaultText));
                 return;
             }
         } else {
@@ -66,7 +70,7 @@ void FileWidget::ChangeOutputFileName() {
             badName.setText("This name already exists and is not a writable "
                     "file.");
             badName.exec();
-            outPath->setText("output path");
+            outPath->setText(tr(outPathDefaultText));
             return;
         }
     } else {

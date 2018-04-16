@@ -40,7 +40,6 @@ Arguments ParseArguments(int argc, char* argv[]) {
     std::vector<std::string> options;
     std::string arg;
     Arguments ret;
-    ret.delta = 0;
     int j = 0;
     for(int i = 1; i < argc; ++i){
         arg = argv[i];
@@ -67,9 +66,6 @@ Arguments ParseArguments(int argc, char* argv[]) {
                     case 1:
                             ret.degree = ReadArg<int>(arg);
                             break;
-                    case 2:
-                            ret.delta = ReadArg<coeff_class>(arg);
-                            break;
                     default:
                             std::cerr << "Error: at most three non-option arguments"
                                     << " may be given." << std::endl;
@@ -81,7 +77,6 @@ Arguments ParseArguments(int argc, char* argv[]) {
     }
     if(j < 2) ret.numP = 0; // invalidate the input since it was insufficient
     ret.options = ParseOptions(options);
-    if (argc < 3 || std::abs<builtin_class>(ret.delta) < EPSILON) ret.delta = 0.5;
     return ret;
 }
 

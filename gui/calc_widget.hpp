@@ -8,10 +8,12 @@
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QSpinBox>
+#include <QtWidgets/QDoubleSpinBox>
 #include <QtWidgets/QCheckBox>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QProgressBar>
 #include <QtWidgets/QMessageBox>
+#include <QtConcurrent/QtConcurrentRun>
 
 #include "constants.hpp"
 #include "calculation.hpp"
@@ -25,6 +27,7 @@ class CalcWidget : public QWidget {
         CalcWidget(const Arguments& args);
 
     public slots:
+        void Go();
         void ChangeOutput(std::ostream* newOutStream);
         void GiveOverwriteWarnings(const bool newValue);
 
@@ -38,6 +41,7 @@ class CalcWidget : public QWidget {
         QSpinBox* nBox;
         QSpinBox* lBox;
         QSpinBox* pBox;
+        QDoubleSpinBox* msqBox;
         QCheckBox* testCheckBox;
         QPushButton* goButton;
         QProgressBar* progressBar;

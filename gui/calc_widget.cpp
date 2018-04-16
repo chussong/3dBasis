@@ -3,8 +3,8 @@
 namespace GUI {
 
 CalcWidget::CalcWidget(const Arguments& args): outStream(args.outputStream),
-        warningStatus(WARNING_ON), 
-        nBox(new QSpinBox), lBox(new QSpinBox), pBox(new QSpinBox), 
+        warningStatus(WARNING_ON), nBox(new QSpinBox), lBox(new QSpinBox), 
+        pBox(new QSpinBox), msqBox(new QDoubleSpinBox), 
         testCheckBox(new QCheckBox("Run &tests only")), 
         goButton(new QPushButton("&go")), progressBar(new QProgressBar) {
     // put the boxes into inputBoxGrid
@@ -16,6 +16,8 @@ CalcWidget::CalcWidget(const Arguments& args): outStream(args.outputStream),
     inputBoxGrid->addWidget(lBox);
     inputBoxGrid->addWidget(new QLabel("p"));
     inputBoxGrid->addWidget(pBox);
+    inputBoxGrid->addWidget(new QLabel("m^2")); // FIXME: unicode exponent
+    inputBoxGrid->addWidget(msqBox);
     inputBoxes->setLayout(inputBoxGrid);
 
     nBox->setRange(2, 9);
@@ -31,7 +33,12 @@ CalcWidget::CalcWidget(const Arguments& args): outStream(args.outputStream),
     pBox->setValue(args.partitions);
     pBox->setStatusTip(tr("Number of mu^2 partitions per operator"));
 
-    connect(goButton, &QAbstractButton::clicked, this, &CalcWidget::Calculate);
+    msqBox->setRange(0.0, 1.0);
+    msqBox->setValue(args.msq);
+    msqBox->setSingleStep(0.05);
+    msqBox->setStatusTip(tr("Coefficient of mass operator in Hamiltonian"));
+
+    connect(goButton, &QAbstractButton::clicked, this, &CalcWidget::Go);
 
     QVBoxLayout* layout = new QVBoxLayout;
     layout->addWidget(inputBoxes);
@@ -41,9 +48,7 @@ CalcWidget::CalcWidget(const Arguments& args): outStream(args.outputStream),
     setLayout(layout);
 }
 
-void CalcWidget::Calculate() {
-    // FIXME: mutex lock or something to make sure this never gets run twice
-
+void CalcWidget::Go() {
     // if warning is both on and active, pop up a confirmation box
     if (warningStatus == (WARNING_ON | WARNING_ACTIVE)) {
         QMessageBox confirm;
@@ -54,22 +59,26 @@ void CalcWidget::Calculate() {
         if (confirm.exec() == QMessageBox::Cancel) return;
     }
 
+    if (outStream->rdbuf() != std::cout.rdbuf()) warningStatus |= WARNING_ACTIVE;
     goButton->setEnabled(false);
 
+    QtConcurrent::run(this, &CalcWidget::Calculate);
+}
+
+void CalcWidget::Calculate() {
     Arguments args;
     args.numP = nBox->value();
     args.degree = lBox->value();
     args.partitions = pBox->value();
+    args.msq = msqBox->value();
     args.outputStream = outStream;
 
     if (testCheckBox->isChecked()) args.options |= OPT_TEST;
 
     ::Calculate(args);
-    std::cout << "***** Calculation Complete *****" << std::endl;
 
-    if (outStream->rdbuf() != std::cout.rdbuf()) warningStatus |= WARNING_ACTIVE;
+    std::cout << "***** Calculation Complete *****" << std::endl;
     goButton->setEnabled(true);
-    // FIXME: release mutex (or whatever else we end up using)
 }
 
 void CalcWidget::ChangeOutput(std::ostream* newOutStream) {
