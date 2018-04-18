@@ -1,9 +1,9 @@
 #ifndef TEST_HPP
 #define TEST_HPP
 
-#include <iostream>
 #include <algorithm> // random_shuffle
 
+#include "constants.hpp"
 #include "matrix.hpp"
 #include "io.hpp"
 #include "discretization.hpp"
@@ -18,52 +18,54 @@
 
 namespace Test {
 
-bool RunAllTests();
+bool RunAllTests(const Arguments& args);
 
 namespace MatrixInternal {
 
-bool PermuteXY();
-bool InteractionTermsFromXY();
-bool CombineInteractionFs();
-bool UPlusIntegral();
+bool PermuteXY(OStream& console);
+bool InteractionTermsFromXY(OStream& console);
+bool CombineInteractionFs(OStream& console);
+bool UPlusIntegral(OStream& console);
 bool UPlusIntegral_Case(const builtin_class a, const builtin_class b, 
-        const builtin_class expected);
+        const builtin_class expected, OStream& console);
 
 } // namespace MatrixInternal
 
-bool Hypergeometric();
-bool InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions);
+bool Hypergeometric(OStream& console);
+bool InteractionMatrix(const Basis<Mono>& basis, const Arguments& args);
 
 // templates for testing templates --------------------------------------------
 
 template<int P, int Q>
 bool HypergeometricPFQ_Case(std::array<builtin_class,P> a, 
-        std::array<builtin_class,Q> b, builtin_class x, coeff_class expected) {
+        std::array<builtin_class,Q> b, builtin_class x, coeff_class expected,
+        OStream& console) {
     constexpr coeff_class tol = 1e-4;
     coeff_class answer = ::HypergeometricPFQ<P,Q>(a, b, x);
-    std::cerr << "HypergeometricPFQ<" << P << "," << Q << ">(" << a 
+    console << "HypergeometricPFQ<" << P << "," << Q << ">(" << a 
         << ", " << b << ", " << x << ") == " << answer;
     if (std::abs(static_cast<builtin_class>(answer - expected)) <= tol*answer) {
-        std::cerr << " == " << expected << " (PASS)" << std::endl;
+        console << " == " << expected << " (PASS)" << endl;
         return true;
     } else {
-        std::cerr << " != " << expected << " (FAIL)" << std::endl;
+        console << " != " << expected << " (FAIL)" << endl;
         return false;
     }
 }
 
 template<int P, int Q>
 bool HypergeometricPFQ_Reg_Case(std::array<builtin_class,P> a, 
-        std::array<builtin_class,Q> b, builtin_class x, coeff_class expected) {
+        std::array<builtin_class,Q> b, builtin_class x, coeff_class expected,
+        OStream& console) {
     constexpr coeff_class tol = 1e-4;
     coeff_class answer = ::HypergeometricPFQ_Reg<P,Q>(a, b, x);
-    std::cerr << "HypergeometricPFQ_Reg<" << P << "," << Q << ">(" << a 
+    console << "HypergeometricPFQ_Reg<" << P << "," << Q << ">(" << a 
         << ", " << b << ", " << x << ") == " << answer;
     if (std::abs(static_cast<builtin_class>(answer - expected)) <= tol*answer) {
-        std::cerr << " == " << expected << " (PASS)" << std::endl;
+        console << " == " << expected << " (PASS)" << endl;
         return true;
     } else {
-        std::cerr << " != " << expected << " (FAIL)" << std::endl;
+        console << " != " << expected << " (FAIL)" << endl;
         return false;
     }
 }

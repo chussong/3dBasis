@@ -2,6 +2,10 @@
 #define CONSTANTS_HPP
 
 #include <iostream> // for the output stream in the argument struct
+#ifndef NO_GUI
+#include <QtCore/QTextStream>
+#include <sstream>
+#endif
 
 #include "Eigen/Core"
 // #include "Eigen/Sparse"
@@ -37,16 +41,26 @@ typedef double builtin_class;
 // if builtin_class and coeff_class are different, this ostream operator also
 // needs to be defined
 
+#ifdef NO_GUI
+typedef std::ostream OStream;
+using endl = std::endl;
+#else
+typedef QTextStream OStream;
+#endif
+
 inline std::ostream& operator<<(std::ostream& os, const coeff_class& out){
-	return os << static_cast<builtin_class>(out);
+    // std::cout << "sending out a coeff_class" << std::endl;
+    return os << static_cast<builtin_class>(out);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const DMatrix& out) {
-	return os << out.cast<builtin_class>();
+    // std::cout << "sending out a matrix" << std::endl;
+    return os << out.cast<builtin_class>();
 }
 
 inline std::ostream& operator<<(std::ostream& os, const DVector& out) {
-	return os << out.cast<builtin_class>();
+    // std::cout << "sending out a vector" << std::endl;
+    return os << out.cast<builtin_class>();
 }
 
 /******************************************************************************/
@@ -90,7 +104,8 @@ struct Arguments {
     std::size_t partitions = 4; // \mu partitions per operator pair
     coeff_class msq = 1; // the coefficient of the mass term
     int options = 0;
-    std::ostream* outputStream = &std::cout;
+    OStream* outStream = nullptr;
+    OStream* console = nullptr;
 };
 
 struct particle {
@@ -110,7 +125,7 @@ enum options { OPT_BRUTE = 1 << 0, OPT_VERSION = 1 << 1, OPT_DEBUG = 1 << 2,
                 OPT_MSORTING = 1 << 5, OPT_DIRICHLET = 1 << 6,
                 OPT_OUTPUT = 1 << 7, OPT_IPTEST = 1 << 8, OPT_ALLMINUS = 1 << 9,
                 OPT_MULTINOMTEST = 1 << 10, OPT_TEST = 1 << 11,
-                OPT_STATESONLY = 1 << 12 };
+                OPT_STATESONLY = 1 << 12, OPT_MATHEMATICA = 1 << 13 };
 
 enum MATRIX_TYPE { MAT_KINETIC, MAT_INNER, MAT_MASS, MAT_INTER_SAME_N, 
     MAT_INTER_N_PLUS_2 };

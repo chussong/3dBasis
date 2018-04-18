@@ -5,6 +5,10 @@
 #include <sstream> // for mathematica output formatting
 #include <iomanip>
 #include <limits>
+#ifndef NO_GUI
+#include <QtCore/QTextStream>
+#include <QtCore/QString>
+#endif
 #include "constants.hpp"
 
 // stream output for particles
@@ -158,5 +162,22 @@ inline std::string MathematicaOutput(const DMatrix& out) {
     stream.flush();
     return stream.str();
 }
+
+#ifndef NO_GUI
+template<typename T>
+inline QTextStream& operator<<(QTextStream& os, T out) {
+    std::stringstream ss;
+    ss << out;
+    // return os << QString(ss.str().c_str());
+    // std::string str(ss.str());
+    // return os << str.c_str();
+    return os << ss.str().c_str();
+}
+// 
+// template<>
+// inline QTextStream& operator<<(QTextStream& os, const std::string& out) {
+    // return os << QString(out.c_str());
+// }
+#endif
 
 #endif

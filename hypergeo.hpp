@@ -3,7 +3,6 @@
 
 #include <cmath>
 #include <array>
-#include <iostream>
 
 #include "constants.hpp"
 

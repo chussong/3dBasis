@@ -58,7 +58,7 @@ struct YTerm {
     char operator[](std::size_t i) const { return y[i]; }
     std::size_t size() const { return y.size(); }
 };
-std::ostream& operator<<(std::ostream& os, const YTerm& out);
+OStream& operator<<(OStream& os, const YTerm& out);
 
 struct MatrixTerm_Intermediate {
     coeff_class coeff = 1;
@@ -72,7 +72,7 @@ struct MatrixTerm_Intermediate {
 };
 MatrixTerm_Intermediate operator*(const MatrixTerm_Intermediate& A,
 			MatrixTerm_Intermediate B);
-std::ostream& operator<<(std::ostream& os, const MatrixTerm_Intermediate& out);
+OStream& operator<<(OStream& os, const MatrixTerm_Intermediate& out);
 
 struct MatrixTerm_Final {
     coeff_class coeff = 1;
@@ -100,7 +100,7 @@ struct InteractionTerm_Step2 {
     // r, sqrt(1 - r^2), sqrt(1 - alpha^2 r^2)
     std::array<char,3> r;
 };
-std::ostream& operator<<(std::ostream& os, const InteractionTerm_Step2& out);
+OStream& operator<<(OStream& os, const InteractionTerm_Step2& out);
 
 struct InteractionTerm_Output {
     // entire constant part of term, including prefactors, degeneracies, etc.

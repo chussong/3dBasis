@@ -4,7 +4,7 @@
 // added for monomials which appear more than once
 Poly::Poly(const std::vector<Mono>& terms){
     if(terms.size() == 0){
-        std::cout << "Warning! A Poly has been constructed from an empty Mono."
+        std::cerr << "Warning! A Poly has been constructed from an empty Mono."
             << std::endl;
     }
     for(auto& newTerm : terms){
@@ -92,7 +92,7 @@ bool Poly::operator==(const Poly& other) const{
     return true;
 }
 
-/*std::ostream& operator<<(std::ostream& os, const Poly& out){
+/*OStream& operator<<(OStream& os, const Poly& out){
     for(auto& component : out) os << component << " + ";
     return out.size() > 0 ? os << "\b\b \b\b" : os;
 }*/

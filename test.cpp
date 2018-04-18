@@ -2,7 +2,7 @@
 
 namespace Test {
 
-bool RunAllTests() {
+bool RunAllTests(const Arguments& args) {
     Multinomial::Initialize(1, 6);
     Multinomial::Initialize(2, 6);
     Multinomial::Initialize(3, 6);
@@ -10,52 +10,54 @@ bool RunAllTests() {
     Multinomial::Initialize(5, 6);
     Multinomial::Initialize(6, 6);
 
-    std::cout << "----- PERFORMING ALL AVAILABLE UNIT TESTS -----" << std::endl;
+    OStream& console = *args.console;
+
+    console << "----- PERFORMING ALL AVAILABLE UNIT TESTS -----" << endl;
     bool result = true;
-    result &= MatrixInternal::PermuteXY();
-    result &= MatrixInternal::InteractionTermsFromXY();
-    result &= MatrixInternal::CombineInteractionFs();
-    result &= MatrixInternal::UPlusIntegral();
-    // result &= RIntegral();
-    result &= Hypergeometric();
+    result &= MatrixInternal::PermuteXY(console);
+    result &= MatrixInternal::InteractionTermsFromXY(console);
+    result &= MatrixInternal::CombineInteractionFs(console);
+    result &= MatrixInternal::UPlusIntegral(console);
+    // result &= RIntegral(console);
+    result &= Hypergeometric(console);
 
     int numP = 3;
     int degree = 7;
-    std::size_t partitions = 4;
+    // std::size_t partitions = 4;
     std::vector<Basis<Mono>> allEvenBases;
     std::vector<Basis<Mono>> allOddBases;
     for (int deg = numP; deg <= degree; ++deg) {
-            splitBasis<Mono> degBasis(numP, deg, 0);
+            splitBasis<Mono> degBasis(numP, deg, args);
             allEvenBases.push_back(degBasis.EvenBasis());
             allOddBases.push_back(degBasis.OddBasis());
     }
-    std::vector<Poly> evenStates = ::Orthogonalize(allEvenBases, std::cout);
-    std::vector<Poly> oddStates = ::Orthogonalize(allOddBases, std::cout);
+    std::vector<Poly> evenStates = ::Orthogonalize(allEvenBases, console, false);
+    std::vector<Poly> oddStates = ::Orthogonalize(allOddBases, console, true);
     Basis<Mono> minBasis = ::MinimalBasis(evenStates);
-    // result &= Test::InteractionMatrix(minBasis, partitions);
+    // result &= Test::InteractionMatrix(minBasis, args);
 
     return result;
 }
 
 namespace MatrixInternal {
 
-bool PermuteXY() {
-    std::cout << "----- MatrixInternal::PermuteXY -----" << std::endl;
+bool PermuteXY(OStream& console) {
+    console << "----- MatrixInternal::PermuteXY -----" << endl;
     std::vector<std::string> xAndy{"10", "1000", "1010", "1100", "210000",
         "222210", "111111", "210012", "221001"};
     for (auto& xy : xAndy) {
-        std::cout << "TEST CASE: " << xy << std::endl;
+        console << "TEST CASE: " << xy << endl;
         do {
-            std::cout << xy << std::endl;
+            console << xy << endl;
         } while (::MatrixInternal::PermuteXY(xy));
     }
 
-    std::cout << "----- PASSED -----" << std::endl;
+    console << "----- PASSED -----" << endl;
     return true;
 }
 
-bool InteractionTermsFromXY() {
-    std::cout << "----- MatrixInternal::InteractionTermsFromXY -----" << std::endl;
+bool InteractionTermsFromXY(OStream& console) {
+    console << "----- MatrixInternal::InteractionTermsFromXY -----" << endl;
     std::vector<std::string> testCases {
         {2, 1, 0, 1, 0, 0},
         {2, 1, 0, 0, 1, 0},
@@ -65,18 +67,18 @@ bool InteractionTermsFromXY() {
         {0, 1, 2, 0, 0, 2}
     };
     for (const auto& xy : testCases) {
-        std::cout << "CASE: " << MVectorOut(xy) << std::endl;
+        console << "CASE: " << MVectorOut(xy) << endl;
         for (const auto& term : ::MatrixInternal::InteractionTermsFromXY(xy)) {
-            std::cout << term << std::endl;
+            console << term << endl;
         }
     }
 
-    std::cout << "----- PASSED -----" << std::endl;
+    console << "----- PASSED -----" << endl;
     return true;
 }
 
-bool CombineInteractionFs() {
-    std::cout << "----- MatrixInternal::CombineInteractionFs -----" << std::endl;
+bool CombineInteractionFs(OStream& console) {
+    console << "----- MatrixInternal::CombineInteractionFs -----" << endl;
 
     // 3 particle
     // std::vector<std::vector<char>> uPlusCases {
@@ -122,43 +124,43 @@ bool CombineInteractionFs() {
         f2.uMinus = uMinusCases[i+1];
         f2.yTilde = yTildeCases[i+1];
 
-        std::cout << "CASE:\n" << f1 << " *\n" << f2 << " =\n";
+        console << "CASE:\n" << f1 << " *\n" << f2 << " =\n";
         auto results = ::MatrixInternal::CombineInteractionFs({f1}, {f2});
         for (const auto& res : results) {
-            std::cout << res << std::endl;
+            console << res << endl;
         }
     }
 
-    std::cout << "----- PASSED -----" << std::endl;
+    console << "----- PASSED -----" << endl;
     return true;
 }
 
-bool UPlusIntegral() {
-    std::cout << "----- ::UPlusIntegral -----" << std::endl;
+bool UPlusIntegral(OStream& console) {
+    console << "----- ::UPlusIntegral -----" << endl;
     bool passed = true;
-    passed &= UPlusIntegral_Case(5, 2, 0.0634921);
-    passed &= UPlusIntegral_Case(2, 4, 0.0833333);
-    passed &= UPlusIntegral_Case(8, 8, 0.0015873);
+    passed &= UPlusIntegral_Case(5, 2, 0.0634921, console);
+    passed &= UPlusIntegral_Case(2, 4, 0.0833333, console);
+    passed &= UPlusIntegral_Case(8, 8, 0.0015873, console);
 
     if (passed) {
-        std::cout << "----- PASSED -----" << std::endl;
+        console << "----- PASSED -----" << endl;
         return true;
     } else {
-        std::cout << "----- FAILED -----" << std::endl;
+        console << "----- FAILED -----" << endl;
         return false;
     }
 }
 
 bool UPlusIntegral_Case(const builtin_class a, const builtin_class b, 
-        const builtin_class expected) {
+        const builtin_class expected, OStream& console) {
     constexpr builtin_class tol = 1e-5;
     builtin_class answer = ::MatrixInternal::UPlusIntegral(a, b);
     std::cerr << "UPlusIntegral(" << a << ", " << b << ") == " << answer;
     if (std::abs(answer - expected) <= tol*answer) {
-        std::cerr << " == " << expected << " (PASS)" << std::endl;
+        console << " == " << expected << " (PASS)" << endl;
         return true;
     } else {
-        std::cerr << " != " << expected << " (FAIL)" << std::endl;
+        console << " != " << expected << " (FAIL)" << endl;
         // std::cerr << " (beta: " << gsl_sf_beta(a/2 + 1, b/2 + 1) << ")" << std::endl;
         return false;
     }
@@ -166,60 +168,61 @@ bool UPlusIntegral_Case(const builtin_class a, const builtin_class b,
 
 } // namespace MatrixInternal
 
-// bool RIntegral() {
-    // std::cout << "----- ::RIntegral -----" << std::endl;
+// bool RIntegral(OStream& console) {
+    // console << "----- ::RIntegral -----" << std::endl;
     // for (coeff_class a = 1; a < 5; ++a) {
         // for (coeff_class b = 1; b < 5; ++b) {
             // for (coeff_class c = 1; c < 5; ++c) {
                 // for (coeff_class alpha = 0.125; alpha <= 1.0; alpha += 0.125) {
-                    // std::cout << std::vector<coeff_class>{a, b, c, alpha}
+                    // console << std::vector<coeff_class>{a, b, c, alpha}
                         // << " = " << ::RIntegral(a, b, c, alpha) << std::endl;
                 // }
             // }
         // }
     // }
-    // std::cout << "----- PASSED -----" << std::endl;
+    // console << "----- PASSED -----" << std::endl;
     // return true;
 // }
 
-bool Hypergeometric() {
-    std::cout << "----- ::HypergeometricPFQ -----" << std::endl;
+bool Hypergeometric(OStream& console) {
+    console << "----- ::HypergeometricPFQ -----" << endl;
     bool passed = true;
 
-    passed &= HypergeometricPFQ_Case<2,1>({{1,2}}, {{3}}, 0.4, 1.38532);
-    passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,2}}, {{3}}, 0.4, 0.69266);
-    passed &= HypergeometricPFQ_Case<2,1>({{1,-2}}, {{3}}, 0.4, 0.76);
-    passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,-2}}, {{3}}, 0.4, 0.38);
-    passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,-2}}, {{-3}}, 0.4, 0.0);
-    passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,2}}, {{-3}}, 0.4, 65.8436);
+    passed &= HypergeometricPFQ_Case<2,1>({{1,2}}, {{3}}, 0.4, 1.38532, console);
+    passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,2}}, {{3}}, 0.4, 0.69266, console);
+    passed &= HypergeometricPFQ_Case<2,1>({{1,-2}}, {{3}}, 0.4, 0.76, console);
+    passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,-2}}, {{3}}, 0.4, 0.38, console);
+    passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,-2}}, {{-3}}, 0.4, 0.0, console);
+    passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,2}}, {{-3}}, 0.4, 65.8436, console);
 
-    passed &= HypergeometricPFQ_Case<3,2>({{1,2,3}}, {{4,5}}, 0.6, 1.24177);
-    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,3}}, {{4,5}}, 0.6, 0.00862338);
-    passed &= HypergeometricPFQ_Case<3,2>({{1,-2,3}}, {{4,5}}, 0.6, 0.8344);
-    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,-2,3}}, {{4,5}}, 0.6, 0.00579444);
-    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,-2,3}}, {{-4,5}}, 0.6, 0.0);
-    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,3}}, {{-4,5}}, 0.6, 58.4183);
-    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,-3}}, {{-4,-5}}, 0.6, 0.0);
-    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,3}}, {{-4,-5}}, 0.6, 4.61311e14);
+    passed &= HypergeometricPFQ_Case<3,2>({{1,2,3}}, {{4,5}}, 0.6, 1.24177, console);
+    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,3}}, {{4,5}}, 0.6, 0.00862338, console);
+    passed &= HypergeometricPFQ_Case<3,2>({{1,-2,3}}, {{4,5}}, 0.6, 0.8344, console);
+    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,-2,3}}, {{4,5}}, 0.6, 0.00579444, console);
+    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,-2,3}}, {{-4,5}}, 0.6, 0.0, console);
+    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,3}}, {{-4,5}}, 0.6, 58.4183, console);
+    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,-3}}, {{-4,-5}}, 0.6, 0.0, console);
+    passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,3}}, {{-4,-5}}, 0.6, 4.61311e14, console);
 
     // argument x=1 requires special treatment that's not implemented yet
-    // passed &= HypergeometricPFQ_Case<2,1>({{1,2}}, {{4}}, 1.0, 3.0);
-    // passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,2}}, {{4}}, 1.0, 0.5);
-    // passed &= HypergeometricPFQ_Case<3,2>({{1,2,3}}, {{4,5}}, 1.0, 1.56475);
-    // passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,3}}, {{4,5}}, 1.0, 0.0108663);
+    // passed &= HypergeometricPFQ_Case<2,1>({{1,2}}, {{4}}, 1.0, 3.0, console);
+    // passed &= HypergeometricPFQ_Reg_Case<2,1>({{1,2}}, {{4}}, 1.0, 0.5, console);
+    // passed &= HypergeometricPFQ_Case<3,2>({{1,2,3}}, {{4,5}}, 1.0, 1.56475, console);
+    // passed &= HypergeometricPFQ_Reg_Case<3,2>({{1,2,3}}, {{4,5}}, 1.0, 0.0108663, console);
 
     if (passed) {
-        std::cout << "----- PASSED -----" << std::endl;
+        console << "----- PASSED -----" << endl;
     } else {
-        std::cout << "----- FAILED -----" << std::endl;
+        console << "----- FAILED -----" << endl;
     }
     return passed;
 }
 
-bool InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
-    std::cout << "----- ::InteractionMatrix -----" << std::endl;
-    std::cout << ::InteractionMatrix(basis, partitions) << std::endl;
-    std::cout << "----- PASSED -----" << std::endl;
+bool InteractionMatrix(const Basis<Mono>& basis, const Arguments& args) {
+    OStream& console = *args.console;
+    console << "----- ::InteractionMatrix -----" << endl;
+    console << ::InteractionMatrix(basis, args.partitions) << endl;
+    console << "----- PASSED -----" << endl;
     return true;
 }
 

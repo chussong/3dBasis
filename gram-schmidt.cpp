@@ -2,7 +2,7 @@
 
 // return the number of independent vectors in the basis
 std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases, 
-                std::ostream&) {
+                OStream& console, const bool) {
     Timer timer;
     Basis<Mono> unifiedBasis = CombineBases(inputBases);
     Normalize(unifiedBasis);
@@ -12,8 +12,8 @@ std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
     DMatrix gram = GramFock(unifiedBasis);
     if(gram.rows() == 0) return {};
     
-    std::cout << "Gram matrix constructed in " << timer.TimeElapsedInWords()
-        << "." << std::endl;
+    console << "Gram matrix constructed in " << timer.TimeElapsedInWords()
+        << "." << endl;
     // if(TotalSize(inputBases) <= 7){
         // std::cout << gram << std::endl;
     // }
@@ -23,14 +23,14 @@ std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
     std::vector<Poly> orthogonalized = GramSchmidt_WithMatrix(unifiedBasis, gram);
     // std::vector<Poly> orthogonalized = GramSchmidt_MatrixOnly(gram, unifiedBasis);
 
-    std::cout << "Gram-Schmidt performed in " << timer.TimeElapsedInWords()
+    console << "Gram-Schmidt performed in " << timer.TimeElapsedInWords()
         << ", giving " << orthogonalized.size() << " vector";
-    if (orthogonalized.size() != 1) std::cout << "s";
+    if (orthogonalized.size() != 1) console << "s";
     if (orthogonalized.size() <= 20) {
-        std::cout << ":" << std::endl;
-        for(auto& p : orthogonalized) std::cout << p << std::endl;
+        console << ":" << endl;
+        for(auto& p : orthogonalized) console << p << endl;
     } else {
-        std::cout << ", which will not be shown." << std::endl;
+        console << ", which will not be shown." << endl;
     }
 
     return orthogonalized;

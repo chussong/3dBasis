@@ -2,9 +2,10 @@
 
 namespace GUI {
 
-CalcWidget::CalcWidget(const Arguments& args): outStream(args.outputStream),
-        warningStatus(WARNING_ON), nBox(new QSpinBox), lBox(new QSpinBox), 
-        pBox(new QSpinBox), msqBox(new QDoubleSpinBox), 
+CalcWidget::CalcWidget(const Arguments& args): console(args.console), 
+        outStream(args.outStream), warningStatus(WARNING_ON), 
+        nBox(new QSpinBox), lBox(new QSpinBox), pBox(new QSpinBox), 
+        msqBox(new QDoubleSpinBox), 
         testCheckBox(new QCheckBox("Run &tests only")), 
         goButton(new QPushButton("&go")), progressBar(new QProgressBar) {
     // put the boxes into inputBoxGrid
@@ -56,12 +57,17 @@ void CalcWidget::Go() {
         confirm.setInformativeText("Do you want to overwrite it?");
         confirm.setStandardButtons(QMessageBox::Yes | QMessageBox::Cancel);
         confirm.setDefaultButton(QMessageBox::Cancel);
-        if (confirm.exec() == QMessageBox::Cancel) return;
+        if (confirm.exec() == QMessageBox::Cancel) {
+            return;
+        } else {
+            emit OverwriteFile();
+        }
     }
 
-    if (outStream->rdbuf() != std::cout.rdbuf()) warningStatus |= WARNING_ACTIVE;
+    if (outStream != console) warningStatus |= WARNING_ACTIVE;
     goButton->setEnabled(false);
 
+    emit StartingCalculation();
     QtConcurrent::run(this, &CalcWidget::Calculate);
 }
 
@@ -71,18 +77,20 @@ void CalcWidget::Calculate() {
     args.degree = lBox->value();
     args.partitions = pBox->value();
     args.msq = msqBox->value();
-    args.outputStream = outStream;
+    args.outStream = outStream;
+    args.console = console;
 
+    if (outStream != console) args.options |= OPT_MATHEMATICA;
     if (testCheckBox->isChecked()) args.options |= OPT_TEST;
 
     ::Calculate(args);
 
-    std::cout << "***** Calculation Complete *****" << std::endl;
+    *console << "***** Calculation Complete *****" << endl;
     goButton->setEnabled(true);
 }
 
-void CalcWidget::ChangeOutput(std::ostream* newOutStream) {
-    // std::cout << "outStream updated" << std::endl;
+void CalcWidget::ChangeOutput(QTextStream* newOutStream) {
+    // console << "outStream updated" << std::endl;
     outStream = newOutStream;
     goButton->setEnabled(outStream != nullptr);
     warningStatus &= ~WARNING_ACTIVE;

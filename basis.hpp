@@ -25,7 +25,7 @@ class Basis {
 
     public:
         explicit Basis(const std::vector<T>& basisVectors): basisVectors(basisVectors) {}
-        Basis(const int numP, int degree, const int options);
+        Basis(const int numP, int degree, const Arguments& args);
         //explicit Basis(const Basis&) = default;
         //Basis(Basis&&) = default;
 
@@ -66,7 +66,7 @@ class splitBasis {
     Basis<T> oddBasis;
 
     public:
-        splitBasis(const int numP, const int degree, const int options);
+        splitBasis(const int numP, const int degree, const Arguments& args);
 
         std::pair<unsigned int, Basis<T>*> FindInBasis(const std::vector<int>& pm,
                         const std::vector<int>& pt);
@@ -90,7 +90,7 @@ class splitBasis {
 bool EoMAllowed(const std::vector<particle>& cfg);
 
 template<class T>
-inline Basis<T>::Basis(const int, int, const int) {
+inline Basis<T>::Basis(const int, int, const Arguments&) {
     std::cerr << "Error: ordered to construct a basis by degree for an "
         << "underlying type which has not been specialized. Please construct "
         << "with a different type or write a specialization for this type."
@@ -98,7 +98,7 @@ inline Basis<T>::Basis(const int, int, const int) {
 }
 
 template<>
-inline Basis<Mono>::Basis(const int numP, int degree, const int options) {
+inline Basis<Mono>::Basis(const int numP, int degree, const Arguments& args) {
     // 1: generate all possibilities for P_-
     // 2: identify nodes in P_-, generate possible distributions of P_\perp to
     // 		the nodes and then P_\perp within each node, adding each at top level
@@ -109,16 +109,18 @@ inline Basis<Mono>::Basis(const int numP, int degree, const int options) {
     // 		in constructing the basis; for instance, the states where every
     // 		pm = 0 are followed by a copy of the earlier parts of the basis
 
-    constexpr bool debug = false;
-    if(debug) std::cout << "***Generating basis at N=" << numP << ", D="
-            << degree << "***" << std::endl;
+    int options = args.options;
+    OStream& console = *args.console;
+    const bool debug = ((options & OPT_DEBUG) != 0);
+    if(debug) console << "***Generating basis at N=" << numP << ", D="
+            << degree << "***" << endl;
 
     // subtract off the required Dirichlet derivatives
     degree -= numP;
 
     if(degree < 0){
-        std::cout << "Error: there are no Dirichlet states with degree "
-                << "<= the number of particles." << std::endl;
+        console << "Error: there are no Dirichlet states with degree "
+                << "<= the number of particles." << endl;
         return;
     }
 
@@ -140,8 +142,8 @@ inline Basis<Mono>::Basis(const int numP, int degree, const int options) {
     }
     std::vector<std::vector<particle>> particleCfgs;
     for(auto& minusCfg : minus){
-        if(debug) std::cout << "Here's a configuration of minuses: "
-            << minusCfg << std::endl;
+        if(debug) console << "Here's a configuration of minuses: "
+            << minusCfg << endl;
         std::vector<particle> newCfg(minusCfg.size());
         for(auto i = 0u; i < newCfg.size(); ++i) newCfg[i].pm = minusCfg[i];
         particleCfgs.push_back(newCfg);
@@ -160,10 +162,10 @@ inline Basis<Mono>::Basis(const int numP, int degree, const int options) {
         for(auto& part : configuration) remainingEnergy -= part.pm;
         std::vector<std::vector<int>> perp(CfgsFromNodes(remainingEnergy, nodes,
                                                                         true));
-        if(debug) std::cout << "COMBINING SUBCONFIGS OF " << configuration 
-            << std::endl;
+        if(debug) console << "COMBINING SUBCONFIGS OF " << configuration 
+            << endl;
         for(auto& newCfg : CombinedCfgs(configuration, perp, 2)){
-            if(debug) std::cout << "NEW CONFIGURATION: " << newCfg << std::endl;
+            if(debug) console << "NEW CONFIGURATION: " << newCfg << endl;
             newCfgs.push_back(newCfg);
         }
     }
@@ -175,17 +177,17 @@ inline Basis<Mono>::Basis(const int numP, int degree, const int options) {
         particleCfgs.push_back(cfg);
     }
 
-    //std::cout << "Tick." << std::endl;
+    //console << "Tick." << endl;
     for(auto& cfg : particleCfgs){
         basisVectors.emplace_back(cfg);
-        //std::cout << cfg << std::endl;
+        //console << cfg << endl;
     }
 }
 
 template<class T>
 inline unsigned int Basis<T>::FindInBasis(const std::vector<int>&,
 		const std::vector<int>&) const{
-    std::cout << "Unspecialized Basis::FindInBasis(vectors) should not be called. "
+    std::cerr << "Unspecialized Basis::FindInBasis(vectors) should not be called. "
         << "How was this basis object created in the first place?" << std::endl;
     return -1u;
 }
@@ -194,28 +196,28 @@ inline unsigned int Basis<T>::FindInBasis(const std::vector<int>&,
 template<class T>
 inline Triplet Basis<T>::ExpressMono(const Mono&, const int, const int) const{
     std::cout << "Unspecialized Basis::ExpressMono should never be called. "
-        << "How was a basis object created in the first place?" << std::endl;
+        << "How was a basis object created in the first place?" << endl;
     return Triplet(-1, -1, coeff_class(0));
 }
 
 template<class T>
 inline std::list<Triplet> Basis<T>::ExpressPoly(const Poly&, const int, const int) const{
     std::cout << "basis::ExpressMono should never be called. "
-        << "How was a basis object created in the first place?" << std::endl;
+        << "How was a basis object created in the first place?" << endl;
     return {{Triplet(-1, -1, coeff_class(0))}};
 }
 */
 
 template<class T>
 inline DVector Basis<T>::DenseExpressMono(const Mono&) const {
-    std::cout << "Basis<T>::DenseExpressMono should never be called. "
+    std::cerr << "Basis<T>::DenseExpressMono should never be called. "
         << "How was a Basis<T> object created in the first place?" << std::endl;
     return DVector(0);
 }
 
 template<class T>
 inline DVector Basis<T>::DenseExpressPoly(const Poly& toExpress) const {
-    std::cout << "Basis<T>::DenseExpressPoly should never be called. "
+    std::cerr << "Basis<T>::DenseExpressPoly should never be called. "
         << "How was a Basis<T> object created in the first place?" << std::endl;
     return DVector(toExpress.size());
 }
@@ -225,7 +227,7 @@ inline unsigned int Basis<T>::FindInBasis(const T& wildVector) const{
     for(auto i = 0u; i < basisVectors.size(); ++i){
         if(basisVectors[i] == wildVector) return i;
     }
-    std::cout << "Warning! Failed to find the following vector in our basis: "
+    std::cerr << "Warning! Failed to find the following vector in our basis: "
         << wildVector << std::endl;
     return -1u;
 }
@@ -250,7 +252,8 @@ inline void Basis<Mono>::DeleteEven(){
 
 template<class T>
 inline std::ostream& operator<<(std::ostream& os, const Basis<T>& out){
-    if(out.size() == 0) return os << "{ }";
+    // std::cout << "Basis<Mono> goin' out" << std::endl;
+    if (out.size() == 0) return os << "{ }";
     os << "{ ";
     for (std::size_t i = 0; i < out.size()-1; ++i) {
         os << out[i].HumanReadable() << ", ";
@@ -388,8 +391,9 @@ inline bool splitBasis<T>::IsEven(const Mono& toTest){
 // even at order 0, we could just generate the basis once and copy it rather
 // than making exactly the same thing twice.
 template<class T>
-inline splitBasis<T>::splitBasis(const int numP, const int degree, const int options): 
-        evenBasis(numP, degree, options), oddBasis(evenBasis) {
+inline splitBasis<T>::splitBasis(const int numP, const int degree, 
+        const Arguments& args): evenBasis(numP, degree, args), 
+                                oddBasis(evenBasis) {
     //std::cout << evenBasis << "----->" << std::endl;
     evenBasis.DeleteOdd();
     //std::cout << evenBasis << std::endl;

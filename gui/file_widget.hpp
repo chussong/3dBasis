@@ -10,7 +10,10 @@
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QCheckBox>
 #include <QtWidgets/QMessageBox>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QFileDialog>
 #include <QtCore/QFileInfo>
+#include <QtCore/QTextStream>
 #include <QtGui/QRegExpValidator>
 
 namespace GUI {
@@ -19,24 +22,34 @@ class FileWidget : public QWidget {
     Q_OBJECT
 
     public:
-        FileWidget();
-        std::ostream* OutStream() { return &outStream; }
+        FileWidget(QTextStream* consoleStream);
+        QTextStream* OutStream();
 
     signals:
-        void OutputChanged(std::ostream* newOutStream);
+        void OutputChanged(QTextStream* newOutStream);
         void OverwriteWarningSignal(const bool newStatus);
 
+    public slots:
+        void ReopenFileStream();
+
     private slots:
-        void ChangeOutputFileName();
+        void ChooseOutputFile();
+        // void ChangeOutputFileName();
         void ChangeOutputStream();
         void OverwriteWarningSlot();
 
     private:
         void DisableOutput();
-        std::ofstream outStream;
+        void OpenFileStream(const QString& fileName, 
+                            const QFile::OpenMode writeMode);
+        void CloseFileStream();
+        QTextStream* consoleStream;
+        QTextStream* fileStream;
+        QFile* openFile;
 
         // QVBoxLayout* layout;
         QLineEdit* outPath;
+        QPushButton* outPathButton;
         QCheckBox* dontSave; // checking this disables the text field
         QCheckBox* suppressOverwriteWarning;
         QCheckBox* appendContents; // i.e. don't overwrite the file

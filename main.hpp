@@ -10,8 +10,11 @@ constexpr char VERSION[] = "0.9.7";
 constexpr char RELEASE_DATE[] = __DATE__;
 
 #include "constants.hpp"
-#include "gui/main_window.hpp"
 #include "calculation.hpp"
+
+#ifndef NO_GUI
+#include "gui/main_window.hpp"
+#endif
 
 // startup and input parsing --------------------------------------------------
 

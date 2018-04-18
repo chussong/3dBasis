@@ -17,7 +17,7 @@
 // this should be the only function called from outside of this file ----------
 
 std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases, 
-                std::ostream& outStream);
+                OStream& console, const bool odd);
 
 // custom gram-schmidt --------------------------------------------------------
 

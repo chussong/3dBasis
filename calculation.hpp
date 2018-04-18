@@ -28,11 +28,12 @@ void GSLErrorHandler(const char* reason, const char* file, int line, int err);
 int Calculate(const Arguments& args);
 std::vector<Poly> ComputeBasisStates(const Arguments& args);
 std::vector<Poly> ComputeBasisStates_SameParity(
-        const std::vector<Basis<Mono>>& inputBases, const Arguments& args);
+        const std::vector<Basis<Mono>>& inputBases, const Arguments& args,
+        const bool odd);
 DMatrix PolysOnMinBasis(const Basis<Mono>& minimalBasis,
-        const std::vector<Poly> orthogonalized, std::ostream& outStream);
+        const std::vector<Poly> orthogonalized, OStream& outStream);
 DMatrix ComputeHamiltonian(const Arguments& args);
 DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases,
-                                      const Arguments& args);
+                                      const Arguments& args, const bool odd);
 
 #endif

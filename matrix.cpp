@@ -75,7 +75,7 @@ YTerm::YTerm(const coeff_class coeff, const std::string& y,
 	}
 }
 
-std::ostream& operator<<(std::ostream& os, const YTerm& out) {
+OStream& operator<<(OStream& os, const YTerm& out) {
 	return os << out.coeff << " * " << out.y;
 }
 
@@ -98,7 +98,7 @@ MatrixTerm_Intermediate operator*(
 	return B;
 }
 
-std::ostream& operator<<(std::ostream& os, const MatrixTerm_Intermediate& out) {
+OStream& operator<<(OStream& os, const MatrixTerm_Intermediate& out) {
 	return os << out.coeff << " * {" << out.uPlus << ", "
 		<< out.uMinus << ", " << out.yTilde << "}";
 }
@@ -125,7 +125,7 @@ void MatrixTerm_Final::Resize(const size_t n) {
     cosTheta.resize(n-1);
 }
 
-std::ostream& operator<<(std::ostream& os, const InteractionTerm_Step2& out) {
+OStream& operator<<(OStream& os, const InteractionTerm_Step2& out) {
     return os << out.coeff << " * {" << out.u << ", "
         << out.theta << ", " << out.r << "}";
 }
@@ -701,7 +701,7 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
 coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
 		const MATRIX_TYPE type) {
     if (exponents.size() == 0) {
-        std::cout << "No exponents detected; returning 1." << std::endl;
+        std::cerr << "No exponents detected; returning 1." << std::endl;
         return 1;
     }
     // auto n = exponents.front().uPlus.size() + 1;
