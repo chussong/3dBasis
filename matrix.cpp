@@ -845,6 +845,8 @@ coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
                             term.cosTheta[i] );
         }
         output *= ThetaIntegral_Long(term.sinTheta[n-3], term.cosTheta[n-3]);
+    } else {
+        output *= 2; // FIXME: maybe /= 2?
     }
     // std::cout << term.coeff << " * {" << term.uPlus << ", " << term.uMinus
         // << ", " << term.sinTheta << ", " << term.cosTheta << "} -> " << output 
@@ -881,13 +883,14 @@ coeff_class DoAllIntegrals(InteractionTerm_Step2& term, const MATRIX_TYPE type){
         term.r[2] -= 1;
     }
 
-    // actually do the integrals below
+    // this part actually does the integrals
     coeff_class product = 1;
     for (std::size_t i = 0; i < n; ++i) {
         product *= UPlusIntegral(term.u[2*i], term.u[2*i + 1]);
     }
     for (std::size_t k = 0; k < n-3; ++k) {
         product *= ThetaIntegral_Short(term.theta[2*k], term.theta[2*k + 1]);
+        // FIXME!!! special case for n=2; I think n=3 is okay but maybe *= 2?
     }
     return product;
 }

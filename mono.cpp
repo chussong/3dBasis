@@ -21,7 +21,7 @@ Mono::Mono(const std::vector<int>& pm, const std::vector<int>& pt,
     Order();
 }
 
-const char& Mono::Pm(const int i) const{
+const char& Mono::Pm(const int i) const {
     return particles[i].pm;
 }
 
@@ -35,7 +35,7 @@ void Mono::ChangePm(const int i, const char newValue) {
     Order();
 }
 
-const char& Mono::Pt(const int i) const{
+const char& Mono::Pt(const int i) const {
     return particles[i].pt;
 }
 
@@ -50,7 +50,7 @@ void Mono::ChangePt(const int i, const char newValue) {
 }
 
 // note: like all operations on completed Monos, this assumes both are ordered
-bool Mono::operator==(const Mono& other) const{
+bool Mono::operator==(const Mono& other) const {
     if(particles.size() != other.particles.size()){
         std::cerr << "Error: asked to compare two monomials with different "
             << "numbers of particles." << std::endl;
@@ -63,7 +63,7 @@ bool Mono::operator==(const Mono& other) const{
     return true;
 }
 
-std::ostream& operator<<(std::ostream& os, const Mono& out){
+std::ostream& operator<<(std::ostream& os, const Mono& out) {
     return os << out.HumanReadable();
 }
 
@@ -77,14 +77,14 @@ std::string MathematicaOutput(const Mono& out) {
     return ss.str();
 }
 
-std::string Mono::HumanReadable() const{
+std::string Mono::HumanReadable() const {
     std::ostringstream os;
     // WARNING: this assumes that the sign of the coefficient will be accounted
     // for in the function calling this! Only the absolute value is attached!
     if(std::abs<builtin_class>(Coeff() - 1) > EPSILON) {
         os << std::abs<builtin_class>(Coeff()) << "*{";
     }
-    for(auto& p : particles){
+    for(auto& p : particles) {
         if(p.pm != 0){
             os << "M";
             if(p.pm != 1) os << "^" << std::to_string(p.pm);
@@ -93,38 +93,38 @@ std::string Mono::HumanReadable() const{
             os << "T";
             if(p.pt != 1) os << "^" << std::to_string(p.pt);
         }
-        os << "Φ";
+        os << "O"; // FIXME?? it would be nice if this were Φ
     }
     if(std::abs<builtin_class>(Coeff() - 1) > EPSILON) os << "}";
     return os.str();
 }
 
-Mono Mono::operator-() const{
+Mono Mono::operator-() const {
     Mono ret(*this);
     ret.coeff *= -1;
     return ret;
 }
 
-int Mono::TotalPm() const{
+int Mono::TotalPm() const {
     int total = 0;
     for(auto& p : particles) total += p.pm;
     return total;
 }
 
-int Mono::TotalPt() const{
+int Mono::TotalPt() const {
     int total = 0;
     for(auto& p : particles) total += p.pt;
     return total;
 }
 
 // if the Mono is ordered, particles[0] is guaranteed to have the highest Pm
-int Mono::MaxPm() const{
+int Mono::MaxPm() const {
     if(particles.size() < 1) return -1;
     return particles[0].pm;
 }
 
 // for this, we have to actually check
-int Mono::MaxPt() const{
+int Mono::MaxPt() const {
     int max = -1;
     for(auto& p : particles) if(p.pt > max) max = p.pt;
     return max;
@@ -132,7 +132,7 @@ int Mono::MaxPt() const{
 
 // return a vector containing one entry per distinguishable particle in *this.
 // Each entry is the number of those particles contained.
-std::vector<size_t> Mono::CountIdentical() const{
+std::vector<size_t> Mono::CountIdentical() const {
     std::vector<size_t> ret;
     std::vector<bool> counted(NParticles(), false);
     for(auto i = 0u; i < NParticles(); ++i){
@@ -167,30 +167,30 @@ std::vector<size_t> Mono::PermutationVector() const {
     return ret;
 }
 
-bool Mono::ParticlePrecedence(const particle& a, const particle& b){
+bool Mono::ParticlePrecedence(const particle& a, const particle& b) {
     if(a.pm != b.pm) return a.pm > b.pm;
     return a.pt > b.pt;
 }
 
-void Mono::Order(){
+void Mono::Order() {
     std::sort(particles.begin(), particles.end(), ParticlePrecedence);
 }
 
-Mono Mono::OrderCopy() const{
+Mono Mono::OrderCopy() const {
     Mono ret(*this);
     ret.Order();
     return ret;
 }
 
-std::vector<int> Mono::IdentifyNodes() const{
+std::vector<int> Mono::IdentifyNodes() const {
     return ::IdentifyNodes(particles);
 }
 
-std::vector<int> Mono::IdentifyPmNodes() const{
+std::vector<int> Mono::IdentifyPmNodes() const {
     return ::IdentifyNodes([this](unsigned int i){return Pm(i);}, NParticles());
 }
 
-std::vector<int> Mono::IdentifyPtNodes() const{
+std::vector<int> Mono::IdentifyPtNodes() const {
     return ::IdentifyNodes([this](unsigned int i){return Pt(i);}, NParticles());
 }
 
@@ -213,7 +213,7 @@ bool Mono::IsNull() const {
 }
 
 // NOTE! These break ordering, so you have to re-order when you're done!
-Mono Mono::DerivPm(const unsigned int part) const{
+Mono Mono::DerivPm(const unsigned int part) const {
     if(part >= particles.size()){
         std::cerr << "Error: monomial told to take a derivative of momentum Pm["
             << part << "], but it only knows about " << NParticles() << "."
@@ -226,7 +226,7 @@ Mono Mono::DerivPm(const unsigned int part) const{
     return ret;
 }
 
-Mono Mono::DerivPt(const unsigned int part) const{
+Mono Mono::DerivPt(const unsigned int part) const {
     if(part >= particles.size()){
         std::cerr << "Error: monomial told to take a derivative of momentum Pt["
             << part << "], but it only knows about " << NParticles() << "."
@@ -239,7 +239,7 @@ Mono Mono::DerivPt(const unsigned int part) const{
     return ret;
 }
 
-std::vector<Mono> Mono::DerivPm() const{
+std::vector<Mono> Mono::DerivPm() const {
     std::vector<Mono> ret;
     for(unsigned int particle = 0; particle < NParticles(); ++particle){
         ret.push_back(DerivPm(particle).OrderCopy());
@@ -248,7 +248,7 @@ std::vector<Mono> Mono::DerivPm() const{
     return ret;
 }
 
-std::vector<Mono> Mono::DerivPt() const{
+std::vector<Mono> Mono::DerivPt() const {
     std::vector<Mono> ret;
     for(unsigned int particle = 0; particle < NParticles(); ++particle){
         ret.push_back(DerivPt(particle).OrderCopy());
@@ -257,19 +257,19 @@ std::vector<Mono> Mono::DerivPt() const{
     return ret;
 }
 
-Mono Mono::MultPm(const unsigned int particle) const{
+Mono Mono::MultPm(const unsigned int particle) const {
     Mono ret(*this);
     ret.ChangePm(particle, ret.Pm(particle)+1);
     return ret;
 }
 
-Mono Mono::MultPt(const unsigned int particle) const{
+Mono Mono::MultPt(const unsigned int particle) const {
     Mono ret(*this);
     ret.ChangePt(particle, ret.Pt(particle)+1);
     return ret;
 }
 
-Mono Mono::MultPp(const unsigned int particle) const{
+Mono Mono::MultPp(const unsigned int particle) const {
     Mono ret(*this);
     ret.ChangePt(particle, ret.Pt(particle)+2);
     ret.ChangePm(particle, ret.Pm(particle)-1);

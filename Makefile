@@ -4,47 +4,60 @@
 
 BASEDIR := $(CURDIR)
 
-# if you're not using clang, change this (e.g. to g++)
-CXX := clang++
+# default values for GNU standard arguments the user could override
+CXX := clang++ # if you're not using clang, change this (e.g. to g++)
+CFLAGS :=
+CXXFLAGS := $(CFLAGS) -O3 -g
+LDFLAGS :=
 
 # depending on your configuration of Qt, you may have to remove -fPIC. It should
 # tell you something about position-independent code if you need to do this
-CXXFLAGS := -IEigen -Wall -Wextra -pedantic -fPIC -O3 -g -c -I$(BASEDIR)
+CXXFLAGS_GLOBAL := -IEigen -Wall -Wextra -pedantic -fPIC -c -I$(BASEDIR)\
+    		   $(CXXFLAGS)
 
 # these should be the locations of your qt installation
 QTINC := /usr/include/x86_64-linux-gnu/qt5
 QTLIB := /usr/lib/x86_64-linux-gnu/
 
-CXXFLAGS_CORE := -$(CXXFLAGS) -std=c++14
-CXXFLAGS_QT := $(CXXFLAGS) -I$(QTINC) -std=c++17
+CXXFLAGS_CORE := -$(CXXFLAGS_GLOBAL) -std=c++14
+CXXFLAGS_QT := $(CXXFLAGS_GLOBAL) -I$(QTINC) -std=c++17
 
-LDFLAGS := -lgsl -lblas -lpthread 
+LDFLAGS_GLOBAL := -lgsl -lblas -lpthread $(LDFLAGS)
 
-LDFLAGS_CORE := $(LDFLAGS)
-LDFLAGS_QT := -L$(QTLIB) -lQt5Widgets -lQt5Gui -lQt5Core $(LDFLAGS)
+LDFLAGS_CORE := $(LDFLAGS_GLOBAL)
+LDFLAGS_QT := -L$(QTLIB) -lQt5Widgets -lQt5Gui -lQt5Core $(LDFLAGS_GLOBAL)
 
 EXECUTABLE := 3dBasis
 
 SOURCES_CORE := main.cpp calculation.cpp mono.cpp poly.cpp multinomial.cpp \
-		matrix.cpp gram-schmidt.cpp discretization.cpp test.cpp \
+		matrix.cpp gram-schmidt.cpp discretization.cpp test.cpp
 SOURCES_QT := gui/main_window.cpp gui/moc_main_window.cpp gui/calc_widget.cpp \
 	  gui/moc_calc_widget.cpp gui/file_widget.cpp gui/moc_file_widget.cpp \
-	  gui/console_widget.cpp gui/moc_console_widget.cpp
+	  gui/console_widget.cpp gui/moc_console_widget.cpp $(SOURCES_CORE)
 
 #RESOURCES := gui/resources.rcc
 
 OBJECTS_CORE := $(SOURCES_CORE:.cpp:=.o)
 OBJECTS_QT := $(SOURCES_QT:.cpp:=.o)
+STATIC_CORE := libgsl.a libblas.a libpthread.a
+STATIC_QT := libQt5Widgets.a libQt5Gui.a libQt5Core.a $(STATIC_CORE)
+
+###############################################################################
 
 default: $(EXECUTABLE)_GUI
 
 nogui: $(EXECUTABLE)_NOGUI
 
+static: $(OBJECTS_CORE) $(OBJECTS_QT)
+	$(CXX) $(OBJECTS_QT) $(STATIC_QT) -o $(EXECUTABLE)
+
 $(EXECUTABLE)_GUI: $(OBJECTS_CORE) $(OBJECTS_QT)
-	$(CXX) $(OBJECTS_CORE) $(OBJECTS_QT) $(LDFLAGS_QT) -o $(EXECUTABLE)
+	$(CXX) $(OBJECTS_QT) $(LDFLAGS_QT) -o $(EXECUTABLE)
 
 $(EXECUTABLE)_NOGUI: $(OBJECTS_CORE)
-	$(CXX) $(OBJECTS_CORE) $(LDFLAGS) -o $(EXECUTABLE)
+	$(CXX) $(OBJECTS_CORE) $(LDFLAGS_CORE) -o $(EXECUTABLE)
+
+# FIXME: GNU requires installation targets as well
 
 main.o: main.cpp main.hpp constants.hpp calculation.hpp gui/main_window.hpp
 	$(CXX) $(CXXFLAGS_QT) $< -o $@
