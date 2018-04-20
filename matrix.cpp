@@ -44,6 +44,10 @@ DMatrix InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions
     return MatrixInternal::Matrix(basis, partitions, MAT_INTER_SAME_N);
 }
 
+DMatrix NPlus2Matrix(const Basis<Mono>& basis, const std::size_t partitions) {
+    return MatrixInternal::Matrix(basis, partitions, MAT_INTER_N_PLUS_2);
+}
+
 namespace MatrixInternal {
 
 // static hash tables for memoizing slow steps

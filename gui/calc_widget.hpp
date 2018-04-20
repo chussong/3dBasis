@@ -9,7 +9,7 @@
 #include <QtWidgets/QHBoxLayout>
 #include <QtWidgets/QSpinBox>
 #include <QtWidgets/QDoubleSpinBox>
-#include <QtWidgets/QCheckBox>
+#include <QtWidgets/QRadioButton>
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QProgressBar>
 #include <QtWidgets/QMessageBox>
@@ -37,6 +37,8 @@ class CalcWidget : public QWidget {
         void GiveOverwriteWarnings(const bool newValue);
 
     private:
+        void SetupBoxes(QLayout* layout, const Arguments& args);
+        void SetupButtons(QLayout* layout);
         enum OverwriteWarning { WARNING_ON  = 0b10, WARNING_ACTIVE = 0b01 };
         void Calculate();
 
@@ -48,7 +50,10 @@ class CalcWidget : public QWidget {
         QSpinBox* lBox;
         QSpinBox* pBox;
         QDoubleSpinBox* msqBox;
-        QCheckBox* testCheckBox;
+        QDoubleSpinBox* lambdaBox;
+        QRadioButton* freeButton;
+        QRadioButton* interactingButton;
+        QRadioButton* testButton;
         QPushButton* goButton;
         QProgressBar* progressBar;
 };

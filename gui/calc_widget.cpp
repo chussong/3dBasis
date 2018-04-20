@@ -5,21 +5,36 @@ namespace GUI {
 CalcWidget::CalcWidget(const Arguments& args): console(args.console), 
         outStream(args.outStream), warningStatus(WARNING_ON), 
         nBox(new QSpinBox), lBox(new QSpinBox), pBox(new QSpinBox), 
-        msqBox(new QDoubleSpinBox), 
-        testCheckBox(new QCheckBox("Run &tests only")), 
+        msqBox(new QDoubleSpinBox), lambdaBox(new QDoubleSpinBox),
+        freeButton(new QRadioButton("&Free")),
+        interactingButton(new QRadioButton("&Interacting")),
+        testButton(new QRadioButton("&Tests only")), 
         goButton(new QPushButton("&go")), progressBar(new QProgressBar) {
-    // put the boxes into inputBoxGrid
+    QVBoxLayout* layout = new QVBoxLayout;
+    SetupBoxes(layout, args);
+    SetupButtons(layout);
+    layout->addWidget(progressBar);
+    setLayout(layout);
+}
+
+void CalcWidget::SetupBoxes(QLayout* layout, const Arguments& args) {
     QFrame* inputBoxes = new QFrame;
     QHBoxLayout* inputBoxGrid = new QHBoxLayout;
-    inputBoxGrid->addWidget(new QLabel("n"));
     inputBoxGrid->addWidget(nBox);
-    inputBoxGrid->addWidget(new QLabel("l"));
+    inputBoxGrid->addWidget(new QLabel("n"));
     inputBoxGrid->addWidget(lBox);
     inputBoxGrid->addWidget(new QLabel("p"));
     inputBoxGrid->addWidget(pBox);
-    inputBoxGrid->addWidget(new QLabel("m^2")); // FIXME: unicode exponent
-    inputBoxGrid->addWidget(msqBox);
+    inputBoxGrid->addWidget(new QLabel("l"));
     inputBoxes->setLayout(inputBoxGrid);
+
+    QFrame* paramBoxes = new QFrame;
+    QHBoxLayout* paramBoxGrid = new QHBoxLayout;
+    paramBoxGrid->addWidget(msqBox);
+    paramBoxGrid->addWidget(new QLabel("m" + QString(0x00b2)));
+    paramBoxGrid->addWidget(lambdaBox);
+    paramBoxGrid->addWidget(new QLabel(QString(0x03bb)));
+    paramBoxes->setLayout(paramBoxGrid);
 
     nBox->setRange(2, 9);
     nBox->setValue(args.numP);
@@ -37,16 +52,25 @@ CalcWidget::CalcWidget(const Arguments& args): console(args.console),
     msqBox->setRange(0.0, 1.0);
     msqBox->setValue(args.msq);
     msqBox->setSingleStep(0.05);
-    msqBox->setStatusTip(tr("Coefficient of mass operator in Hamiltonian"));
+    msqBox->setStatusTip(tr("Coefficient of mass term in Hamiltonian"));
 
+    lambdaBox->setRange(0.0, 1.0);
+    lambdaBox->setValue(args.msq);
+    lambdaBox->setSingleStep(0.05);
+    lambdaBox->setStatusTip(tr("Coefficient of interaction term in Hamiltonian"));
+
+    layout->addWidget(inputBoxes);
+    layout->addWidget(paramBoxes);
+}
+
+void CalcWidget::SetupButtons(QLayout* layout) {
     connect(goButton, &QAbstractButton::clicked, this, &CalcWidget::Go);
 
-    QVBoxLayout* layout = new QVBoxLayout;
-    layout->addWidget(inputBoxes);
-    layout->addWidget(testCheckBox);
+    freeButton->setChecked(true);
+    layout->addWidget(freeButton);
+    layout->addWidget(interactingButton);
+    layout->addWidget(testButton);
     layout->addWidget(goButton);
-    layout->addWidget(progressBar);
-    setLayout(layout);
 }
 
 void CalcWidget::Go() {
@@ -77,11 +101,16 @@ void CalcWidget::Calculate() {
     args.degree = lBox->value();
     args.partitions = pBox->value();
     args.msq = msqBox->value();
+    args.lambda = lambdaBox->value();
     args.outStream = outStream;
     args.console = console;
 
     if (outStream != console) args.options |= OPT_MATHEMATICA;
-    if (testCheckBox->isChecked()) args.options |= OPT_TEST;
+    if (interactingButton->isChecked()) {
+        args.options |= OPT_INTERACTING;
+    } else if (testButton->isChecked()) {
+        args.options |= OPT_TEST;
+    }
 
     ::Calculate(args);
 

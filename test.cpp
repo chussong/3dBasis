@@ -155,7 +155,7 @@ bool UPlusIntegral_Case(const builtin_class a, const builtin_class b,
         const builtin_class expected, OStream& console) {
     constexpr builtin_class tol = 1e-5;
     builtin_class answer = ::MatrixInternal::UPlusIntegral(a, b);
-    std::cerr << "UPlusIntegral(" << a << ", " << b << ") == " << answer;
+    console << "UPlusIntegral(" << a << ", " << b << ") == " << answer;
     if (std::abs(answer - expected) <= tol*answer) {
         console << " == " << expected << " (PASS)" << endl;
         return true;

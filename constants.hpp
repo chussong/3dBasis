@@ -104,6 +104,7 @@ struct Arguments {
     int degree = -1;
     std::size_t partitions = 4; // \mu partitions per operator pair
     coeff_class msq = 1; // the coefficient of the mass term
+    coeff_class lambda = 1; // the coefficient of the interaction term
     int options = 0;
     OStream* outStream = nullptr;
     OStream* console = nullptr;
@@ -126,7 +127,8 @@ enum options { OPT_BRUTE = 1 << 0, OPT_VERSION = 1 << 1, OPT_DEBUG = 1 << 2,
                 OPT_MSORTING = 1 << 5, OPT_DIRICHLET = 1 << 6,
                 OPT_OUTPUT = 1 << 7, OPT_IPTEST = 1 << 8, OPT_ALLMINUS = 1 << 9,
                 OPT_MULTINOMTEST = 1 << 10, OPT_TEST = 1 << 11,
-                OPT_STATESONLY = 1 << 12, OPT_MATHEMATICA = 1 << 13 };
+                OPT_STATESONLY = 1 << 12, OPT_MATHEMATICA = 1 << 13,
+                OPT_INTERACTING = 1 << 14 };
 
 enum MATRIX_TYPE { MAT_KINETIC, MAT_INNER, MAT_MASS, MAT_INTER_SAME_N, 
     MAT_INTER_N_PLUS_2 };

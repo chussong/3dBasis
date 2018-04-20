@@ -5,8 +5,8 @@
 .PHONY: default nogui static clean
 
 # these should be the locations of your qt installation
-QTINC := /usr/include/x86_64-linux-gnu/qt5
-QTLIB := /usr/lib/x86_64-linux-gnu
+QTINC := -I/usr/include/x86_64-linux-gnu/qt5
+QTLIB := -L/usr/lib/x86_64-linux-gnu
 
 ifndef SECOND_PASS
 #-------------------------------------------------------------------------------
@@ -15,7 +15,7 @@ ifndef SECOND_PASS
 
 export SECOND_PASS := true
 
-default static: export CXXFLAGS_EXTRA := -I$(QTINC)
+default static: export CXXFLAGS_EXTRA := $(QTINC)
 default static: export GUI_FROM_MAIN := gui/main_window.hpp
 default:
 	@$(MAKE) default
@@ -51,12 +51,12 @@ CXXFLAGS_GLOBAL := -IEigen -Wall -Wextra -pedantic -fPIC -c -I$(BASEDIR) \
     		   -std=c++14 -Wno-c++1z-extensions $(CXXFLAGS)
 
 CXXFLAGS_CORE := $(CXXFLAGS_GLOBAL) $(CXXFLAGS_EXTRA)
-CXXFLAGS_QT := $(CXXFLAGS_GLOBAL) -I$(QTINC)
+CXXFLAGS_QT := $(CXXFLAGS_GLOBAL) $(QTINC)
 
 LDFLAGS_GLOBAL := -lgsl -lblas -lpthread $(LDFLAGS)
 
 LDFLAGS_CORE := $(LDFLAGS_GLOBAL)
-LDFLAGS_QT := -L$(QTLIB) -lQt5Widgets -lQt5Gui -lQt5Core $(LDFLAGS_GLOBAL)
+LDFLAGS_QT := $(QTLIB) -lQt5Widgets -lQt5Gui -lQt5Core $(LDFLAGS_GLOBAL)
 
 EXECUTABLE := 3dBasis
 

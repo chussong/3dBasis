@@ -133,6 +133,7 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
     OStream& outStream = *args.outStream;
     OStream& console = *args.console;
     bool mathematica = (args.options & OPT_MATHEMATICA) != 0;
+    bool interacting = (args.options & OPT_INTERACTING) != 0;
 
     std::vector<Poly> orthogonalized = ComputeBasisStates_SameParity(inputBases,
             args, odd);
@@ -206,6 +207,40 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
     }
 
     DMatrix hamiltonian = args.msq*polyMassMatrix + polyKineticMatrix;
+    if (interacting) {
+        timer.Start();
+        DMatrix monoNtoN(InteractionMatrix(minimalBasis, args.partitions));
+        DMatrix polyNtoN = discPolys.transpose()*monoNtoN*discPolys;
+        if (mathematica) {
+            outStream << "minBasisNtoNMatrix[" << suffix <<"] = "
+                << MathematicaOutput(monoNtoN) << endl;
+            outStream << "basisStateNtoNMatrix[" << suffix <<"] = "
+                    << MathematicaOutput(polyNtoN) << endl;
+            console << "Interaction matrix computed in " 
+                << timer.TimeElapsedInWords() << "." << endl;
+        } else {
+            outStream << "Computed an n-to-n interaction matrix for the basis "
+                << "in " << timer.TimeElapsedInWords() << "." << endl;
+        }
+
+        timer.Start();
+        DMatrix monoNPlus2(NPlus2Matrix(minimalBasis, args.partitions));
+        DMatrix polyNPlus2 = discPolys.transpose()*monoNPlus2*discPolys;
+        if (mathematica) {
+            outStream << "minBasisNPlus2Matrix[" << suffix <<"] = "
+                << MathematicaOutput(monoNPlus2) << endl;
+            outStream << "basisStateNPlus2Matrix[" << suffix <<"] = "
+                    << MathematicaOutput(polyNPlus2) << endl;
+            console << "N+2 interaction matrix computed in " 
+                << timer.TimeElapsedInWords() << "." << endl;
+        } else {
+            outStream << "Computed an n-to-n+2 interaction matrix for the "
+                << "basis in " << timer.TimeElapsedInWords() << "." << endl;
+        }
+
+        hamiltonian += args.lambda*(polyNtoN + polyNPlus2);
+    }
+
     if (mathematica) {
         outStream << "hamiltonian[" << suffix <<"] = "
                 << MathematicaOutput(hamiltonian) << endl;
@@ -214,7 +249,6 @@ DMatrix ComputeHamiltonian_SameParity(const std::vector<Basis<Mono>>& inputBases
         outStream << "Here are the Hamiltonian eigenvalues:\n" 
             << solver.eigenvalues() << endl;
     }
-
 
     return hamiltonian;
 }
