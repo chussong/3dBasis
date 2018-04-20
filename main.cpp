@@ -87,6 +87,9 @@ Arguments ParseArguments(int argc, char* argv[]) {
                     case 1:
                             ret.degree = ReadArg<int>(arg);
                             break;
+                    case 2:
+                            ret.partitions = ReadArg<int>(arg);
+                            break;
                     default:
                             std::cerr << "Error: at most three non-option arguments"
                                     << " may be given." << std::endl;
@@ -116,7 +119,7 @@ int ParseOptions(std::vector<std::string> options) {
             continue;
         }
         if(opt.compare(0, 2, "-i") == 0){
-            ret |= OPT_IPTEST;
+            ret |= OPT_INTERACTING;
             continue;
         }
         if(opt.compare(0, 2, "-m") == 0){
