@@ -1,6 +1,7 @@
 #ifndef TEST_HPP
 #define TEST_HPP
 
+#include <vector>
 #include <algorithm> // random_shuffle
 
 #include "constants.hpp"

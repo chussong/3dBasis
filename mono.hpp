@@ -5,8 +5,8 @@
 #include <array>
 #include <vector>
 #include <ostream>
-#include <cmath>		// lgamma
-#include <algorithm>	// next_permutation
+#include <cmath>        // lgamma
+#include <algorithm>    // next_permutation
 
 #include "constants.hpp"
 #include "construction.hpp"

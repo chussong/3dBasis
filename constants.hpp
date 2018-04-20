@@ -2,6 +2,7 @@
 #define CONSTANTS_HPP
 
 #include <iostream> // for the output stream in the argument struct
+#include <vector>
 #ifndef NO_GUI
 #include <QtCore/QTextStream>
 #include <sstream>
@@ -43,7 +44,7 @@ typedef double builtin_class;
 
 #ifdef NO_GUI
 typedef std::ostream OStream;
-using endl = std::endl;
+using std::endl;
 #else
 typedef QTextStream OStream;
 #endif
