@@ -72,6 +72,40 @@ terms of the finite-dimensional Hamiltonian on this basis. These are given first
 as matrices between the "minimal basis" of monomials used to express the basis
 states, and then as matrices between the basis states themselves.  
 
+Here are some example invocations:  
+./3dBasis  
+pops up the GUI so you can control everything from there. If the GUI wasn't 
+built, this prints an error and exits.  
+
+./3dBasis 2 4 4  
+gives a free theory computation with 2 particles, 4 excitations, and 4 mu^2 
+partitions, output back to the terminal (and not saved).  
+
+./3dBasis 3 6 100 -i -O 3p\_interacting.txt  
+gives an interacting theory computation with 3 particles, 6 excitations, and 100
+mu^2 partitions, written to the file 3p\_interacting.txt. If the file exists, it
+will be overwritten. Be careful: the interaction terms are definitely not 
+correct yet, and including them sometimes seem to cause the program to get 
+stuck.  
+
+## Options
+
+There are several options available: 
+
+| Option | Description |
+| ------ | ----------- |
+| -d | debug mode, producing some extra output (currently always on) |
+| -i | include interaction terms in the Hamiltonian (the default is a free theory) |
+| -m | perform a test of the multinomial module, then exit |
+| -M | use only all-minus states with no transverse momentum |
+| -o \<filename\> | write non-error output to \<filename\> instead of the terminal. If this file exists, it will be APPENDED TO |
+| -O \<filename\> | write non-error output to \<filename\> instead of the terminal. If this file exists, it will be OVERWRITTEN |
+| -s | only orthogonal basis states, output them, then exit |
+| -t | perform all automated unit tests, then exit |
+| -v | instead of running, print the version and date of release, then exit |
+
+## Computational Notes
+
 Gram-Schmidt is done using a custom algorithm which makes it easy to compute
 matrix elements but it's unfortunately not very stable. I'm looking into doing
 this with Householder reflections, but the basis obtained from this is somewhat
@@ -89,19 +123,3 @@ types to be the same and add overloads of the \<cmath\> functions for them. This
 would certainly cause a severe performance degradation, so it would probably be
 best to try to figure out where exactly you need the greater precision and only
 introduce it there.  
-
-## Options
-
-There are several options available: 
-
-| Option | Description |
-| ------ | ----------- |
-| -d | debug mode, producing some extra output (currently always on) |
-| -i | include interaction terms in the Hamiltonian (the default is a free theory) |
-| -m | perform a test of the multinomial module, then exit |
-| -M | use only all-minus states with no transverse momentum |
-| -o \<filename\> | write non-error output to \<filename\> instead of the terminal. If this file exists, it will be APPENDED TO |
-| -O \<filename\> | write non-error output to \<filename\> instead of the terminal. If this file exists, it will be OVERWRITTEN |
-| -s | only orthogonal basis states, output them, then exit |
-| -t | perform all automated unit tests, then exit |
-| -v | instead of running, print the version and date of release, then exit |
