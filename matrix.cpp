@@ -182,12 +182,18 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         const std::size_t partitions) {
     if (type == MAT_INTER_SAME_N) {
         auto terms = MatrixTerm_Inter(A, B);
-        DMatrix output = DMatrix::Zero(partitions, partitions);
-        for (const auto& term : terms) {
-            // std::cout << "Term: " << term.r << std::endl;
-            output += term.coeff*MuPart(term.r, partitions);
+        if (A.NParticles() > 2) {
+            DMatrix output = DMatrix::Zero(partitions, partitions);
+            for (const auto& term : terms) {
+                // std::cout << "Term: " << term.r << std::endl;
+                output += term.coeff*MuPart(term.r, partitions);
+            }
+            return output;
+        } else {
+            coeff_class total = 0;
+            for (const auto& term : terms) total += term.coeff;
+            return total * MuPart_NEquals2(partitions);
         }
-        return output;
     } else if (type == MAT_INTER_N_PLUS_2) {
         const char n = A.NParticles();
         auto terms = MatrixTerm_NPlus2(A, B);
@@ -609,14 +615,14 @@ std::vector<InteractionTerm_Step2> CombineInteractionFs(
         }
     }
     // terms with odd powers of r will eventually integrate to 0 so ditch them
-    output.erase(std::remove_if(output.begin(), output.end(),
-                [](const InteractionTerm_Step2& term){return term.r[0]%2 == 1;}),
-            output.end());
-    // FIXME: use the following variant that eliminates all odd powers:
     // output.erase(std::remove_if(output.begin(), output.end(),
-                // [](const InteractionTerm_Step2& term)
-                // {return term.r[0]%2 == 1 || term.r[1]%2 == 0 || term.r[2]%2 == 0;}),
+                // [](const InteractionTerm_Step2& term){return term.r[0]%2 == 1;}),
             // output.end());
+    // FIXME: verify that this variant targeting all odd powers is legitimate:
+    output.erase(std::remove_if(output.begin(), output.end(),
+                [](const InteractionTerm_Step2& term)
+                {return term.r[0]%2 == 1 || term.r[1]%2 == 0 || term.r[2]%2 == 0;}),
+            output.end());
     return output;
 }
 
@@ -635,21 +641,27 @@ InteractionTerm_Step2 CombineInteractionFs_OneTerm(
     output.u[output.u.size() - 2] = f2.uPlus.back();
     output.u[output.u.size() - 1] = f2.uMinus.back();
 
-    output.theta.resize(f1.yTilde.size()-2 + f2.yTilde.size()-2, 0);
-    // sine[i] appears in all yTilde[j] with j > i (strictly greater)
-    for (auto i = 0u; i < f1.yTilde.size()-2; ++i) {
-        for (auto j = i+1; j < f1.yTilde.size()-1; ++j) {
-            output.theta[2*i] += f1.yTilde[j] + f2.yTilde[j];
+    // if n >= 3, do this; for n == 2, theta is empty and r doesn't matter
+    if (f1.yTilde.size() >= 2) {
+        output.theta.resize(f1.yTilde.size()-2 + f2.yTilde.size()-2, 0);
+        // sine[i] appears in all yTilde[j] with j > i (strictly greater)
+        for (auto i = 0u; i < f1.yTilde.size()-2; ++i) {
+            for (auto j = i+1; j < f1.yTilde.size()-1; ++j) {
+                output.theta[2*i] += f1.yTilde[j] + f2.yTilde[j];
+            }
+            output.theta[2*i + 1] = f1.yTilde[i] + f2.yTilde[i];
         }
-        output.theta[2*i + 1] = f1.yTilde[i] + f2.yTilde[i];
-    }
 
-    output.r[0] = 0;
-    for (std::size_t i = 0; i < f1.yTilde.size()-1; ++i) {
-        output.r[0] += f1.yTilde[i] + f2.yTilde[i];
+        output.r[0] = 0;
+        for (std::size_t i = 0; i < f1.yTilde.size()-1; ++i) {
+            output.r[0] += f1.yTilde[i] + f2.yTilde[i];
+        }
+        output.r[1] = f1.yTilde.back();
+        output.r[2] = f2.yTilde.back();
+    } else {
+        // set output r so that it doesn't get erased after it's returned
+        output.r = {{0, 1, 1}};
     }
-    output.r[1] = f1.yTilde.back();
-    output.r[2] = f2.yTilde.back();
     return output;
 }
 
@@ -892,7 +904,7 @@ coeff_class DoAllIntegrals(InteractionTerm_Step2& term, const MATRIX_TYPE type){
     for (std::size_t i = 0; i < n; ++i) {
         product *= UPlusIntegral(term.u[2*i], term.u[2*i + 1]);
     }
-    for (std::size_t k = 0; k < n-3; ++k) {
+    for (std::size_t k = 0; k+3 < n; ++k) {
         product *= ThetaIntegral_Short(term.theta[2*k], term.theta[2*k + 1]);
         // FIXME!!! special case for n=2; I think n=3 is okay but maybe *= 2?
     }

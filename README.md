@@ -100,7 +100,7 @@ There are several options available:
 | -M | use only all-minus states with no transverse momentum |
 | -o \<filename\> | write non-error output to \<filename\> instead of the terminal. If this file exists, it will be APPENDED TO |
 | -O \<filename\> | write non-error output to \<filename\> instead of the terminal. If this file exists, it will be OVERWRITTEN |
-| -s | only orthogonal basis states, output them, then exit |
+| -s | do gram-schmidt to find orthogonal basis states, output them, then exit without continuing |
 | -t | perform all automated unit tests, then exit |
 | -v | instead of running, print the version and date of release, then exit |
 

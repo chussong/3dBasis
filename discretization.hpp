@@ -26,6 +26,7 @@ DMatrix MuPart_Kinetic(const std::size_t partitions);
 
 const DMatrix& MuPart(const std::array<char,3>& r, 
         const std::size_t partitions);
+const DMatrix& MuPart_NEquals2(const std::size_t partitions);
 coeff_class InteractionWindow(const std::array<char,3>& r,
         const std::array<builtin_class,2>& mu1_ab,
         const std::array<builtin_class,2>& mu2_ab);

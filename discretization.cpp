@@ -58,6 +58,7 @@ namespace {
         boost::hash<std::array<char,2>> > nPlus2Cache;
 
     std::unordered_map<std::size_t,DMatrix> zeroMatrix;
+    std::unordered_map<std::size_t,DMatrix> nEquals2Matrix;
 
     // caches for expensive functions
     std::unordered_map<std::array<builtin_class,6>,coeff_class,
@@ -102,6 +103,25 @@ const DMatrix& MuPart(const std::array<char,3>& r,
     }
 
     return intCache[r];
+}
+
+// this is the special MuPart block for n == 2, which must be treated separately
+// because there is no r integral in this case
+const DMatrix& MuPart_NEquals2(const std::size_t partitions) {
+    if (nEquals2Matrix.count(partitions) == 0) {
+        DMatrix newMatrix = DMatrix::Zero(partitions, partitions);
+        for (Eigen::Index row = 0; row < newMatrix.rows(); ++row) {
+            for (Eigen::Index col = 0; col < newMatrix.cols(); ++col) {
+                // FIXME: this is probably bogus. I'm just doing the same thing
+                // as n > 2 but with an integrand of 1 so it's (\Delta \mu)^2
+                newMatrix(row, col) = (coeff_class(1) / partitions);
+                newMatrix(row, col) *= newMatrix(row, col);
+            }
+        }
+        nEquals2Matrix.emplace(partitions, newMatrix);
+    }
+
+    return nEquals2Matrix[partitions];
 }
 
 coeff_class InteractionWindow(const std::array<char,3>& r,
