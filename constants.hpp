@@ -102,7 +102,7 @@ constexpr unsigned int MAX_THREADS = 8u;
 struct Arguments {
     int numP = -1;
     int degree = -1;
-    int delta = 0;
+    double delta = 0.0;
     std::size_t partitions = 4; // \mu partitions per operator pair
     coeff_class msq = 1; // the coefficient of the mass term
     coeff_class lambda = 1; // the coefficient of the interaction term
@@ -129,7 +129,7 @@ enum options { OPT_BRUTE = 1 << 0, OPT_VERSION = 1 << 1, OPT_DEBUG = 1 << 2,
                 OPT_OUTPUT = 1 << 7, OPT_IPTEST = 1 << 8, OPT_ALLMINUS = 1 << 9,
                 OPT_MULTINOMTEST = 1 << 10, OPT_TEST = 1 << 11,
                 OPT_STATESONLY = 1 << 12, OPT_MATHEMATICA = 1 << 13,
-                OPT_INTERACTING = 1 << 14 };
+                OPT_INTERACTING = 1 << 14, OPT_GUI = 1 << 15 };
 
 enum MATRIX_TYPE { MAT_KINETIC, MAT_INNER, MAT_MASS, MAT_INTER_SAME_N, 
     MAT_INTER_N_PLUS_2 };

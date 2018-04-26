@@ -4,62 +4,129 @@ namespace GUI {
 
 CalcWidget::CalcWidget(const Arguments& args): console(args.console), 
         outStream(args.outStream), warningStatus(WARNING_ON), 
-        nBox(new QSpinBox), lBox(new QSpinBox), pBox(new QSpinBox), 
-        msqBox(new QDoubleSpinBox), lambdaBox(new QDoubleSpinBox),
-        freeButton(new QRadioButton("&Free")),
+        nBox(new QSpinBox), lBox(new QSpinBox), dBox(new QDoubleSpinBox),
+        pBox(new QSpinBox), msqBox(new QDoubleSpinBox), 
+        lambdaBox(new QDoubleSpinBox), freeButton(new QRadioButton("&Free")),
         interactingButton(new QRadioButton("&Interacting")),
         testButton(new QRadioButton("&Tests only")), 
         goButton(new QPushButton("&go")), progressBar(new QProgressBar) {
     QVBoxLayout* layout = new QVBoxLayout;
-    SetupBoxes(layout, args);
+    SetupInputBoxes(layout, args);
+    SetupParameterBoxes(layout, args);
     SetupButtons(layout);
     layout->addWidget(progressBar);
     setLayout(layout);
 }
 
-void CalcWidget::SetupBoxes(QLayout* layout, const Arguments& args) {
+void CalcWidget::SetupInputBoxes(QLayout* layout, const Arguments& args) {
     QFrame* inputBoxes = new QFrame;
-    QHBoxLayout* inputBoxGrid = new QHBoxLayout;
-    inputBoxGrid->addWidget(nBox);
-    inputBoxGrid->addWidget(new QLabel("n"));
-    inputBoxGrid->addWidget(lBox);
-    inputBoxGrid->addWidget(new QLabel("p"));
-    inputBoxGrid->addWidget(pBox);
-    inputBoxGrid->addWidget(new QLabel("l"));
-    inputBoxes->setLayout(inputBoxGrid);
+    QGridLayout* inputLayout = new QGridLayout;
 
-    QFrame* paramBoxes = new QFrame;
-    QHBoxLayout* paramBoxGrid = new QHBoxLayout;
-    paramBoxGrid->addWidget(msqBox);
-    paramBoxGrid->addWidget(new QLabel("m" + QString(0x00b2)));
-    paramBoxGrid->addWidget(lambdaBox);
-    paramBoxGrid->addWidget(new QLabel(QString(0x03bb)));
-    paramBoxes->setLayout(paramBoxGrid);
+    QRadioButton* oneLevel = new QRadioButton(tr("&One (n,l) level"));
+    inputLayout->addWidget(oneLevel, 0, 0);
+    QFrame* oneLevelBoxes = SetupOneLevelFrame(args);
+    inputLayout->addWidget(oneLevelBoxes, 0, 3, 1, 4);
+    connect(oneLevel, &QAbstractButton::toggled, 
+            oneLevelBoxes, &QWidget::setEnabled);
 
+    QRadioButton* allLevels = new QRadioButton(tr("&All (n,l) levels"));
+    inputLayout->addWidget(allLevels, 1, 0);
+    QFrame* allLevelsBoxes = SetupAllLevelsFrame(args);
+    inputLayout->addWidget(allLevelsBoxes, 1, 3, 1, 4);
+    connect(allLevels, &QAbstractButton::toggled, 
+            allLevelsBoxes, &QWidget::setEnabled);
+
+    oneLevel->setChecked(true);
+    allLevelsBoxes->setEnabled(false);
+
+    inputBoxes->setLayout(inputLayout);
+    layout->addWidget(inputBoxes);
+}
+
+QFrame* CalcWidget::SetupOneLevelFrame(const Arguments& args) {
+    QFrame* frame = new QFrame;
+    QHBoxLayout* layout = new QHBoxLayout;
+
+    QLabel* nLabel = new QLabel("n");
+    nLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+    nLabel->setBuddy(nBox);
     nBox->setRange(2, 9);
     nBox->setValue(args.numP);
     nBox->setStatusTip(tr("Number of particles"));
+    layout->addWidget(nLabel);
+    layout->addWidget(nBox);
 
+    QLabel* lLabel = new QLabel("l");
+    lLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+    lLabel->setBuddy(lBox);
     lBox->setRange(2, 10);
     lBox->setValue(args.degree);
     lBox->setSingleStep(2);
     lBox->setStatusTip(tr("Max number of derivatives above Dirichlet"));
+    layout->addWidget(lLabel);
+    layout->addWidget(lBox);
 
-    pBox->setRange(1, 100);
-    pBox->setValue(args.partitions);
-    pBox->setStatusTip(tr("Number of mu^2 partitions per operator"));
+    frame->setLayout(layout);
+    frame->setFrameStyle(QFrame::StyledPanel);
+    return frame;
+}
 
+QFrame* CalcWidget::SetupAllLevelsFrame(const Arguments& args) {
+    QFrame* frame = new QFrame;
+    QHBoxLayout* layout = new QHBoxLayout;
+
+    QLabel* dLabel = new QLabel(QString(0x0394));
+    dLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+    dLabel->setBuddy(dBox);
+    layout->addWidget(dLabel);
+    layout->addWidget(dBox);
+    dBox->setRange(3.0, 20.0);
+    dBox->setValue(args.delta);
+    dBox->setSingleStep(0.5);
+    dBox->setStatusTip(tr("Maximum total dimension"));
+
+    frame->setLayout(layout);
+    frame->setFrameStyle(QFrame::StyledPanel);
+    return frame;
+}
+
+void CalcWidget::SetupParameterBoxes(QLayout* layout, const Arguments& args) {
+    QFrame* paramBoxes = new QFrame;
+    QHBoxLayout* paramBoxGrid = new QHBoxLayout;
+
+    QLabel* msqLabel = new QLabel("m" + QString(0x00b2));
+    msqLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+    msqLabel->setBuddy(msqBox);
     msqBox->setRange(0.0, 1.0);
     msqBox->setValue(args.msq);
     msqBox->setSingleStep(0.05);
     msqBox->setStatusTip(tr("Coefficient of mass term in Hamiltonian"));
 
+    paramBoxGrid->addWidget(msqLabel);
+    paramBoxGrid->addWidget(msqBox);
+
+    QLabel* lambdaLabel = new QLabel(QString(0x03bb));
+    lambdaLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+    lambdaLabel->setBuddy(lambdaBox);
     lambdaBox->setRange(0.0, 1.0);
     lambdaBox->setValue(args.msq);
     lambdaBox->setSingleStep(0.05);
     lambdaBox->setStatusTip(tr("Coefficient of interaction term in Hamiltonian"));
 
-    layout->addWidget(inputBoxes);
+    paramBoxGrid->addWidget(lambdaLabel);
+    paramBoxGrid->addWidget(lambdaBox);
+
+    QLabel* pLabel = new QLabel("p");
+    pLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+    pLabel->setBuddy(pBox);
+    pBox->setRange(1, 100);
+    pBox->setValue(args.partitions);
+    pBox->setStatusTip(tr("Number of mu^2 partitions per operator"));
+
+    paramBoxGrid->addWidget(pLabel);
+    paramBoxGrid->addWidget(pBox);
+
+    paramBoxes->setLayout(paramBoxGrid);
     layout->addWidget(paramBoxes);
 }
 
@@ -67,6 +134,12 @@ void CalcWidget::SetupButtons(QLayout* layout) {
     connect(goButton, &QAbstractButton::clicked, this, &CalcWidget::Go);
 
     freeButton->setChecked(true);
+
+    QButtonGroup* buttonGroup = new QButtonGroup;
+    buttonGroup->addButton(freeButton);
+    buttonGroup->addButton(interactingButton);
+    buttonGroup->addButton(testButton);
+    // layout->addWidget(buttonGroup);
     layout->addWidget(freeButton);
     layout->addWidget(interactingButton);
     layout->addWidget(testButton);
@@ -99,6 +172,7 @@ void CalcWidget::Calculate() {
     Arguments args;
     args.numP = nBox->value();
     args.degree = lBox->value();
+    args.delta = dBox->isEnabled() ? dBox->value() : 0.0;
     args.partitions = pBox->value();
     args.msq = msqBox->value();
     args.lambda = lambdaBox->value();

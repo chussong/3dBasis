@@ -13,6 +13,7 @@
 #include <QtWidgets/QPushButton>
 #include <QtWidgets/QProgressBar>
 #include <QtWidgets/QMessageBox>
+#include <QtWidgets/QButtonGroup>
 #include <QtConcurrent/QtConcurrentRun>
 #include <QtCore/QTextStream>
 
@@ -37,8 +38,12 @@ class CalcWidget : public QWidget {
         void GiveOverwriteWarnings(const bool newValue);
 
     private:
-        void SetupBoxes(QLayout* layout, const Arguments& args);
+        void SetupInputBoxes(QLayout* layout, const Arguments& args);
+        QFrame* SetupOneLevelFrame(const Arguments& args);
+        QFrame* SetupAllLevelsFrame(const Arguments& args);
+        void SetupParameterBoxes(QLayout* layout, const Arguments& args);
         void SetupButtons(QLayout* layout);
+
         enum OverwriteWarning { WARNING_ON  = 0b10, WARNING_ACTIVE = 0b01 };
         void Calculate();
 
@@ -48,6 +53,7 @@ class CalcWidget : public QWidget {
         // number fields for N, L, P; I think that's the following 4 things:
         QSpinBox* nBox;
         QSpinBox* lBox;
+        QDoubleSpinBox* dBox;
         QSpinBox* pBox;
         QDoubleSpinBox* msqBox;
         QDoubleSpinBox* lambdaBox;

@@ -2,14 +2,14 @@
 
 int main(int argc, char* argv[]) {
     Arguments args = ParseArguments(argc, argv);
-    if (args.options & OPT_VERSION){
+    if ((args.options & OPT_VERSION) != 0) {
         *args.console << "This is 3dBasis version " << VERSION << ", released "
             << RELEASE_DATE << ". The latest updates can always be found at "
             << "https://github.com/chussong/3dBasis." << endl;
         return EXIT_SUCCESS;
     }
 
-    if (args.degree == 0 || args.numP == 0) {
+    if ((args.options & OPT_GUI) != 0) {
 #ifdef NO_GUI
         std::cerr << "Error: you must enter a number of particles and a degree."
             << std::endl;
@@ -42,8 +42,9 @@ int main(int argc, char* argv[]) {
 Arguments ParseArguments(int argc, char* argv[]) {
     std::vector<std::string> options;
     std::string arg;
+    std::vector<double> parameters;
     Arguments ret;
-    int j = 0;
+    // int j = 0;
     for (int i = 1; i < argc; ++i) {
         arg = argv[i];
         if (arg.size() > 0) {
@@ -80,7 +81,8 @@ Arguments ParseArguments(int argc, char* argv[]) {
                     options.push_back(arg);
                 }
             } else {
-                switch(j){
+                parameters.push_back(ReadArg<double>(arg));
+                /*switch(j){
                     case 0:
                             ret.numP = ReadArg<int>(arg);
                             break;
@@ -95,7 +97,7 @@ Arguments ParseArguments(int argc, char* argv[]) {
                                     << " may be given." << std::endl;
                             return ret;
                 }
-                ++j;
+                ++j;*/
             }
         }
     }
@@ -105,7 +107,30 @@ Arguments ParseArguments(int argc, char* argv[]) {
     ret.console = new QTextStream(stdout);
 #endif
     if (ret.outStream == nullptr) ret.outStream = ret.console;
-    if(j < 2) ret.numP = 0; // invalidate the input since it was insufficient
+    // if(j < 2) ret.numP = 0; // invalidate the input since it was insufficient
+    switch (parameters.size()) {
+        case 0:
+            ret.options |= OPT_GUI;
+            break;
+        case 2:
+            ret.delta = parameters[0];
+            ret.partitions = std::round(parameters[1]);
+            break;
+        case 3:
+            ret.numP = std::round(parameters[0]);
+            ret.degree = std::round(parameters[1]);
+            ret.partitions = std::round(parameters[2]);
+            break;
+        default:
+            std::cerr << "Error: specify maximum delta and partition number "
+                << "or single numP, max degree, and partition number"
+#ifdef NO_GUI
+                << "."
+#else
+                << "; give no non-option arguments to open GUI." 
+#endif
+                << std::endl;
+    }
     ret.options |= ParseOptions(options);
     return ret;
 }

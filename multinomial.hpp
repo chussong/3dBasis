@@ -14,7 +14,7 @@ namespace Multinomial {
 
 // sorts mVectors so their n goes up but the Ms go down
 struct MVectorPrecedence {
-	constexpr bool operator()(const std::string& A, const std::string& B) const;
+    constexpr bool operator()(const std::string& A, const std::string& B) const;
 };
 typedef std::set<std::string, MVectorPrecedence> MVectorContainer;
 
@@ -27,22 +27,24 @@ coeff_class Choose(const char particleNumber, const char n,
 coeff_class Lookup(const char particleNumber, const std::string& nAndm);
 
 class MultinomialTable {
-	public:
-		explicit MultinomialTable(const unsigned char particleNumber);
+    public:
+        explicit MultinomialTable(const unsigned char particleNumber);
 
-		coeff_class Choose(const char n, const std::vector<char>& m) const;
-		coeff_class Lookup(std::string nAndm) const;
-		void FillTo(const char newHighestN);
-		MVectorContainer GetMVectors(const unsigned char n);
+        coeff_class Choose(const char n, const std::vector<char>& m);
+        coeff_class Lookup(std::string nAndm);
+        void FillTo(const char newHighestN);
+        MVectorContainer GetMVectors(const unsigned char n);
 
-	private:
-		const unsigned char particleNumber;
-		MVectorContainer mVectors;
-		std::unordered_map<std::string, coeff_class> table;
-		char highestN;
+        char HighestN() const { return highestN; }
 
-		void ComputeMVectors(const char newHighestN);
-		static bool AdvanceMVector(std::string& mVector);
+    private:
+        const unsigned char particleNumber;
+        MVectorContainer mVectors;
+        std::unordered_map<std::string, coeff_class> table;
+        char highestN;
+
+        void ComputeMVectors(const char newHighestN);
+        static bool AdvanceMVector(std::string& mVector);
 };
 
 } // namespace Multinomial

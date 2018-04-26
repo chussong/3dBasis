@@ -58,8 +58,13 @@ options. Of particular importance are "n", the number of particles, "l", the
 number of non-Dirichlet derivatives, and "p", the number of mu partitions.  
 
 These arguments can also be supplied in the initial invocation, in which case
-the GUI will not be launched at all. The syntax for this is "./3dBasis n l p",
-and additional options can be placed anywhere preceded by a minus sign "-". The
+the GUI will not be launched at all. The syntax for this is either 
+"./3dBasis n l p" or "./3dBasis d p", where n, l, and p are integers 
+corresponding to the options given above and d is the alternative invocation 
+which computes the full hamiltonian using all states (of any particle number) up
+to total dimension d.  
+
+Additional options can be placed anywhere preceded by a minus sign "-". The
 full list of options is given below, but the most important are "-o" and "-O",
 which cause the results of the computation to be output as Mathematica code 
 instead of written to the terminal. "-o file.txt" will cause output to be 
@@ -80,6 +85,10 @@ built, this prints an error and exits.
 ./3dBasis 2 4 4  
 gives a free theory computation with 2 particles, 4 excitations, and 4 mu^2 
 partitions, output back to the terminal (and not saved).  
+
+./3dBasis 10 100  
+gives a free theory computation of all states with any number of particles up to
+total dimension 10, using 100 mu^2 partitions, output to the terminal.  
 
 ./3dBasis 3 6 100 -i -O 3p\_interacting.txt  
 gives an interacting theory computation with 3 particles, 6 excitations, and 100

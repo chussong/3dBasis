@@ -1,7 +1,7 @@
 #include "calculation.hpp"
 
 int Calculate(const Arguments& args) {
-    OStream& console = *args.console;
+    // OStream& console = *args.console;
     gsl_set_error_handler(&GSLErrorHandler);
 
     if (args.options & OPT_TEST) {
@@ -13,11 +13,11 @@ int Calculate(const Arguments& args) {
     // this is obviously something of a blunt instrument and could easily be
     // made more efficient
 
-    for (int n = 1; n <= args.numP; ++n) {
-        console << "Initialize(" << n << ", " << 2*args.degree << ")" 
-            << endl;
-        Multinomial::Initialize(n, 2*args.degree);
-    }
+    // for (int n = 1; n <= args.numP; ++n) {
+        // console << "Initialize(" << n << ", " << 2*args.degree << ")" 
+            // << endl;
+        // Multinomial::Initialize(n, 2*args.degree);
+    // }
 
     if (args.options & OPT_STATESONLY) {
         ComputeBasisStates(args);
@@ -117,9 +117,9 @@ DMatrix ComputeHamiltonian(const Arguments& args) {
 // args.delta == 0, only compute one n-level (the DiagonalBlock at n=args.numP)
 Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
     int minN, maxN;
-    if (args.delta != 0) {
+    if (args.delta != 0.0) {
         minN = 2;
-        maxN = std::ceil(double(args.delta) / 1.5);
+        maxN = std::ceil(args.delta / 1.5);
     } else {
         minN = args.numP;
         maxN = args.numP;
@@ -134,9 +134,9 @@ Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
     std::vector<DMatrix> discPolys;
     for (int n = minN; n <= maxN; ++n) {
         // FIXME: remove adjustment so degree's consistently "L above dirichlet"
-        if (args.delta != 0) {
+        if (args.delta != 0.0) {
             args.numP = n;
-            args.degree = std::ceil(double(args.delta) - 0.5*n);
+            args.degree = std::ceil(args.delta - 0.5*n);
         } else {
             args.degree = args.degree + n;
         }
@@ -172,10 +172,14 @@ Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
             outStream << "Minimal basis (" << n << "):" << minBases[n-minN] << endl;
         }
 
+        if (minBases[n-minN].size() == 0) {
+            continue;
+        }
+
         output.diagonal.push_back(DiagonalBlock(minBases[n-minN], 
                                                 discPolys[n-minN], 
                                                 args, odd));
-        if (n-2 >= minN) {
+        if ((args.options & OPT_INTERACTING) != 0 && n-2 >= minN) {
             output.nPlus2.push_back(NPlus2Block(minBases[n-2-minN], 
                                                 discPolys[n-2-minN],
                                                 minBases[n-minN],
@@ -190,6 +194,8 @@ Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
 DMatrix DiagonalBlock(const Basis<Mono>& minimalBasis, 
                       const DMatrix& discPolys, 
                       const Arguments& args, const bool odd) {
+    *args.console << "DiagonalBlock(" << args.numP << ", " << args.degree << ")" 
+        << endl;
     Timer timer;
     const bool interacting = (args.options & OPT_INTERACTING) != 0;
     std::string suffix = std::to_string(args.numP) + (odd ? ", odd" : ", even");
