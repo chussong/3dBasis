@@ -29,7 +29,8 @@ DMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions);
 DMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions);
 DMatrix KineticMatrix(const Basis<Mono>& basis, const std::size_t partitions);
 DMatrix InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions);
-DMatrix NPlus2Matrix(const Basis<Mono>& basis, const std::size_t partitions);
+DMatrix NPlus2Matrix(const Basis<Mono>& basisA, const Basis<Mono>& basisB,
+                     const std::size_t partitions);
 
 // internal stuff -------------------------------------------------------------
 

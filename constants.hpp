@@ -102,6 +102,7 @@ constexpr unsigned int MAX_THREADS = 8u;
 struct Arguments {
     int numP = -1;
     int degree = -1;
+    int delta = 0;
     std::size_t partitions = 4; // \mu partitions per operator pair
     coeff_class msq = 1; // the coefficient of the mass term
     coeff_class lambda = 1; // the coefficient of the interaction term

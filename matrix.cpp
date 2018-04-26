@@ -44,8 +44,17 @@ DMatrix InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions
     return MatrixInternal::Matrix(basis, partitions, MAT_INTER_SAME_N);
 }
 
-DMatrix NPlus2Matrix(const Basis<Mono>& basis, const std::size_t partitions) {
-    return MatrixInternal::Matrix(basis, partitions, MAT_INTER_N_PLUS_2);
+DMatrix NPlus2Matrix(const Basis<Mono>& basisA, const Basis<Mono>& basisB,
+                     const std::size_t partitions) {
+    DMatrix output(basisA.size()*partitions, basisB.size()*partitions);
+    for (std::size_t i = 0; i < basisA.size(); ++i) {
+        for (std::size_t j = 0; j < basisB.size(); ++j) {
+            output.block(i*partitions, j*partitions, partitions, partitions)
+                = MatrixInternal::MatrixBlock(basisA[i], basisB[j], 
+                                              MAT_INTER_N_PLUS_2, partitions);
+        }
+    }
+    return output;
 }
 
 namespace MatrixInternal {
@@ -135,13 +144,10 @@ OStream& operator<<(OStream& os, const InteractionTerm_Step2& out) {
 }
 
 // generically return direct or interaction matrix of the specified type
-//
-// NOTE: we will have to do discretizations before this function returns; in
-// fact, we will have to do them inside MatrixTerm
-DMatrix Matrix(const Basis<Mono>& basis, const std::size_t partitions, 
+DMatrix Matrix(const Basis<Mono>& basis, const std::size_t nPart, 
         const MATRIX_TYPE type) {
-    // partitions == 0 means that the Fock part has been requested by itself
-    if (partitions == 0) {
+    // nPart == 0 means that the Fock part has been requested by itself
+    if (nPart == 0) {
         DMatrix fockPart(basis.size(), basis.size());
         for (std::size_t i = 0; i < basis.size(); ++i) {
             fockPart(i, i) = MatrixTerm(basis[i], basis[i], type);
@@ -153,11 +159,16 @@ DMatrix Matrix(const Basis<Mono>& basis, const std::size_t partitions,
 
         return fockPart;
     } else {
-        DMatrix output(basis.size()*partitions, basis.size()*partitions);
+        DMatrix output(basis.size()*nPart, basis.size()*nPart);
         for (std::size_t i = 0; i < basis.size(); ++i) {
-            for (std::size_t j = 0; j < basis.size(); ++j) {
-                output.block(i*partitions, j*partitions, partitions, partitions) = 
-                    MatrixBlock(basis[i], basis[j], type, partitions);
+            output.block(i*nPart, i*nPart, nPart, nPart)
+                = MatrixBlock(basis[i], basis[i], type, nPart);
+            for (std::size_t j = i+1; j < basis.size(); ++j) {
+                output.block(i*nPart, j*nPart, nPart, nPart)
+                    = MatrixBlock(basis[i], basis[j], type, nPart);
+                output.block(j*nPart, i*nPart, nPart, nPart)
+                    = output.block(i*nPart, j*nPart, nPart, nPart).transpose();
+                // FIXME: make sure above assignment is correct
             }
         }
         return output;
