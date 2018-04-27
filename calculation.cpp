@@ -212,14 +212,15 @@ DMatrix DiagonalBlock(const Basis<Mono>& minimalBasis,
     OutputMatrix(monoKineticMatrix, polyKineticMatrix, "kinetic matrix", suffix,
                  timer, args);
 
-    DMatrix hamiltonian = args.msq*polyMassMatrix + polyKineticMatrix;
+    DMatrix hamiltonian = args.msq*polyMassMatrix 
+                        + (args.cutoff*args.cutoff)*polyKineticMatrix;
     if (interacting) {
         timer.Start();
         DMatrix monoNtoN(InteractionMatrix(minimalBasis, args.partitions));
         DMatrix polyNtoN = discPolys.transpose()*monoNtoN*discPolys;
         OutputMatrix(monoNtoN, polyNtoN, "NtoN matrix", suffix, timer, 
                      args);
-        hamiltonian += args.lambda*polyNtoN;
+        hamiltonian += (args.lambda*args.cutoff)*polyNtoN;
     }
 
     /*
@@ -240,6 +241,8 @@ DMatrix DiagonalBlock(const Basis<Mono>& minimalBasis,
 DMatrix NPlus2Block(const Basis<Mono>& basisA, const DMatrix& discPolysA,
                     const Basis<Mono>& basisB, const DMatrix& discPolysB,
                     const Arguments& args, const bool odd) {
+    *args.console << "NPlus2Block(" << args.numP-2 << " -> " << args.numP << ")" 
+        << endl;
     Timer timer;
     std::string suffix = std::to_string(args.numP) + (odd ? ", odd" : ", even");
 
@@ -249,7 +252,7 @@ DMatrix NPlus2Block(const Basis<Mono>& basisA, const DMatrix& discPolysA,
     // FIXME?? if above line throws at runtime, swap A and B
     OutputMatrix(monoNPlus2, polyNPlus2, "NPlus2 matrix", suffix, timer, args);
 
-    return args.lambda * polyNPlus2;
+    return (args.lambda*args.cutoff) * polyNPlus2;
 }
 
 void OutputMatrix(const DMatrix& monoMatrix, const DMatrix& polyMatrix,
@@ -268,11 +271,19 @@ void OutputMatrix(const DMatrix& monoMatrix, const DMatrix& polyMatrix,
             << MathematicaOutput(polyMatrix) << endl;
         console << name << " computed in " << timer.TimeElapsedInWords()
             << "." << endl;
-    } else {
+    } else if (polyMatrix.rows() <= 10 && polyMatrix.cols() <= 10) {
+        outStream << "Computed a " << name << " for the basis in " 
+            << timer.TimeElapsedInWords() << "; mono:\n" << monoMatrix 
+            << "\npoly:\n" << polyMatrix << endl;
+    } else if (polyMatrix.rows() == polyMatrix.cols()) {
         EigenSolver solver(polyMatrix.cast<builtin_class>());
         outStream << "Computed a " << name << " for the basis in " 
-                << timer.TimeElapsedInWords() << "; its eigenvalues are:\n"
-                << solver.eigenvalues() << endl;
+            << timer.TimeElapsedInWords() << "; its eigenvalues are:\n"
+            << solver.eigenvalues() << endl;
+    } else {
+        outStream << "Computed a " << name << " for the basis in " 
+            << timer.TimeElapsedInWords() << ", but it's not square and is "
+            << "too large to show." << endl;
     }
 }
 

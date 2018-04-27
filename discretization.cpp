@@ -305,8 +305,7 @@ coeff_class NPlus2Window(const char n, const char r,
 
             builtin_class x = mu1 / mu2;
 
-            coeff_class term = sign * std::pow(mu1, 0.25) * std::pow(mu2, 1.25)
-                * std::pow(x, 0.25*n);
+            coeff_class term = sign * std::pow(mu1, 0.5) * std::pow(mu2, 1.0);
             hypergeos += term * 
                 Hypergeometric2F1(-a, (n+1.0)/4.0, (n+5.0)/4.0, x) / (n + 1.0);
             hypergeos -= term * 

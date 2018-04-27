@@ -694,6 +694,8 @@ std::vector<NPlus2Term_Step2> CombineNPlus2Fs(
 
 NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
         const MatrixTerm_Intermediate& f1, const MatrixTerm_Intermediate& f2) {
+    // std::cout << f1 << " |U| " << f2 << std::endl;
+
     NPlus2Term_Step2 output;
     output.coeff = f1.coeff * f2.coeff;
 
@@ -709,8 +711,8 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
 
     output.theta.resize(f1.yTilde.size() + f2.yTilde.size() - 2, 0);
     // sine[i] appears in all yTilde[j] with j > i (strictly greater)
-    for (auto i = 0u; i < f1.yTilde.size()-2; ++i) {
-        for (auto j = i+1; j < f1.yTilde.size()-1; ++j) {
+    for (std::size_t i = 0; i+2 < f1.yTilde.size(); ++i) {
+        for (auto j = i+1; j+1 < f1.yTilde.size(); ++j) {
             output.theta[2*i] += f1.yTilde[j] + f2.yTilde[j];
         }
         output.theta[2*i + 1] = f1.yTilde[i] + f2.yTilde[i];

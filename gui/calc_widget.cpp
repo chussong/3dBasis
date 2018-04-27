@@ -6,7 +6,8 @@ CalcWidget::CalcWidget(const Arguments& args): console(args.console),
         outStream(args.outStream), warningStatus(WARNING_ON), 
         nBox(new QSpinBox), lBox(new QSpinBox), dBox(new QDoubleSpinBox),
         pBox(new QSpinBox), msqBox(new QDoubleSpinBox), 
-        lambdaBox(new QDoubleSpinBox), freeButton(new QRadioButton("&Free")),
+        lambdaBox(new QDoubleSpinBox), cutoffBox(new QDoubleSpinBox),
+        freeButton(new QRadioButton("&Free")),
         interactingButton(new QRadioButton("&Interacting")),
         testButton(new QRadioButton("&Tests only")), 
         goButton(new QPushButton("&go")), progressBar(new QProgressBar) {
@@ -97,9 +98,9 @@ void CalcWidget::SetupParameterBoxes(QLayout* layout, const Arguments& args) {
     QLabel* msqLabel = new QLabel("m" + QString(0x00b2));
     msqLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
     msqLabel->setBuddy(msqBox);
-    msqBox->setRange(0.0, 1.0);
+    msqBox->setRange(0.0, 10.0);
     msqBox->setValue(args.msq);
-    msqBox->setSingleStep(0.05);
+    msqBox->setSingleStep(0.10);
     msqBox->setStatusTip(tr("Coefficient of mass term in Hamiltonian"));
 
     paramBoxGrid->addWidget(msqLabel);
@@ -108,13 +109,24 @@ void CalcWidget::SetupParameterBoxes(QLayout* layout, const Arguments& args) {
     QLabel* lambdaLabel = new QLabel(QString(0x03bb));
     lambdaLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
     lambdaLabel->setBuddy(lambdaBox);
-    lambdaBox->setRange(0.0, 1.0);
-    lambdaBox->setValue(args.msq);
-    lambdaBox->setSingleStep(0.05);
+    lambdaBox->setRange(0.0, 10.0);
+    lambdaBox->setValue(args.lambda);
+    lambdaBox->setSingleStep(0.10);
     lambdaBox->setStatusTip(tr("Coefficient of interaction term in Hamiltonian"));
 
     paramBoxGrid->addWidget(lambdaLabel);
     paramBoxGrid->addWidget(lambdaBox);
+
+    QLabel* cutoffLabel = new QLabel(QString(0x039b));
+    cutoffLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+    cutoffLabel->setBuddy(cutoffBox);
+    cutoffBox->setRange(0.0, 10.0);
+    cutoffBox->setValue(args.cutoff);
+    cutoffBox->setSingleStep(0.10);
+    cutoffBox->setStatusTip(tr("Energy cutoff"));
+
+    paramBoxGrid->addWidget(cutoffLabel);
+    paramBoxGrid->addWidget(cutoffBox);
 
     QLabel* pLabel = new QLabel("p");
     pLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
@@ -176,6 +188,7 @@ void CalcWidget::Calculate() {
     args.partitions = pBox->value();
     args.msq = msqBox->value();
     args.lambda = lambdaBox->value();
+    args.cutoff = cutoffBox->value();
     args.outStream = outStream;
     args.console = console;
 

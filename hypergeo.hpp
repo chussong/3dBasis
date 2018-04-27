@@ -132,9 +132,11 @@ coeff_class HypergeoSpecialCase_Reg(const std::array<builtin_class,P>& a,
         const std::array<builtin_class,Q>& b, const builtin_class x) {
     for (std::size_t i = 0; i < P; ++i) {
         if (a[i] == 0) {
+            // std::cout << P << 'F' << Q << '(' << a << "; " << b << "; " << x
+                // << ") has a 0 in." << std::endl;
             coeff_class gammaProd = 1;
             for (auto b_i : b) {
-                if (std::abs(b_i) < EPSILON) {
+                if (std::abs(b_i) < EPSILON || IsNegInt(b_i)) {
                     gammaProd = 0;
                     break;
                 } else {

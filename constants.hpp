@@ -60,7 +60,7 @@ inline std::ostream& operator<<(std::ostream& os, const coeff_class& out){
 }
 
 inline std::ostream& operator<<(std::ostream& os, const DMatrix& out) {
-    return os << "HELLO" << out.cast<builtin_class>();
+    return os << out.cast<builtin_class>();
 }
 
 inline std::ostream& operator<<(std::ostream& os, const DVector& out) {

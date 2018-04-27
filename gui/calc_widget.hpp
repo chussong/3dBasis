@@ -57,6 +57,7 @@ class CalcWidget : public QWidget {
         QSpinBox* pBox;
         QDoubleSpinBox* msqBox;
         QDoubleSpinBox* lambdaBox;
+        QDoubleSpinBox* cutoffBox;
         QRadioButton* freeButton;
         QRadioButton* interactingButton;
         QRadioButton* testButton;

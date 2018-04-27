@@ -1,7 +1,10 @@
 #ifndef CONSTRUCTION_HPP
 #define CONSTRUCTION_HPP
 
+#include <vector>
 #include <array>
+#include <algorithm>
+#include <iostream>
 
 #include "io.hpp"
 

@@ -126,6 +126,11 @@ struct NPlus2Term_Step2 {
     char r;
 };
 
+inline OStream& operator<<(OStream& os, const NPlus2Term_Step2& out) {
+    return os << out.coeff << " * [" << out.u << ", " << out.theta << ", " 
+        << int(out.r) << "]";
+}
+
 struct NPlus2Term_Output {
     // entire constant part of term, including prefactors, degeneracies, etc.
     coeff_class coeff;
