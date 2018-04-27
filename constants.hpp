@@ -19,18 +19,14 @@
 /***** and thus also the entries of the matrix whose kernel we want.      *****/
 /******************************************************************************/
 
-//typedef mpq_class coeff_class;				// arbitrary precision rational
-//typedef mpfr::mpreal coeff_class;				// arbitrary precision float
-//typedef double coeff_class;					// ordinary double-width float
-//typedef long coeff_class;						// ordinary double-width integer
-//typedef long double coeff_class;
+// __GLIBCXX__ is defined if we're using the GNU libstdc++, which includes
+// the 128-bit extension __float128; if we don't have it, we just use the 
+// standard long double instead (which is actually also 128-bit in clang/LLVM)
+#ifdef __GLIBCXX__
 typedef __float128 coeff_class;
-
-typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, Eigen::Dynamic> DMatrix;
-typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, 1> DVector;
-// typedef Eigen::SparseMatrix<coeff_class> SMatrix;
-// typedef Eigen::SparseVector<coeff_class> SVector;
-// typedef Eigen::Triplet<coeff_class> Triplet;
+#else
+typedef long double coeff_class;
+#endif
 
 // also define a built-in class to which coeff_class is implicitly convertible
 // to help with template resolution in stdlib functions. If coeff_class is
@@ -39,8 +35,13 @@ typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, 1> DVector;
 // new specializations for these functions.
 typedef double builtin_class;
 
-// if builtin_class and coeff_class are different, this ostream operator also
-// needs to be defined
+// these are the matrix types we use; DMatrix and DVector are dense, while 
+// SMatrix and SVector are sparse
+typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, Eigen::Dynamic> DMatrix;
+typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, 1> DVector;
+// typedef Eigen::SparseMatrix<coeff_class> SMatrix;
+// typedef Eigen::SparseVector<coeff_class> SVector;
+// typedef Eigen::Triplet<coeff_class> Triplet;
 
 #ifdef NO_GUI
 typedef std::ostream OStream;
@@ -49,20 +50,23 @@ using std::endl;
 typedef QTextStream OStream;
 #endif
 
+// if builtin_class and coeff_class are different, this ostream operator also
+// needs to be defined
+
+#ifdef __GLIBCXX__
+// need stream operators for coeff_class if it's not a builtin type
 inline std::ostream& operator<<(std::ostream& os, const coeff_class& out){
-    // std::cout << "sending out a coeff_class" << std::endl;
     return os << static_cast<builtin_class>(out);
 }
 
 inline std::ostream& operator<<(std::ostream& os, const DMatrix& out) {
-    // std::cout << "sending out a matrix" << std::endl;
-    return os << out.cast<builtin_class>();
+    return os << "HELLO" << out.cast<builtin_class>();
 }
 
 inline std::ostream& operator<<(std::ostream& os, const DVector& out) {
-    // std::cout << "sending out a vector" << std::endl;
     return os << out.cast<builtin_class>();
 }
+#endif
 
 /******************************************************************************/
 /***** Define which solver to use to find the kernel of sparse matrices.  *****/
@@ -106,6 +110,7 @@ struct Arguments {
     std::size_t partitions = 4; // \mu partitions per operator pair
     coeff_class msq = 1; // the coefficient of the mass term
     coeff_class lambda = 1; // the coefficient of the interaction term
+    coeff_class cutoff = 1; // the energy cutoff (capital lambda)
     int options = 0;
     OStream* outStream = nullptr;
     OStream* console = nullptr;

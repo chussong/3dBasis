@@ -4,9 +4,22 @@
 
 .PHONY: default nogui static clean
 
-# these should be the locations of your qt installation
-QTINC := -I/usr/include/x86_64-linux-gnu/qt5
-QTLIB := -L/usr/lib/x86_64-linux-gnu
+# these should be the locations of your Qt installation and Qt's "moc" tool; if
+# necessary, change the one for your OS, or just add yours at the end
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+    QTINC := -I/usr/include/x86_64-linux-gnu/qt5
+    QTLIB := -L/usr/lib/x86_64-linux-gnu -lQt5Widgets -lQt5Gui -lQt5Core
+    MOC := moc
+endif
+ifeq ($(UNAME_S),Darwin)
+    QTINC := -I/usr/local/opt/qt/include
+    QTLIB := -F/usr/local/opt/qt/lib -framework QtWidgets -framework QtGui \
+	-framework QtCore
+    MOC := /usr/local/opt/qt/bin/moc
+endif
+#FIXME: SEND PREPROCESSOR USING_GCC FLAG
+
 
 ifndef SECOND_PASS
 #-------------------------------------------------------------------------------
@@ -56,7 +69,7 @@ CXXFLAGS_QT := $(CXXFLAGS_GLOBAL) $(QTINC)
 LDFLAGS_GLOBAL := -lgsl -lblas -lpthread $(LDFLAGS)
 
 LDFLAGS_CORE := $(LDFLAGS_GLOBAL)
-LDFLAGS_QT := $(QTLIB) -lQt5Widgets -lQt5Gui -lQt5Core $(LDFLAGS_GLOBAL)
+LDFLAGS_QT := $(QTLIB) $(LDFLAGS_GLOBAL)
 
 EXECUTABLE := 3dBasis
 
@@ -141,7 +154,7 @@ gui/moc_main_window.o: gui/moc_main_window.cpp
 	$(CXX) $(CXXFLAGS_QT) $< -o $@
 
 gui/moc_main_window.cpp: gui/main_window.hpp
-	moc $< -o $@
+	$(MOC) $< -o $@
 
 gui/calc_widget.o: gui/calc_widget.cpp gui/calc_widget.hpp constants.hpp \
     	calculation.hpp
@@ -151,7 +164,7 @@ gui/moc_calc_widget.o: gui/moc_calc_widget.cpp
 	$(CXX) $(CXXFLAGS_QT) $< -o $@
 
 gui/moc_calc_widget.cpp: gui/calc_widget.hpp
-	moc $< -o $@
+	$(MOC) $< -o $@
 
 gui/file_widget.o: gui/file_widget.cpp gui/file_widget.hpp
 	$(CXX) $(CXXFLAGS_QT) $< -o $@
@@ -160,7 +173,7 @@ gui/moc_file_widget.o: gui/moc_file_widget.cpp
 	$(CXX) $(CXXFLAGS_QT) $< -o $@
 
 gui/moc_file_widget.cpp: gui/file_widget.hpp
-	moc $< -o $@
+	$(MOC) $< -o $@
 
 gui/console_widget.o: gui/console_widget.cpp gui/console_widget.hpp
 	$(CXX) $(CXXFLAGS_QT) $< -o $@
@@ -169,7 +182,7 @@ gui/moc_console_widget.o: gui/moc_console_widget.cpp
 	$(CXX) $(CXXFLAGS_QT) $< -o $@
 
 gui/moc_console_widget.cpp: gui/console_widget.hpp
-	moc $< -o $@
+	$(MOC) $< -o $@
 
 #gui/resources.rcc: gui/resources.qrc
 #	rcc $< -o $@

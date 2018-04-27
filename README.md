@@ -28,13 +28,21 @@ Mac users can get a C++ compiler by running xcode-select --install to get the
 Command Line Tools. This will give you Clang, so you won't have to change CXX in
 the Makefile.  
 
+You will need [Boost](https://www.boost.org/) and the 
+[GNU Scientific Library (GSL)](https://www.gnu.org/software/gsl/). These are 
+both available on the Ubuntu apt repositories and MacOS Homebrew as boost and 
+gsl, respectively.  
+
 To build with the GUI (the default), you'll need to install 
 [Qt](https://www.qt.io/). On Ubuntu, you can just do 
-"sudo apt install qt5-default" and then "make" should just work; if you're not 
-on Ubuntu, you may have to change QTINC and QTLIB at the top of the Makefile to 
-the appropriate directories for your installation. QTINC is the "include" 
-directory containing subdirectories QtCore, QtGui, and QtWidgets; QTLIB is the 
-"lib" directory containing libQt5Widgets.so, libQt5Gui.so, and libQt5Core.so.  
+"sudo apt install qt5-default" and then "make" should just work; on MacOS,
+"brew install qt" should work. The Makefile knows where to look if you do either
+of these, but if you get Qt some other way, you may have to change QTINC and 
+QTLIB at the top of the Makefile to the appropriate directories for your 
+installation. QTINC is the "include" directory containing subdirectories QtCore, 
+QtGui, and QtWidgets; QTLIB is the "lib" directory containing libQt5Widgets.so, 
+libQt5Gui.so, and libQt5Core.so on Linux or QtWidgets.framework, 
+QtGui.framework, QtCore.framework on MacOS.  
 
 If you don't want to bother with Qt, you can also build without the GUI; do this
 with "make nogui" instead of the usual "make". This build should successfully

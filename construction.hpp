@@ -1,6 +1,8 @@
 #ifndef CONSTRUCTION_HPP
 #define CONSTRUCTION_HPP
 
+#include <array>
+
 #include "io.hpp"
 
 // T can be any type or class with an == operator; value indexes T by uint

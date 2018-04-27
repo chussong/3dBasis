@@ -12,6 +12,8 @@
 
 namespace Multinomial {
 
+class MultinomialTable;
+
 // sorts mVectors so their n goes up but the Ms go down
 struct MVectorPrecedence {
     constexpr bool operator()(const std::string& A, const std::string& B) const;
@@ -20,7 +22,8 @@ typedef std::set<std::string, MVectorPrecedence> MVectorContainer;
 
 void Initialize(const char particleNumber, const char highestN);
 void Clear();
-void FillTo(const char particleNumber, const char newHighestN);
+std::unique_ptr<MultinomialTable>& GetTable(const std::size_t n, const char d);
+// void FillTo(const char particleNumber, const char newHighestN);
 MVectorContainer GetMVectors(const unsigned char particleNumber, const char n);
 coeff_class Choose(const char particleNumber, const char n, 
 		const std::vector<char>& m);

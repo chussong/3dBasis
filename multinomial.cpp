@@ -38,36 +38,41 @@ void Clear() {
     multinomialTable.clear();
 }
 
+std::unique_ptr<MultinomialTable>& GetTable(const std::size_t n, const char d) {
+    if (multinomialTable.size() < n+1 
+        || multinomialTable[n] == nullptr
+        || multinomialTable[n]->HighestN() < d) {
+        // throw std::logic_error("GetMVectors called on uninitialized pNumber.");
+        Initialize(n, d);
+    }
+    return multinomialTable[n];
+}
+
 // vector of all mVectors whose total "n" is exactly the supplied n
 //
 // if this turns out to be slow, we can avoid the copy by passing iterators to
 // a slightly reorganized container for the mVectors
 MVectorContainer GetMVectors(const unsigned char particleNumber, const char n) {
-    if (multinomialTable.size() < particleNumber+1 
-        || multinomialTable[particleNumber]->HighestN() < n) {
-        // throw std::logic_error("GetMVectors called on uninitialized pNumber.");
-        Initialize(particleNumber, n);
-    }
-    return multinomialTable[particleNumber]->GetMVectors(n);
+    return GetTable(particleNumber, n)->GetMVectors(n);
 }
 
 coeff_class Choose(const char particleNumber, const char n, 
                    const std::vector<char>& m) {
-    return multinomialTable[particleNumber]->Choose(n, m);
+    return GetTable(particleNumber, n)->Choose(n, m);
 }
 
 coeff_class Lookup(const char particleNumber, const std::string& nAndm) {
-    return multinomialTable[particleNumber]->Lookup(nAndm);
+    return GetTable(particleNumber, nAndm[0])->Lookup(nAndm);
 }
 
-void FillTo(const char particleNumber, const char newHighestN) {
-    if (multinomialTable[particleNumber] == nullptr) {
+/*void FillTo(const char particleNumber, const char newHighestN) {
+    if (GetTable(particleNumber, newHighestN) == nullptr) {
         std::cerr << "Error: asked to fill a nullptr MultinomialTable to n="
             << std::to_string(newHighestN) << "." << std::endl;
         return;
     }
     multinomialTable[particleNumber]->FillTo(newHighestN);
-}
+}*/
 
 MultinomialTable::MultinomialTable(const unsigned char particleNumber): 
 	particleNumber(particleNumber), highestN(-1) {
