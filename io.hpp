@@ -144,6 +144,7 @@ inline std::string MathematicaOutput(const coeff_class out) {
 }
 
 inline std::string MathematicaOutput(const DMatrix& out) {
+    if (out.rows() == 0 || out.cols() == 0) return "{ }";
     std::stringstream stream;
     stream << "{";
     for (Eigen::Index row = 0; row < out.rows() - 1; ++row) {
