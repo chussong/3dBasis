@@ -114,6 +114,9 @@ struct InteractionTerm_Output {
         coeff(coeff), r(r) {}
 };
 
+typedef std::unordered_map<std::array<char,2>, coeff_class,
+                           boost::hash<std::array<char,2>> >NtoN_Final;
+
 struct NPlus2Term_Step2 {
     // coeff(F1) * coeff(F2), not including degeneracies or coeffs of A&B (yet?)
     coeff_class coeff;
@@ -145,7 +148,7 @@ struct NPlus2Term_Output {
 // direct for inner product and mass, inter for interactions
 coeff_class MatrixTerm_Direct(
         const Mono& A, const Mono& B, const MATRIX_TYPE type);
-std::vector<InteractionTerm_Output> MatrixTerm_Inter(
+NtoN_Final MatrixTerm_NtoN(
         const Mono& A, const Mono& B);
 std::vector<NPlus2Term_Output> MatrixTerm_NPlus2(const Mono& A, const Mono& B);
 
@@ -190,9 +193,10 @@ std::vector<InteractionTerm_Step2> CombineInteractionFs(
         const std::vector<MatrixTerm_Intermediate>& F2 );
 InteractionTerm_Step2 CombineInteractionFs_OneTerm(
         const MatrixTerm_Intermediate& F1, const MatrixTerm_Intermediate& F2 );
-std::vector<InteractionTerm_Output> InteractionOutput(
+NtoN_Final InteractionOutput(
         std::vector<InteractionTerm_Step2>& combinedFs, 
         const MATRIX_TYPE type, const coeff_class prefactor);
+const NtoN_Final& Expand(const std::array<char,3>& r);
 
 std::vector<NPlus2Term_Step2> CombineNPlus2Fs(
         const std::vector<MatrixTerm_Intermediate>& F1, 

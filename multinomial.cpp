@@ -56,6 +56,13 @@ MVectorContainer GetMVectors(const unsigned char particleNumber, const char n) {
     return GetTable(particleNumber, n)->GetMVectors(n);
 }
 
+// binomial coefficient (n, m)
+coeff_class Choose(const char n, const char m) {
+    // FIXME? if this is slow, special case for binomial without vector overhead
+    return GetTable(2, n)->Lookup(std::string({{n, static_cast<char>(n-m), m}}));
+}
+
+// multinomial coefficient (n, \vec m)
 coeff_class Choose(const char particleNumber, const char n, 
                    const std::vector<char>& m) {
     return GetTable(particleNumber, n)->Choose(n, m);

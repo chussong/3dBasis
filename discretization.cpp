@@ -52,8 +52,8 @@ DMatrix MuPart_Kinetic(const std::size_t partitions) {
 // interaction (same n) matrix computations -----------------------------------
 
 namespace {
-    std::unordered_map<std::array<char,3>, DMatrix, 
-        boost::hash<std::array<char,3>> > intCache;
+    std::unordered_map<std::array<char,2>, DMatrix, 
+        boost::hash<std::array<char,2>> > intCache;
     std::unordered_map<std::array<char,2>, DMatrix, 
         boost::hash<std::array<char,2>> > nPlus2Cache;
 
@@ -69,18 +69,59 @@ namespace {
         boost::hash<std::array<builtin_class,3>> > betaCache;
 } // anonymous namespace
 
-// this is the MuPart for the same-n interaction matrix
-//
-// it is the analytic answer, NOT a trapezoid-style approximation of any kind;
-// furthermore, the 3F2s used are mainly (entirely?) just finite polynomials
-// due to the presence of negative integers in the p lists
-//
-// this function returns part of the block of the interaction matrix 
-// corresponding to one pair of monomials. The sum of all of the returned blocks
-// will be the block's actual value.
-const DMatrix& MuPart(const std::array<char,3>& r, 
-        const std::size_t partitions) {
-    if (r[0]%2 == 1) {
+const DMatrix& MuPart_NtoN(const unsigned int n,
+                           const std::array<char,2>& exponents, 
+                           const std::size_t partitions) {
+    coeff_class partWidth = coeff_class(1) / partitions;
+    if (intCache.count(exponents) == 0) {
+        DMatrix block(partitions, partitions);
+        for (std::size_t winA = 0; winA < partitions; ++winA) {
+            for (std::size_t winB = 0; winB < partitions; ++winB) {
+                block(winA, winB) = NtoNWindow(n, exponents, 
+                        {{static_cast<builtin_class>(winA*partWidth),
+                        static_cast<builtin_class>((winA+1)*partWidth)}},
+                        {{static_cast<builtin_class>(winB*partWidth), 
+                        static_cast<builtin_class>((winB+1)*partWidth)}} );
+            }
+        }
+        intCache.emplace(exponents, std::move(block));
+    }
+
+    return intCache[exponents];
+}
+
+// first exponent is that of alpha^2, and the second is that of r (not squared)
+// FIXME: this needs a special case for 4*exponents[0] + n == 5
+coeff_class NtoNWindow(const unsigned int n,
+                       const std::array<char,2>& exponents,
+                       const std::array<builtin_class,2>& mu1sq_ab,
+                       const std::array<builtin_class,2>& mu2sq_ab) {
+    const builtin_class a = exponents[0] + builtin_class(n)/4.0;
+    const builtin_class b = exponents[1];
+
+    coeff_class output = 16;
+    output *= std::pow(mu1sq_ab[1], a + 0.25) - std::pow(mu1sq_ab[0], a + 0.25);
+    output /= (b + 1)*(4*a - 5)*(4*a + 1);
+
+    if (mu2sq_ab[0] == 0) {
+        output *= std::pow(mu2sq_ab[1], 1.25 - a);
+    } else {
+        output *= std::pow(mu2sq_ab[0], 1.25)*std::pow(mu2sq_ab[1], a)
+                - std::pow(mu2sq_ab[1], 1.25)*std::pow(mu2sq_ab[0], a);
+        output /= std::pow(mu2sq_ab[0]*mu2sq_ab[1], a);
+    }
+
+    if (std::isnan(static_cast<builtin_class>(output))) {
+        std::cerr << "Error: NtoNWindow(" << n << ", " <<  exponents << ", " 
+            << mu1sq_ab << ", " << mu2sq_ab << ") returns a NaN. (a,b) = (" 
+            << a << ", " << b << ")" << std::endl;
+    }
+    return output;
+}
+
+const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr, 
+                             const std::size_t partitions) {
+    if (nr[1]%2 == 1) {
         if (zeroMatrix.count(partitions) == 0) {
             zeroMatrix.emplace(partitions, DMatrix::Zero(partitions, partitions));
         }
@@ -88,207 +129,22 @@ const DMatrix& MuPart(const std::array<char,3>& r,
     }
 
     coeff_class partWidth = coeff_class(1) / partitions;
-    if (intCache.count(r) == 0) {
+    if (nPlus2Cache.count(nr) == 0) {
         DMatrix block(partitions, partitions);
         for (std::size_t winA = 0; winA < partitions; ++winA) {
             for (std::size_t winB = 0; winB < partitions; ++winB) {
-                block(winA, winB) = InteractionWindow(r, 
+                block(winA, winB) = NPlus2Window(nr[0], nr[1], 
                         {{static_cast<builtin_class>(winA*partWidth),
                         static_cast<builtin_class>((winA+1)*partWidth)}},
                         {{static_cast<builtin_class>(winB*partWidth), 
                         static_cast<builtin_class>((winB+1)*partWidth)}} );
             }
         }
-        intCache.emplace(r, std::move(block));
+        nPlus2Cache.emplace(nr, std::move(block));
     }
 
-    return intCache[r];
+    return nPlus2Cache[nr];
 }
-
-// this is the special MuPart block for n == 2, which must be treated separately
-// because there is no r integral in this case
-const DMatrix& MuPart_NEquals2(const std::size_t partitions) {
-    if (nEquals2Matrix.count(partitions) == 0) {
-        DMatrix newMatrix = DMatrix::Zero(partitions, partitions);
-        for (Eigen::Index row = 0; row < newMatrix.rows(); ++row) {
-            for (Eigen::Index col = 0; col < newMatrix.cols(); ++col) {
-                // FIXME: this is probably bogus. I'm just doing the same thing
-                // as n > 2 but with an integrand of 1 so it's (\Delta \mu)^2
-                newMatrix(row, col) = (coeff_class(1) / partitions);
-                newMatrix(row, col) *= newMatrix(row, col);
-            }
-        }
-        nEquals2Matrix.emplace(partitions, newMatrix);
-    }
-
-    return nEquals2Matrix[partitions];
-}
-
-coeff_class InteractionWindow(const std::array<char,3>& r,
-        const std::array<builtin_class,2>& mu1_ab,
-        const std::array<builtin_class,2>& mu2_ab) {
-    builtin_class a = r[0]/2.0;
-    builtin_class b = r[1]/2.0;
-    builtin_class c = r[2]/2.0;
-
-    if (mu1_ab[0] < mu2_ab[0]) {
-        return InteractionWindow_Less(a, b, c, mu1_ab, mu2_ab);
-    } else if (mu1_ab[0] == mu2_ab[0]) {
-        return InteractionWindow_Equal(a, b, c, mu1_ab);
-    } else {
-        return InteractionWindow_Greater(a, b, c, mu1_ab, mu2_ab);
-    }
-}
-
-coeff_class InteractionWindow_Less(const builtin_class a, const builtin_class b, 
-        const builtin_class c, const std::array<builtin_class,2>& mu1_ab,
-        const std::array<builtin_class,2>& mu2_ab) {
-    coeff_class overall = std::tgamma(static_cast<builtin_class>(1.0 + b));
-    overall /= std::tgamma(static_cast<builtin_class>(0.5 - a));
-    overall *= std::pow(M_PI, 1.5) / 4;
-    if (static_cast<int>(2*a)%4 == 2) overall = -overall;
-
-    coeff_class hypergeos = 0;
-    for (coeff_class mu1 : mu1_ab) {
-        for (std::size_t i = 0; i < 2; ++i) {
-            coeff_class mu2 = mu2_ab[i];
-            int sign = i%2 == 0 ? -1 : 1;
-            hypergeos += sign * mu1*mu2 * Hypergeometric3F2_Reg(
-                    {{0.5+a, -c, -0.5}}, {{1.5+a+b, 1.5}}, (mu1*mu1)/(mu2*mu2));
-        }
-    }
-
-    if (std::isnan(static_cast<builtin_class>(hypergeos))) {
-        std::cerr << "Error: InteractionWindow_Less(" << a << ", " << b 
-            << ", " << c << ", " << mu1_ab << ", " << mu2_ab 
-            << ") returns a NaN." << std::endl;
-    }
-    return overall * hypergeos;
-}
-
-coeff_class InteractionWindow_Equal(const builtin_class a, const builtin_class b, 
-        const builtin_class c, const std::array<builtin_class,2>& mu_ab) {
-    coeff_class overall = M_PI / 8.0;
-    overall /= std::tgamma(static_cast<builtin_class>(0.5 - a));
-    if (static_cast<int>(2*a)%4 == 2) overall = -overall;
-
-    coeff_class x = (mu_ab[0]*mu_ab[0]) / (mu_ab[1]*mu_ab[1]);
-
-    coeff_class groupA = 0;
-    groupA -= (mu_ab[1]-mu_ab[0])*(mu_ab[1]+mu_ab[0])*Hypergeometric3F2_Reg(
-            {{-0.5, 0.5+a, -c}}, {{0.5, 1.5+a+b}}, 1);
-    groupA += mu_ab[1]*mu_ab[1]*Hypergeometric3F2_Reg(
-            {{-0.5, 0.5+a, -c}}, {{1.5, 1.5+a+b}}, 1);
-    groupA -= mu_ab[0]*mu_ab[1]*Hypergeometric3F2_Reg(
-            {{-0.5, 0.5+a, -c}}, {{1.5, 1.5+a+b}}, x);
-    groupA *= 2 * std::sqrt(M_PI);
-    groupA *= std::tgamma(static_cast<builtin_class>(1.0 + b));
-    if (std::isnan(static_cast<builtin_class>(groupA))) {
-        std::cerr << "Error: InteractionWindow_Equal(" << a << ", " << b << ", "
-            << c << ", " << mu_ab << ") has a NaN in groupA." << std::endl;
-    }
-    
-    coeff_class groupB = 0;
-    groupB -= mu_ab[0]*mu_ab[0]*Hypergeometric3F2_Reg(
-            {{a, 0.5+a, -b}}, {{2.0+a, 1.5+a+c}}, 1);
-    // or {{a, 1.5, 2.0+a+b}}, {{2.0+a, 3.0+b+c}}, 1
-    // or {{2.0, 1.0+c, 3.0+b+c}}, {{3.5+a+b+c, 3.0+c}}, 1
-    groupB += a*(mu_ab[1]-mu_ab[0])*(mu_ab[1]+mu_ab[0])*Hypergeometric3F2_Reg(
-            {{0.5+a, 1.0+a, -b}}, {{2.0+a, 1.5+a+c}}, 1);
-    groupB += mu_ab[0]*mu_ab[0]*std::pow(static_cast<builtin_class>(x), a)
-        * Hypergeometric3F2_Reg({{a, 0.5+a, -b}}, {{2.0+a, 1.5+a+c}}, x);
-    // FIXME: the below gamma function diverges when a=0. Is this valid input?
-    groupB *= std::tgamma(static_cast<builtin_class>(a));
-    groupB *= std::tgamma(static_cast<builtin_class>(1.0 + c));
-    if (std::isnan(static_cast<builtin_class>(groupB))) {
-        std::cerr << "Error: InteractionWindow_Equal(" << a << ", " << b << ", "
-            << c << ", " << mu_ab << ") has a NaN in groupB." << std::endl;
-    }
-
-    return overall * (groupA + groupB);
-}
-
-coeff_class InteractionWindow_Greater(const builtin_class a, const builtin_class b, 
-        const builtin_class c, const std::array<builtin_class,2>& mu1_ab,
-        const std::array<builtin_class,2>& mu2_ab) {
-    if (a == 0) return InteractionWindow_Greater_Zero(b, c, mu1_ab, mu2_ab);
-    coeff_class overall = std::pow(4, static_cast<builtin_class>(-a-1.0));
-    overall *= std::sqrt(M_PI);
-    overall *= std::tgamma(static_cast<builtin_class>(2*a));
-    overall *= std::tgamma(static_cast<builtin_class>(1.0 + c));
-
-    coeff_class hypergeos = 0;
-    for (std::size_t i = 0; i < 2; ++i) {
-        coeff_class mu1 = mu1_ab[i];
-        for (std::size_t j = 0; j < 2; ++j) {
-            coeff_class mu2 = mu2_ab[j];
-            coeff_class x = (mu2*mu2)/(mu1*mu1);
-            int sign = (i+j)%2 == 0 ? 1 : -1;
-            hypergeos += sign * mu2*mu2 
-                * std::pow(static_cast<builtin_class>(x), a)
-                * Hypergeometric3F2_Reg({{0.5+a, -b, a}}, {{1.5+a+c, 2.0+a}}, x);
-        }
-    }
-
-    if (std::isnan(static_cast<builtin_class>(hypergeos))) {
-        std::cerr << "Error: InteractionWindow_Greater(" << a << ", " << b 
-            << ", " << c << ", " << mu1_ab << ", " << mu2_ab 
-            << ") returns a NaN." << std::endl;
-    }
-    return overall * hypergeos;
-}
-
-coeff_class InteractionWindow_Greater_Zero(builtin_class b, 
-        const builtin_class c, const std::array<builtin_class,2>& mu1_ab,
-        const std::array<builtin_class,2>& mu2_ab) {
-    coeff_class overall = M_PI/8;
-    overall *= std::tgamma(1.0 + c) / std::tgamma(1.5 + b + c);
-    // *= (-1)^1+b
-    if (static_cast<int>(std::round(2*b)) % 2 == 1) {
-        return 0; // pure imaginary so it's going to have to cancel
-    } else if (static_cast<int>(std::round(b)) % 2 == 0) {
-        overall = -overall;
-    }
-
-    // *= gamma(-1-b)/cos(\pi b) diverges when 2b is an integer (i.e. always)
-    // but probably cancels against a zero in the sum of the hypergeometrics. 
-    // We can't properly represent this right now, so here's a hack: (FIXME)
-    b += 0.05;
-    overall *= std::tgamma(-1-b) / std::cos(M_PI*b);
-    
-    coeff_class hypergeos = 0;
-    for (std::size_t i = 0; i < 2; ++i) {
-        coeff_class mu1 = mu1_ab[i];
-        for (std::size_t j = 0; j < 2; ++j) {
-            coeff_class mu2 = mu2_ab[j];
-            coeff_class x = (mu1*mu1)/(mu2*mu2);
-            int sign = (i+j)%2 == 0 ? 1 : -1;
-            hypergeos += sign * mu2*mu2 
-                * std::pow(static_cast<builtin_class>(x), -b)
-                * Hypergeometric3F2_Reg(
-                        {{-1.0-b, -b, -0.5-b-c}}, {{0.5-b, 1.0-b}}, x);
-        }
-    }
-
-    // FIXME?? There's also another term that looks purely imaginary so I think
-    // it should have to cancel out, right??
-
-    return overall * hypergeos;
-}
-
-// coeff_class NPlus2Window(const char n, const char r,
-        // const std::array<builtin_class,2>& mu1_ab,
-        // const std::array<builtin_class,2>& mu2_ab) {
-    // builtin_class a = r/2.0;
-// 
-    // if (mu1_ab[0] < mu2_ab[0]) {
-        // return NPlus2Window_Less(n, a, mu1_ab, mu2_ab);
-    // } else if (mu1_ab[0] == mu2_ab[0]) {
-        // return NPlus2Window_Equal(n, a, mu1_ab);
-    // } else {
-        // return NPlus2Window_Greater(n, a, mu1_ab, mu2_ab);
-    // }
-// }
 
 coeff_class NPlus2Window(const char n, const char r, 
         const std::array<builtin_class,2>& mu1_ab,
@@ -393,30 +249,4 @@ coeff_class Beta(const std::array<builtin_class,3>& args) {
     }
 
     return betaCache[args];
-}
-
-const DMatrix& MuPart(const std::array<char,2>& nr, const std::size_t partitions) {
-    if (nr[1]%2 == 1) {
-        if (zeroMatrix.count(partitions) == 0) {
-            zeroMatrix.emplace(partitions, DMatrix::Zero(partitions, partitions));
-        }
-        return zeroMatrix[partitions];
-    }
-
-    coeff_class partWidth = coeff_class(1) / partitions;
-    if (nPlus2Cache.count(nr) == 0) {
-        DMatrix block(partitions, partitions);
-        for (std::size_t winA = 0; winA < partitions; ++winA) {
-            for (std::size_t winB = 0; winB < partitions; ++winB) {
-                block(winA, winB) = NPlus2Window(nr[0], nr[1], 
-                        {{static_cast<builtin_class>(winA*partWidth),
-                        static_cast<builtin_class>((winA+1)*partWidth)}},
-                        {{static_cast<builtin_class>(winB*partWidth), 
-                        static_cast<builtin_class>((winB+1)*partWidth)}} );
-            }
-        }
-        nPlus2Cache.emplace(nr, std::move(block));
-    }
-
-    return nPlus2Cache[nr];
 }

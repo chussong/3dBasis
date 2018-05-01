@@ -25,6 +25,8 @@ void Clear();
 std::unique_ptr<MultinomialTable>& GetTable(const std::size_t n, const char d);
 // void FillTo(const char particleNumber, const char newHighestN);
 MVectorContainer GetMVectors(const unsigned char particleNumber, const char n);
+// first Choose is binomial, second is multinomial
+coeff_class Choose(const char n, const char m);
 coeff_class Choose(const char particleNumber, const char n, 
 		const std::vector<char>& m);
 coeff_class Lookup(const char particleNumber, const std::string& nAndm);

@@ -192,26 +192,21 @@ coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type) {
 DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         const std::size_t partitions) {
     if (type == MAT_INTER_SAME_N) {
-        auto terms = MatrixTerm_Inter(A, B);
-        if (A.NParticles() > 2) {
-            DMatrix output = DMatrix::Zero(partitions, partitions);
-            for (const auto& term : terms) {
-                // std::cout << "Term: " << term.r << std::endl;
-                output += term.coeff*MuPart(term.r, partitions);
-            }
-            return output;
-        } else {
-            coeff_class total = 0;
-            for (const auto& term : terms) total += term.coeff;
-            return total * MuPart_NEquals2(partitions);
+        auto terms = MatrixTerm_NtoN(A, B);
+        DMatrix output = DMatrix::Zero(partitions, partitions);
+        for (auto& term : terms) {
+            // std::cout << "Term: " << term.r << std::endl;
+            output += term.second*MuPart_NtoN(A.NParticles(), term.first, 
+                                              partitions);
         }
+        return output;
     } else if (type == MAT_INTER_N_PLUS_2) {
         const char n = A.NParticles();
         auto terms = MatrixTerm_NPlus2(A, B);
         DMatrix output = DMatrix::Zero(partitions, partitions);
         for (const auto& term : terms) {
             // std::cout << "Term: " << term.r << std::endl;
-            output += term.coeff*MuPart(std::array<char,2>{{n, term.r}}, 
+            output += term.coeff*MuPart_NPlus2(std::array<char,2>{{n, term.r}}, 
                     partitions);
         }
         return output;
@@ -250,9 +245,7 @@ coeff_class MatrixTerm_Direct(const Mono& A, const Mono& B, const MATRIX_TYPE ty
     return prefactor*total;
 }
 
-// the "inter" here means interacting, not intermediate, which is a bad name!
-std::vector<InteractionTerm_Output> MatrixTerm_Inter(const Mono& A, 
-        const Mono& B) {
+NtoN_Final MatrixTerm_NtoN(const Mono& A, const Mono& B) {
     //std::cout << "INTERACTION: " << A.HumanReadable() << " x " 
     //<< B.HumanReadable() << std::endl;
 
@@ -271,15 +264,24 @@ std::vector<InteractionTerm_Output> MatrixTerm_Inter(const Mono& A,
     std::string xAndy_B = ExtractXY(B);
     std::vector<MatrixTerm_Intermediate> fFromA, fFromB;
     std::vector<InteractionTerm_Step2> combinedFs;
-    std::vector<InteractionTerm_Output> output;
+    NtoN_Final output;
     do {
         fFromA = InteractionTermsFromXY(xAndy_A);
         do {
             fFromB = InteractionTermsFromXY(xAndy_B);
             combinedFs = CombineInteractionFs(fFromA, fFromB);
+
             auto newTerms = InteractionOutput(combinedFs, MAT_INTER_SAME_N, 
                     prefactor);
-            output.insert(output.end(), newTerms.begin(), newTerms.end());
+            for (const auto& newTerm : newTerms) {
+                if (output.count(newTerm.first) == 0) {
+                    output.insert(newTerm);
+                    // output.emplace(newTerm.first, newTerm.second);
+                } else {
+                    output[newTerm.first] += newTerm.second;
+                }
+            }
+            // output.insert(output.end(), newTerms.begin(), newTerms.end());
         } while (PermuteXY(xAndy_B));
     } while (PermuteXY(xAndy_A));
     
@@ -629,10 +631,11 @@ std::vector<InteractionTerm_Step2> CombineInteractionFs(
     // output.erase(std::remove_if(output.begin(), output.end(),
                 // [](const InteractionTerm_Step2& term){return term.r[0]%2 == 1;}),
             // output.end());
-    // FIXME: verify that this variant targeting all odd powers is legitimate:
+    // FIXME: verify that this variant targeting all odd powers is legitimate,
+    //        and make sure it's not safe to delete odd r[0] as well
     output.erase(std::remove_if(output.begin(), output.end(),
                 [](const InteractionTerm_Step2& term)
-                {return term.r[0]%2 == 1 || term.r[1]%2 == 0 || term.r[2]%2 == 0;}),
+                {return term.r[1]%2 == 0 || term.r[2]%2 == 0;}),
             output.end());
     return output;
 }
@@ -759,18 +762,60 @@ coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
 }
 
 // do all of the integrals which are possible before mu discretization, and
-// return a list of {value, {r exponents}} objects
+// return an object mapping {alpha and r exponents} -> value
 //
 // WARNING: this changes combinedFs so that it can't be reused
-std::vector<InteractionTerm_Output> InteractionOutput(
+NtoN_Final InteractionOutput(
         std::vector<InteractionTerm_Step2>& combinedFs, 
         const MATRIX_TYPE type, const coeff_class prefactor) {
-    std::vector<InteractionTerm_Output> output;
+    NtoN_Final output;
     for (auto& combinedF : combinedFs) {
-        output.emplace_back(prefactor*DoAllIntegrals(combinedF, type), 
-                std::move(combinedF.r) );
+        coeff_class integralPart = prefactor*DoAllIntegrals(combinedF, type);
+
+        const NtoN_Final& expansion = Expand(combinedF.r);
+        for (const auto& pair : expansion) {
+            if (output.count(pair.first) == 0) {
+                output.emplace(pair.first, pair.second*integralPart);
+            } else {
+                output[pair.first] += pair.second*integralPart;
+            }
+        }
     }
     return output;
+}
+
+// do the double multinomial expansion to turn a list of exponents of 
+// {r, sqrt(1-r^2), sqrt(1-alpha^2 r^2)} into a map from exponents of 
+// {alpha^2, r} to their coefficients (both represent a single monomial which is
+// the product of its constituent powers)
+const NtoN_Final& Expand(const std::array<char,3>& r) {
+    static std::unordered_map<std::array<char,3>, NtoN_Final,
+                              boost::hash<std::array<char,3>> > expansionCache;
+    if (expansionCache.count(r) == 0) {
+        NtoN_Final expansion;
+
+        for (char mb = 0; mb <= r[1]/2; ++mb) {
+            for (char mc = 0; mc <= r[2]/2; ++mc) {
+                coeff_class value = Multinomial::Choose(r[1]/2, mb)
+                                  * Multinomial::Choose(r[2]/2, mc);
+                if ((mb + mc)%2 == 1) value = -value;
+
+                // if (std::isnan(static_cast<builtin_class>(value))) {
+                    // std::cerr << "Error: Expand(" << r << ", "
+                        // << std::array<char,2>{{mb, mc}} << ") has a NaN value." 
+                        // << std::endl;
+                // }
+
+                std::array<char,2> key{{mc, 
+                                        static_cast<char>(r[0] + 2*mb + 2*mb)}};
+                expansion.emplace(key, value);
+            }
+        }
+
+        expansionCache.emplace(r, std::move(expansion));
+    }
+
+    return expansionCache[r];
 }
 
 // do all of the integrals which are possible before mu discretization, and
