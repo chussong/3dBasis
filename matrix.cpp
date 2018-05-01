@@ -195,7 +195,12 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         auto terms = MatrixTerm_NtoN(A, B);
         DMatrix output = DMatrix::Zero(partitions, partitions);
         for (auto& term : terms) {
-            // std::cout << "Term: " << term.r << std::endl;
+            // if (!std::isfinite(static_cast<builtin_class>(newTerm.second))) {
+                // std::cerr << "Error: term (" << newTerm.first << ", " 
+                    // << newTerm.second << ") is not finite." << std::endl;
+            // }
+            // std::cout << "Term: (" << term.first << ", " << term.second 
+                // << ")" << std::endl;
             output += term.second*MuPart_NtoN(A.NParticles(), term.first, 
                                               partitions);
         }
@@ -274,6 +279,10 @@ NtoN_Final MatrixTerm_NtoN(const Mono& A, const Mono& B) {
             auto newTerms = InteractionOutput(combinedFs, MAT_INTER_SAME_N, 
                     prefactor);
             for (const auto& newTerm : newTerms) {
+                // if (!std::isfinite(static_cast<builtin_class>(newTerm.second))) {
+                    // std::cerr << "Error: term (" << newTerm.first << ", " 
+                        // << newTerm.second << ") is not finite." << std::endl;
+                // }
                 if (output.count(newTerm.first) == 0) {
                     output.insert(newTerm);
                     // output.emplace(newTerm.first, newTerm.second);
@@ -635,7 +644,7 @@ std::vector<InteractionTerm_Step2> CombineInteractionFs(
     //        and make sure it's not safe to delete odd r[0] as well
     output.erase(std::remove_if(output.begin(), output.end(),
                 [](const InteractionTerm_Step2& term)
-                {return term.r[1]%2 == 0 || term.r[2]%2 == 0;}),
+                {return term.r[1]%2 == 1 || term.r[2]%2 == 1;}),
             output.end());
     return output;
 }
@@ -674,7 +683,7 @@ InteractionTerm_Step2 CombineInteractionFs_OneTerm(
         output.r[2] = f2.yTilde.back();
     } else {
         // set output r so that it doesn't get erased after it's returned
-        output.r = {{0, 1, 1}};
+        output.r = {{0, 0, 0}};
     }
     return output;
 }
@@ -772,8 +781,20 @@ NtoN_Final InteractionOutput(
     for (auto& combinedF : combinedFs) {
         coeff_class integralPart = prefactor*DoAllIntegrals(combinedF, type);
 
+        // if (!std::isfinite(static_cast<builtin_class>(integralPart))) {
+            // std::cerr << "Error: integralPart(" << combinedF.u << ", " 
+                // << combinedF.theta << ", " << prefactor << ") is not finite." 
+                // << std::endl;
+        // }
+
         const NtoN_Final& expansion = Expand(combinedF.r);
         for (const auto& pair : expansion) {
+            // if (!std::isfinite(static_cast<builtin_class>(pair.second))) {
+                // std::cerr << "Error: Expand(" << combinedF.r 
+                    // << ") returns a non-finite coefficient of " << pair.first
+                    // << "." << std::endl;
+            // }
+
             if (output.count(pair.first) == 0) {
                 output.emplace(pair.first, pair.second*integralPart);
             } else {
@@ -806,11 +827,18 @@ const NtoN_Final& Expand(const std::array<char,3>& r) {
                         // << std::endl;
                 // }
 
+
                 std::array<char,2> key{{mc, 
-                                        static_cast<char>(r[0] + 2*mb + 2*mb)}};
+                                        static_cast<char>(r[0] + 2*mb + 2*mc)}};
                 expansion.emplace(key, value);
             }
         }
+
+        // std::cout << "Expand(" << r << ") =\n";
+        // for (const auto& entry : expansion) {
+            // std::cout << "(" << entry.first << ", " << entry.second << ")"
+                // << std::endl;
+        // }
 
         expansionCache.emplace(r, std::move(expansion));
     }
@@ -952,9 +980,9 @@ coeff_class DoAllIntegrals(InteractionTerm_Step2& term, const MATRIX_TYPE type){
             term.theta[2*k] += n-k-3;
         }
 
-        term.r[0] += n-3;
-        term.r[1] -= 1;
-        term.r[2] -= 1;
+        // term.r[0] += n-3;
+        // term.r[1] -= 1;
+        // term.r[2] -= 1;
     }
 
     // this part actually does the integrals

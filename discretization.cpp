@@ -146,6 +146,7 @@ const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr,
     return nPlus2Cache[nr];
 }
 
+// FIXME: this NaNs out when mu2_ab[0] == 0
 coeff_class NPlus2Window(const char n, const char r, 
         const std::array<builtin_class,2>& mu1_ab,
         const std::array<builtin_class,2>& mu2_ab) {
