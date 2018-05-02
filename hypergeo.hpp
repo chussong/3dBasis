@@ -3,12 +3,14 @@
 
 #include <cmath>
 #include <array>
+#include <iostream>
 
 #include "constants.hpp"
+#include "io.hpp"
 
 // generic hypergeometric function --------------------------------------------
 
-// FIXME: sort a & b parameter lists before calling these functions
+// TODO: sort a & b parameter lists before calling these functions
 // (they don't assume the lists are sorted, but it will make it easier to hash
 // the results)
 

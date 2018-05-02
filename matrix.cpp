@@ -675,8 +675,10 @@ InteractionTerm_Step2 CombineInteractionFs_OneTerm(
             output.theta[2*i + 1] = f1.yTilde[i] + f2.yTilde[i];
         }
 
+        output.alpha = 0;
         output.r[0] = 0;
         for (std::size_t i = 0; i < f1.yTilde.size()-1; ++i) {
+            output.alpha += f2.yTilde[i];
             output.r[0] += f1.yTilde[i] + f2.yTilde[i];
         }
         output.r[1] = f1.yTilde.back();
@@ -787,7 +789,7 @@ NtoN_Final InteractionOutput(
                 // << std::endl;
         // }
 
-        const NtoN_Final& expansion = Expand(combinedF.r);
+        const NtoN_Final& expansion = Expand(combinedF.r, combinedF.alpha);
         for (const auto& pair : expansion) {
             // if (!std::isfinite(static_cast<builtin_class>(pair.second))) {
                 // std::cerr << "Error: Expand(" << combinedF.r 
@@ -809,7 +811,7 @@ NtoN_Final InteractionOutput(
 // {r, sqrt(1-r^2), sqrt(1-alpha^2 r^2)} into a map from exponents of 
 // {alpha^2, r} to their coefficients (both represent a single monomial which is
 // the product of its constituent powers)
-const NtoN_Final& Expand(const std::array<char,3>& r) {
+const NtoN_Final& Expand(const std::array<char,3>& r, const char alpha) {
     static std::unordered_map<std::array<char,3>, NtoN_Final,
                               boost::hash<std::array<char,3>> > expansionCache;
     if (expansionCache.count(r) == 0) {
@@ -828,7 +830,7 @@ const NtoN_Final& Expand(const std::array<char,3>& r) {
                 // }
 
 
-                std::array<char,2> key{{mc, 
+                std::array<char,2> key{{static_cast<char>(alpha + 2*mc), 
                                         static_cast<char>(r[0] + 2*mb + 2*mc)}};
                 expansion.emplace(key, value);
             }

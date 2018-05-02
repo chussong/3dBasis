@@ -63,8 +63,6 @@ namespace {
     // caches for expensive functions
     std::unordered_map<std::array<builtin_class,6>,coeff_class,
         boost::hash<std::array<builtin_class,6>> > hgfrCache;
-    std::unordered_map<std::array<builtin_class,4>,coeff_class,
-        boost::hash<std::array<builtin_class,4>> > hg2f1Cache;
     std::unordered_map<std::array<builtin_class,3>,coeff_class,
         boost::hash<std::array<builtin_class,3>> > betaCache;
 } // anonymous namespace
@@ -90,13 +88,14 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
     return intCache[exponents];
 }
 
-// first exponent is that of alpha^2, and the second is that of r (not squared)
+// first exponent is that of alpha, and the second is that of r
 // FIXME: this needs a special case for 4*exponents[0] + n == 5
 coeff_class NtoNWindow(const unsigned int n,
                        const std::array<char,2>& exponents,
                        const std::array<builtin_class,2>& mu1sq_ab,
                        const std::array<builtin_class,2>& mu2sq_ab) {
-    const builtin_class a = exponents[0] + builtin_class(n)/4.0;
+    // a is the exponent of alpha^2; b is the exponent of r (not squared)
+    const builtin_class a = exponents[0]/2.0 + n/4.0;
     const builtin_class b = exponents[1];
 
     coeff_class output = 16;
@@ -132,7 +131,12 @@ const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr,
     if (nPlus2Cache.count(nr) == 0) {
         DMatrix block(partitions, partitions);
         for (std::size_t winA = 0; winA < partitions; ++winA) {
-            for (std::size_t winB = 0; winB < partitions; ++winB) {
+            // this is 0 when alpha > 1, so winB >= winA; when winB == winA, we 
+            // need to use a special answer as well
+            block(winA, winA) = NPlus2Window_Equal(nr[0], nr[1], 
+                                                   winA*partWidth, 
+                                                   (winA+1)*partWidth);
+            for (std::size_t winB = winA+1; winB < partitions; ++winB) {
                 block(winA, winB) = NPlus2Window(nr[0], nr[1], 
                         {{static_cast<builtin_class>(winA*partWidth),
                         static_cast<builtin_class>((winA+1)*partWidth)}},
@@ -178,48 +182,33 @@ coeff_class NPlus2Window(const char n, const char r,
     return overall * hypergeos;
 }
 
-coeff_class NPlus2Window_Less(const char n, const builtin_class a, 
-        const std::array<builtin_class,2>& mu1_ab,
-        const std::array<builtin_class,2>& mu2_ab) {
-    coeff_class overall = 6.0;
-    if (static_cast<int>(std::round(a))%2 == 0) overall = -overall;
+// This is different from the generic case because it needs to stop when alpha
+// is 1, i.e. when mu2 >= mu1; luckily it's still pretty simple
+coeff_class NPlus2Window_Equal(const char n, const char r, 
+        const builtin_class mu_a, const builtin_class mu_b) {
+    builtin_class a = 0.5 * r;
+    
+    coeff_class gammaPart = std::pow(mu_b, 1.5) * std::tgamma((n+1.0)/4.0) 
+                          / std::tgamma((n+5.0)/4.0 + a);
+    gammaPart -= std::pow(mu_a, 1.5) * std::tgamma((n-5.0)/4.0) 
+               / std::tgamma((n-1.0)/4.0 + a);
+    gammaPart *= 2.0 * std::tgamma(a+1.0) / 3.0;
 
-    coeff_class betas = 0;
-    for (std::size_t i = 0; i < 2; ++i) {
-        coeff_class mu1 = mu1_ab[i];
-        for (std::size_t j = 0; j < 2; ++j) {
-            coeff_class mu2 = mu2_ab[j];
-            int sign = (i+j)%2 == 0 ? 1 : -1;
+    coeff_class hyperPart = 
+        Hypergeometric2F1(-a, (n-5.0)/4.0, (n-1.0)/4.0, mu_a/mu_b) / (n - 5.0);
+    hyperPart -= 
+        Hypergeometric2F1(-a, (n+1.0)/4.0, (n+5.0)/4.0, mu_a/mu_b) / (n + 1.0);
+    hyperPart *= 8.0 * std::pow(mu_a, (n+1.0)/4.0) * std::pow(mu_b, (n-5.0)/4.0)
+               / 3.0;
 
-            builtin_class x = (mu2*mu2) / (mu1*mu1);
-
-            betas += sign * (mu2*mu2*mu2*Beta({{x, -0.25 - a - 0.25*n, 1.0 + a}})
-                    - mu1*mu1*mu1*Beta({{x, 1.25 - a - 0.25*n, 1.0 + a}}));
-        }
-    }
-
-    if (std::isnan(static_cast<builtin_class>(betas))) {
-        std::cerr << "Error: NPLus2Window_Less(" << (int)n << ", " << a 
-            << ", " << mu1_ab << ", " << mu2_ab << ") returns a NaN." 
-            << std::endl;
-    }
-    return betas / overall;
-}
-
-// all three window types seem to actually be the same
-coeff_class NPlus2Window_Equal(const char n, const builtin_class a, 
-        const std::array<builtin_class,2>& mu_ab) {
-    return NPlus2Window_Less(n, a, mu_ab, mu_ab);
-}
-
-coeff_class NPlus2Window_Greater(const char n, const builtin_class a, 
-        const std::array<builtin_class,2>& mu1_ab,
-        const std::array<builtin_class,2>& mu2_ab) {
-    return NPlus2Window_Less(n, a, mu1_ab, mu2_ab);
+    return gammaPart + hyperPart;
 }
 
 coeff_class Hypergeometric2F1(const builtin_class a, const builtin_class b,
         const builtin_class c, const builtin_class x) {
+    static std::unordered_map< std::array<builtin_class,4>,coeff_class,
+                          boost::hash<std::array<builtin_class,4>> > hg2f1Cache;
+
     const std::array<builtin_class,4> params = {{a, b, c, x}};
     if (hg2f1Cache.count(params) == 0) {
         hg2f1Cache.emplace(params, HypergeometricPFQ<2,1>({{a,b}}, {{c}}, x));

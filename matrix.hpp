@@ -101,6 +101,8 @@ struct InteractionTerm_Step2 {
     std::vector<char> theta;
     // r, sqrt(1 - r^2), sqrt(1 - alpha^2 r^2)
     std::array<char,3> r;
+    // the overall power of alpha derived from all yTilde' except the last one
+    char alpha;
 };
 OStream& operator<<(OStream& os, const InteractionTerm_Step2& out);
 
@@ -196,7 +198,7 @@ InteractionTerm_Step2 CombineInteractionFs_OneTerm(
 NtoN_Final InteractionOutput(
         std::vector<InteractionTerm_Step2>& combinedFs, 
         const MATRIX_TYPE type, const coeff_class prefactor);
-const NtoN_Final& Expand(const std::array<char,3>& r);
+const NtoN_Final& Expand(const std::array<char,3>& r, const char alpha);
 
 std::vector<NPlus2Term_Step2> CombineNPlus2Fs(
         const std::vector<MatrixTerm_Intermediate>& F1, 
