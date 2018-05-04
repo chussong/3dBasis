@@ -194,13 +194,14 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
     if (type == MAT_INTER_SAME_N) {
         auto terms = MatrixTerm_NtoN(A, B);
         DMatrix output = DMatrix::Zero(partitions, partitions);
+        std::cout << "NtoN terms for " << A << " x " << B << ":\n";
         for (auto& term : terms) {
             // if (!std::isfinite(static_cast<builtin_class>(newTerm.second))) {
                 // std::cerr << "Error: term (" << newTerm.first << ", " 
                     // << newTerm.second << ") is not finite." << std::endl;
             // }
-            // std::cout << "Term: (" << term.first << ", " << term.second 
-                // << ")" << std::endl;
+            std::cout << "(" << term.first << ", " << term.second << ")" 
+                << std::endl;
             output += term.second*MuPart_NtoN(A.NParticles(), term.first, 
                                               partitions);
         }
@@ -209,8 +210,10 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         const char n = A.NParticles();
         auto terms = MatrixTerm_NPlus2(A, B);
         DMatrix output = DMatrix::Zero(partitions, partitions);
+        std::cout << "N+2 terms for " << A << " x " << B << ":\n";
         for (const auto& term : terms) {
-            // std::cout << "Term: " << term.r << std::endl;
+            std::cout << term.coeff << " * (" << (int)n << ", " << 
+                (int)term.r << ")" << std::endl;
             output += term.coeff*MuPart_NPlus2(std::array<char,2>{{n, term.r}}, 
                     partitions);
         }
@@ -640,7 +643,7 @@ std::vector<InteractionTerm_Step2> CombineInteractionFs(
     // output.erase(std::remove_if(output.begin(), output.end(),
                 // [](const InteractionTerm_Step2& term){return term.r[0]%2 == 1;}),
             // output.end());
-    // FIXME: verify that this variant targeting all odd powers is legitimate,
+    // TODO: verify that this variant targeting all odd powers is legitimate,
     //        and make sure it's not safe to delete odd r[0] as well
     output.erase(std::remove_if(output.begin(), output.end(),
                 [](const InteractionTerm_Step2& term)
@@ -878,14 +881,9 @@ coeff_class Prefactor(const Mono& A, const Mono&, const MATRIX_TYPE type) {
     return 0;
 }
 
-namespace {
-    std::unordered_map<char, coeff_class> ipPrefactorCache;
-    std::unordered_map<char, coeff_class> sameNPrefactorCache;
-    std::unordered_map<char, coeff_class> nPlus2PrefactorCache;
-} // anonymous namespace
-
 // this follows (2.2) in Matrix Formulas.pdf
 coeff_class InnerProductPrefactor(const char n) {
+    static std::unordered_map<char, coeff_class> ipPrefactorCache;
     if (ipPrefactorCache.count(n) == 0) {
         coeff_class denominator = std::tgamma(n+1); // tgamma = "true" gamma fcn
         denominator *= std::pow(8, n-1);
@@ -904,6 +902,7 @@ coeff_class MassMatrixPrefactor(const char n) {
 }
 
 coeff_class InteractionMatrixPrefactor(const char n) {
+    static std::unordered_map<char, coeff_class> sameNPrefactorCache;
     if (sameNPrefactorCache.count(n) == 0) {
         coeff_class denominator = std::tgamma(n-1);
         denominator *= std::pow(M_PI*M_PI, n-1);
@@ -915,6 +914,7 @@ coeff_class InteractionMatrixPrefactor(const char n) {
 }
 
 coeff_class NPlus2MatrixPrefactor(const char n) {
+    static std::unordered_map<char, coeff_class> nPlus2PrefactorCache;
     if (nPlus2PrefactorCache.count(n) == 0) {
         coeff_class denominator = std::tgamma(n);
         denominator *= 6;
@@ -962,7 +962,7 @@ coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
 //
 // WARNING: this changes the exponents in term, rendering it non-reusable
 //
-// FIXME: may as well hash the results of this
+// TODO: may as well hash the results of this
 coeff_class DoAllIntegrals(InteractionTerm_Step2& term, const MATRIX_TYPE type){
     // std::cout << "DoAllIntegrals(" << term.u << ", " << term.theta << ")"
         // << std::endl;
@@ -1005,11 +1005,11 @@ coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
     coeff_class output = term.coeff;
 
     // do the non-primed u integrals first
-    for (auto i = 0u; i < n-1; ++i) {
-        output *= UPlusIntegral(term.u[2*i] + 3, 5*(n - i) - 7 + term.u[2*i + 1]);
+    for (std::size_t i = 0; i < n-1; ++i) {
+        output *= UPlusIntegral(term.u[2*i] + 3, 5*(n - i) - 3 + term.u[2*i + 1]);
     }
 
-    // next the two primed u integrals (FIXME: check additions!!)
+    // next the two primed u integrals (TODO: check additions!!)
     output *= UPlusIntegral(term.u[2*(n-1)] + 1, term.u[2*(n-1) + 1] + 1);
     output *= UPlusIntegral(term.u[2*n] + 1, term.u[2*n + 1] + 4);
 
@@ -1029,9 +1029,7 @@ coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
     // I think this one (the primed one) is guaranteed to be there
     output *= ThetaIntegral_Long(term.theta[2*(n-2)], term.theta[2*(n-2) + 1]);
 
-    // std::cout << term.coeff << " * {" << term.uPlus << ", " << term.uMinus
-        // << ", " << term.sinTheta << ", " << term.cosTheta << "} -> " << output 
-        // << std::endl;
+    // std::cout << "DOALLINTEGRALS_OUTPUT:" << output << '\n';
     return output;
 }
 
@@ -1058,8 +1056,9 @@ builtin_class ThetaIntegral_Short(const builtin_class a, const builtin_class b) 
     if (b < a) std::swap(abArray[0], abArray[1]);
     if (thetaCache.count(abArray) == 1) return thetaCache.at(abArray);
 
-    builtin_class ret = std::exp(std::lgamma((1+a)/2) + std::lgamma((1+b)/2) 
-                    - std::lgamma((2 + a + b)/2) );
+    // builtin_class ret = std::exp(std::lgamma((1+a)/2) + std::lgamma((1+b)/2) 
+                    // - std::lgamma((2 + a + b)/2) );
+    builtin_class ret = gsl_sf_beta((a+1.0)/2.0, (b+1.0)/2.0);
     thetaCache.emplace(abArray, ret);
     return ret;
 }
@@ -1071,37 +1070,5 @@ builtin_class ThetaIntegral_Long(const builtin_class a, const builtin_class b) {
     if (static_cast<int>(a+b) % 2 == 1) return 0;
     return 2*ThetaIntegral_Short(a, b);
 }
-
-// Integral of r -- the answer depends on alpha, so I think this can not be
-// completed until the discretization step
-//
-// Actually, the alpha dependence can be recorded: it depends on a via 
-// arguments to the hypergeometric functions, and if 0 < alpha < 1 then we get
-// the alpha > 1 answer with alpha -> 1/alpha, except that a factor of 
-// alpha^(-1 - a) disappears
-//
-// The answer given assumes alpha > 1, so it must start there or be inverted.
-// The other answer is probably actually cleaner, since it has alpha^2 in the
-// hypergeometrics instead of 1/alpha^2.
-/*builtin_class RIntegral(const builtin_class a, builtin_class alpha) {
-    if (alpha < 1) {
-        rCache.emplace(alpha, RIntegral(a, 1/alpha)*std::pow(alpha, -a-1));
-    }
-    if (rCache.count(a) == 0) {
-        value = std::sqrt(M_PI) * std::tgamma((a+1)/2) / 4;
-        value /= (alpha*alpha - 1);
-        // if (alpha > 1) value *= std::pow(alpha, -a - 1); // OBVIOUSLY WON'T WORK
-
-        builtin_class hypergeos = 2 * alpha*alpha *
-            gsl_sf_hyperg_2F1(-0.5, (a+1)/2, a/2+1, 1/(alpha*alpha))
-            / std::tgamma(a/2 + 1);
-        hypergeos -= gsl_sf_hyperg_2F1(0.5, (a+1)/2, a/2+2, 1/(alpha*alpha))
-            / std::tgamma(a/2 + 2);
-        value *= hypergeos;
-        rCache.emplace(aalpha, value);
-    }
-
-    return rCache.at(a);
-}*/
 
 } // namespace MatrixInternal

@@ -131,7 +131,7 @@ const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr,
     if (nPlus2Cache.count(nr) == 0) {
         DMatrix block(partitions, partitions);
         for (std::size_t winA = 0; winA < partitions; ++winA) {
-            // this is 0 when alpha > 1, so winB >= winA; when winB == winA, we 
+            // entry is 0 when alpha > 1, so winB >= winA; when winB == winA, we
             // need to use a special answer as well
             block(winA, winA) = NPlus2Window_Equal(nr[0], nr[1], 
                                                    winA*partWidth, 
@@ -150,7 +150,6 @@ const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr,
     return nPlus2Cache[nr];
 }
 
-// FIXME: this NaNs out when mu2_ab[0] == 0
 coeff_class NPlus2Window(const char n, const char r, 
         const std::array<builtin_class,2>& mu1_ab,
         const std::array<builtin_class,2>& mu2_ab) {
@@ -166,7 +165,8 @@ coeff_class NPlus2Window(const char n, const char r,
 
             builtin_class x = mu1 / mu2;
 
-            coeff_class term = sign * std::pow(mu1, 0.5) * std::pow(mu2, 1.0);
+            coeff_class term = sign * std::pow(mu1, (n+1.0)/4.0) 
+                             / std::pow(mu2, (n-5.0)/4.0);
             hypergeos += term * 
                 Hypergeometric2F1(-a, (n+1.0)/4.0, (n+5.0)/4.0, x) / (n + 1.0);
             hypergeos -= term * 
@@ -198,8 +198,8 @@ coeff_class NPlus2Window_Equal(const char n, const char r,
         Hypergeometric2F1(-a, (n-5.0)/4.0, (n-1.0)/4.0, mu_a/mu_b) / (n - 5.0);
     hyperPart -= 
         Hypergeometric2F1(-a, (n+1.0)/4.0, (n+5.0)/4.0, mu_a/mu_b) / (n + 1.0);
-    hyperPart *= 8.0 * std::pow(mu_a, (n+1.0)/4.0) * std::pow(mu_b, (n-5.0)/4.0)
-               / 3.0;
+    hyperPart *= (8.0 * std::pow(mu_a, (n+1.0)/4.0))
+               / (3.0 * std::pow(mu_b, (n-5.0)/4.0));
 
     return gammaPart + hyperPart;
 }
