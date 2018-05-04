@@ -83,8 +83,10 @@ std::vector<Poly> ComputeBasisStates_SameParity(
     return orthogonalized;
 }
 
+// output a matrix where each column is one of the basis vectors expressed in
+// terms of the monomials on the minimal basis
 DMatrix PolysOnMinBasis(const Basis<Mono>& minimalBasis,
-        const std::vector<Poly> orthogonalized, OStream&) {
+                        const std::vector<Poly> orthogonalized, OStream&) {
     DMatrix polysOnMinBasis(minimalBasis.size(), orthogonalized.size());
     for (std::size_t i = 0; i < orthogonalized.size(); ++i) {
         polysOnMinBasis.col(i) = minimalBasis.DenseExpressPoly(
@@ -244,12 +246,12 @@ DMatrix NPlus2Block(const Basis<Mono>& basisA, const DMatrix& discPolysA,
     *args.console << "NPlus2Block(" << args.numP-2 << " -> " << args.numP << ")" 
         << endl;
     Timer timer;
-    std::string suffix = std::to_string(args.numP) + (odd ? ", odd" : ", even");
+    std::string suffix = std::to_string(args.numP-2) 
+                       + (odd ? ", odd" : ", even");
 
     timer.Start();
     DMatrix monoNPlus2(NPlus2Matrix(basisA, basisB, args.partitions));
     DMatrix polyNPlus2 = discPolysA.transpose()*monoNPlus2*discPolysB;
-    // FIXME?? if above line throws at runtime, swap A and B
     OutputMatrix(monoNPlus2, polyNPlus2, "NPlus2 matrix", suffix, timer, args);
 
     return (args.lambda*args.cutoff) * polyNPlus2;

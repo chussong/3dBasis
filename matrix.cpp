@@ -209,13 +209,24 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
     } else if (type == MAT_INTER_N_PLUS_2) {
         const char n = A.NParticles();
         auto terms = MatrixTerm_NPlus2(A, B);
+        // algebraically add terms by r exponent before doing the discretization
+        std::unordered_map<char, coeff_class> addedTerms;
+        for (const auto& term : terms) {
+            if (addedTerms.count(term.r) == 0) {
+                addedTerms.emplace(term.r, term.coeff);
+            } else {
+                addedTerms[term.r] += term.coeff;
+            }
+        }
+
         DMatrix output = DMatrix::Zero(partitions, partitions);
         std::cout << "N+2 terms for " << A << " x " << B << ":\n";
-        for (const auto& term : terms) {
-            std::cout << term.coeff << " * (" << (int)n << ", " << 
-                (int)term.r << ")" << std::endl;
-            output += term.coeff*MuPart_NPlus2(std::array<char,2>{{n, term.r}}, 
-                    partitions);
+        for (const auto& term : addedTerms) {
+            std::cout << term.second << " * (" << (int)n << ", " << 
+                (int)term.first << ")" << std::endl;
+            output += term.second
+                    * MuPart_NPlus2(std::array<char,2>{{n, term.first}}, 
+                                    partitions);
         }
         return output;
     } else {

@@ -428,9 +428,10 @@ inline bool SortPriority(const Mono& A, const Mono& B) {
     } else if (A.TotalPt() != B.TotalPt()) {
         return A.TotalPt() < B.TotalPt();
     } else if (A.MaxPm() != B.MaxPm()) {
-        return A.MaxPm() < B.MaxPm();
+        // within a given degree, favor states that are tall rather than wide
+        return A.MaxPm() > B.MaxPm();
     } else {
-        return A.MaxPt() < B.MaxPt();
+        return A.MaxPt() > B.MaxPt();
     }
 }
 
