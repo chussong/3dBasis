@@ -45,6 +45,12 @@ DMatrix NPlus2Block(const Basis<Mono>& basisA, const DMatrix& discPolysA,
                     const Basis<Mono>& basisB, const DMatrix& discPolysB,
                     const Arguments& args, const bool odd);
 
+void AnalyzeHamiltonian(const Hamiltonian& hamiltonian, const Arguments& args);
+void AnalyzeHamiltonian_Dense(const Hamiltonian& hamiltonian, 
+                               const Arguments& args);
+void AnalyzeHamiltonian_Sparse(const Hamiltonian& hamiltonian, 
+                               const Arguments& args);
+
 // stuff for printing results -------------------------------------------------
 
 void OutputMatrix(const DMatrix& monoMatrix, const DMatrix& polyMatrix,

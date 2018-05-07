@@ -9,7 +9,7 @@
 #endif
 
 #include "Eigen/Core"
-// #include "Eigen/Sparse"
+#include "Eigen/Sparse"
 // #include "Eigen/SPQRSupport"
 #include "Eigen/QR"
 #include "Eigen/Eigenvalues"
@@ -39,9 +39,9 @@ typedef double builtin_class;
 // SMatrix and SVector are sparse
 typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, Eigen::Dynamic> DMatrix;
 typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, 1> DVector;
-// typedef Eigen::SparseMatrix<coeff_class> SMatrix;
-// typedef Eigen::SparseVector<coeff_class> SVector;
-// typedef Eigen::Triplet<coeff_class> Triplet;
+typedef Eigen::SparseMatrix<coeff_class> SMatrix;
+typedef Eigen::SparseVector<coeff_class> SVector;
+typedef Eigen::Triplet<coeff_class> Triplet;
 
 #ifdef NO_GUI
 typedef std::ostream OStream;
@@ -99,9 +99,16 @@ typedef Eigen::SelfAdjointEigenSolver<
 /***** Constants and struct definitions which should be widely accessible *****/
 /******************************************************************************/
 
-//constexpr coeff_class delta = 0.25;
+// fuzziness bound for coeff_class -- values smaller than this will be treated
+// as zero for things such as Gram-Schmidt. Note this is much larger than the
+// epsilon defined as "the smallest possible difference between two values"
 constexpr coeff_class EPSILON = 1e-8;
+// maximum number of threads to use for functions I implement. Note that Qt has
+// its own thread system which does not use this variable
 constexpr unsigned int MAX_THREADS = 8u;
+// maximum side length of a matrix to represent it densely; above this, sparse
+// methods will usually be used. Note this is not the number of entries
+constexpr Eigen::Index MAX_DENSE_SIZE = 1e4;
 
 struct Arguments {
     int numP = -1;
