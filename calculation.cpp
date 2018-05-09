@@ -106,11 +106,11 @@ DMatrix ComputeHamiltonian(const Arguments& args) {
     
     *args.outStream << "(*EVEN STATES*)" << endl;
     Hamiltonian evenHam = FullHamiltonian(args, false);
-    AnalyzeHamiltonian(evenHam, args);
+    // AnalyzeHamiltonian(evenHam, args);
 
     *args.outStream << "(*ODD STATES*)" << endl;
     Hamiltonian oddHam  = FullHamiltonian(args, true);
-    AnalyzeHamiltonian(oddHam, args);
+    // AnalyzeHamiltonian(oddHam, args);
 
     *args.outStream << endl;
 

@@ -5,7 +5,7 @@ namespace GUI {
 CalcWidget::CalcWidget(const Arguments& args): console(args.console), 
         outStream(args.outStream), warningStatus(WARNING_ON), 
         nBox(new QSpinBox), lBox(new QSpinBox), dBox(new QDoubleSpinBox),
-        pBox(new QSpinBox), msqBox(new QDoubleSpinBox), 
+        kMaxBox(new QSpinBox), msqBox(new QDoubleSpinBox), 
         lambdaBox(new QDoubleSpinBox), cutoffBox(new QDoubleSpinBox),
         freeButton(new QRadioButton("&Free")),
         interactingButton(new QRadioButton("&Interacting")),
@@ -95,7 +95,7 @@ void CalcWidget::SetupParameterBoxes(QLayout* layout, const Arguments& args) {
     QFrame* paramBoxes = new QFrame;
     QHBoxLayout* paramBoxGrid = new QHBoxLayout;
 
-    QLabel* msqLabel = new QLabel("m" + QString(0x00b2));
+    QLabel* msqLabel = new QLabel("m<sup>2</sup>");
     msqLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
     msqLabel->setBuddy(msqBox);
     msqBox->setRange(0.0, 10.0);
@@ -128,15 +128,15 @@ void CalcWidget::SetupParameterBoxes(QLayout* layout, const Arguments& args) {
     paramBoxGrid->addWidget(cutoffLabel);
     paramBoxGrid->addWidget(cutoffBox);
 
-    QLabel* pLabel = new QLabel("p");
-    pLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
-    pLabel->setBuddy(pBox);
-    pBox->setRange(1, 100);
-    pBox->setValue(args.partitions);
-    pBox->setStatusTip(tr("Number of mu^2 partitions per operator"));
+    QLabel* kMaxLabel = new QLabel("k<sub>max</sub>");
+    kMaxLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
+    kMaxLabel->setBuddy(kMaxBox);
+    kMaxBox->setRange(1, 100);
+    kMaxBox->setValue(args.partitions);
+    kMaxBox->setStatusTip(tr("Number of mu^2 partitions per operator"));
 
-    paramBoxGrid->addWidget(pLabel);
-    paramBoxGrid->addWidget(pBox);
+    paramBoxGrid->addWidget(kMaxLabel);
+    paramBoxGrid->addWidget(kMaxBox);
 
     paramBoxes->setLayout(paramBoxGrid);
     layout->addWidget(paramBoxes);
@@ -185,7 +185,7 @@ void CalcWidget::Calculate() {
     args.numP = nBox->value();
     args.degree = lBox->value();
     args.delta = dBox->isEnabled() ? dBox->value() : 0.0;
-    args.partitions = pBox->value();
+    args.partitions = kMaxBox->value();
     args.msq = msqBox->value();
     args.lambda = lambdaBox->value();
     args.cutoff = cutoffBox->value();

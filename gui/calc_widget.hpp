@@ -54,7 +54,7 @@ class CalcWidget : public QWidget {
         QSpinBox* nBox;
         QSpinBox* lBox;
         QDoubleSpinBox* dBox;
-        QSpinBox* pBox;
+        QSpinBox* kMaxBox;
         QDoubleSpinBox* msqBox;
         QDoubleSpinBox* lambdaBox;
         QDoubleSpinBox* cutoffBox;
