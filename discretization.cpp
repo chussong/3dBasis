@@ -61,8 +61,6 @@ namespace {
     std::unordered_map<std::size_t,DMatrix> nEquals2Matrix;
 
     // caches for expensive functions
-    std::unordered_map<std::array<builtin_class,6>,coeff_class,
-        boost::hash<std::array<builtin_class,6>> > hgfrCache;
     std::unordered_map<std::array<builtin_class,3>,coeff_class,
         boost::hash<std::array<builtin_class,3>> > betaCache;
 } // anonymous namespace
@@ -110,12 +108,88 @@ coeff_class NtoNWindow(const unsigned int n,
         output /= std::pow(mu2sq_ab[0]*mu2sq_ab[1], a);
     }
 
-    if (std::isnan(static_cast<builtin_class>(output))) {
+    if (!std::isfinite(static_cast<builtin_class>(output))) {
         std::cerr << "Error: NtoNWindow(" << n << ", " <<  exponents << ", " 
-            << mu1sq_ab << ", " << mu2sq_ab << ") returns a NaN. (a,b) = (" 
+            << mu1sq_ab << ", " << mu2sq_ab << ") not finite. (a,b) = (" 
             << a << ", " << b << ")" << std::endl;
     }
     return output;
+}
+
+// FIXME?? special case for n=2 (no r integral)??
+coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
+                       const std::array<builtin_class,2>& mu1sq_ab,
+                       const std::array<builtin_class,2>& mu2sq_ab) {
+    const char r = exponents[0]; // exponent of r     (not r^2)
+    const char a = exponents[1]; // exponent of alpha (not alpha^2)
+    const coeff_class overall = std::sqrt(M_PI)*std::tgamma(0.5 + r/2.0) / 3.0;
+
+    coeff_class hypergeos = 0;
+    for (std::size_t i = 0; i < 2; ++i) {
+        builtin_class mu1 = mu1sq_ab[i];
+        for (std::size_t j = 0; j < 2; ++j) {
+            builtin_class mu2 = mu2sq_ab[j];
+            int sign = (i+j)%2 == 0 ? 1 : -1;
+
+            builtin_class x = mu1 / mu2;
+
+            coeff_class common = sign * mu1 * std::sqrt(mu2) * std::pow(x, a/2.0);
+            hypergeos += common * std::tgamma((a+2.0)/2.0) *
+                Hypergeometric3F2_Reg(0.5, 0.5 + r/2.0, (a+2.0)/2.0,
+                                      r/2.0 + 1.0, (a+2.0)/2.0 + 1.0, x);
+            hypergeos -= common * std::tgamma((a-1.0)/2.0) *
+                Hypergeometric3F2_Reg(0.5, 0.5 + r/2.0, (a-1.0)/2.0, 
+                                      r/2.0 + 1.0, (a-1.0)/2.0 + 1.0, x);
+        }
+    }
+
+    if (!std::isfinite(static_cast<builtin_class>(hypergeos))) {
+        std::cerr << "Error: NtoNWindow(" << exponents << ", " 
+            << mu1sq_ab << ", " << mu2sq_ab << ") not finite." << std::endl;
+    }
+    return overall * hypergeos;
+}
+
+coeff_class NtoNWindow_Greater(const std::array<char,2>& exponents,
+                       const std::array<builtin_class,2>& mu1sq_ab,
+                       const std::array<builtin_class,2>& mu2sq_ab) {
+    return NtoNWindow_Less({{exponents[0],
+                             static_cast<char>(exponents[0]-exponents[1])}}, 
+                             mu2sq_ab, mu1sq_ab);
+}
+
+coeff_class NtoNWindow_Equal(const std::array<char,2>& exponents,
+                             const std::array<builtin_class,2>& musq_ab) {
+    const char r = exponents[0]; // exponent of r     (not r^2)
+    const char a = exponents[1]; // exponent of alpha (not alpha^2)
+    const coeff_class overall = std::sqrt(M_PI)*std::tgamma(0.5 + r/2.0) / 3.0;
+
+    coeff_class hypergeos = 0;
+    hypergeos += NtoNWindow_Equal_Term(musq_ab, (a+2.0)/2.0,     r, true );
+    hypergeos -= NtoNWindow_Equal_Term(musq_ab, (a-1.0)/2.0,     r, false);
+    hypergeos += NtoNWindow_Equal_Term(musq_ab, ((r-a)+2.0)/2.0, r, true );
+    hypergeos -= NtoNWindow_Equal_Term(musq_ab, ((r-a)-1.0)/2.0, r, false);
+
+    return overall * hypergeos;
+}
+
+coeff_class NtoNWindow_Equal_Term(const std::array<builtin_class,2>& musq_ab,
+                                  const builtin_class arg, const char r,
+                                  const bool useMuB) {
+    const builtin_class& msA = musq_ab[0];
+    const builtin_class& msB = musq_ab[1];
+    coeff_class output = useMuB ? std::pow(msB, 1.5) : std::pow(msA, 1.5);
+    auto HGR = &NtoNWindow_Equal_Hypergeometric;
+    output *= HGR(arg, r, 1);
+    output -= std::pow(msA/msB, arg+0.5)*std::sqrt(msA)*HGR(arg, r, msA/msB);
+    return std::tgamma(arg) * output;
+}
+
+builtin_class NtoNWindow_Equal_Hypergeometric(const builtin_class arg, 
+                                              const builtin_class r,
+                                              const builtin_class x) {
+    return Hypergeometric3F2_Reg(0.5, (r+1.0)/2.0, arg,
+                                 (r+2.0)/2.0, arg + 1, x);
 }
 
 const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr, 
@@ -174,9 +248,9 @@ coeff_class NPlus2Window(const char n, const char r,
         }
     }
 
-    if (std::isnan(static_cast<builtin_class>(hypergeos))) {
+    if (!std::isfinite(static_cast<builtin_class>(hypergeos))) {
         std::cerr << "Error: NPlus2Window(" << (int)n << ", " << a 
-            << ", " << mu1_ab << ", " << mu2_ab << ") returns a NaN." 
+            << ", " << mu1_ab << ", " << mu2_ab << ") not finite." 
             << std::endl;
     }
     return overall * hypergeos;
@@ -217,13 +291,34 @@ coeff_class Hypergeometric2F1(const builtin_class a, const builtin_class b,
     return hg2f1Cache[params];
 }
 
+coeff_class Hypergeometric3F2_Reg(const builtin_class a1, 
+                                  const builtin_class a2,
+                                  const builtin_class a3,
+                                  const builtin_class b1,
+                                  const builtin_class b2,
+                                  const builtin_class x) {
+    return Hypergeometric3F2_Reg({{a1, a2, a3, b1, b2, x}});
+}
+
 coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,3>& a, 
         const std::array<builtin_class,2>& b, const builtin_class x) {
-    std::array<builtin_class,6> params = {{a[0], a[1], a[2], b[0], b[1], x}};
+    return Hypergeometric3F2_Reg({{a[0], a[1], a[2], b[0], b[1], x}});
+}
+
+coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,6>& params) {
+    static std::unordered_map<std::array<builtin_class,6>,coeff_class,
+                          boost::hash<std::array<builtin_class,6>> > hgfrCache;
+
     if (hgfrCache.count(params) == 0) {
-        coeff_class reg = std::tgamma(b[0]) * std::tgamma(b[1]);
+        // coeff_class reg = std::tgamma(b[0]) * std::tgamma(b[1]);
         // hgfrCache.emplace(params, Hypergeometric3F2(a, b, x) / reg);
-        hgfrCache.emplace(params, HypergeometricPFQ<3,2>(a, b, x) / reg);
+        coeff_class value = HypergeometricPFQ_Reg<3,2>({{params[0], 
+                                                         params[1], 
+                                                         params[2]}},
+                                                       {{params[3], 
+                                                         params[4]}}, 
+                                                         params[5]);
+        hgfrCache.emplace(params, value);
     }
 
     return hgfrCache[params];

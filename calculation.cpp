@@ -103,6 +103,7 @@ DMatrix PolysOnMinBasis(const Basis<Mono>& minimalBasis,
 DMatrix ComputeHamiltonian(const Arguments& args) {
     *args.outStream << "(*Hamiltonian test with delta=" << args.delta << "*)"
         << endl;
+    Timer overallTimer;
     
     *args.outStream << "(*EVEN STATES*)" << endl;
     Hamiltonian evenHam = FullHamiltonian(args, false);
@@ -112,7 +113,8 @@ DMatrix ComputeHamiltonian(const Arguments& args) {
     Hamiltonian oddHam  = FullHamiltonian(args, true);
     // AnalyzeHamiltonian(oddHam, args);
 
-    *args.outStream << endl;
+    *args.outStream << "\nEntire computation took " 
+        << overallTimer.TimeElapsedInWords() << "." << endl;
 
     return DMatrix();
 }
