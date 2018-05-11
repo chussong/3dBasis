@@ -53,8 +53,6 @@ DMatrix MuPart_Kinetic(const std::size_t partitions) {
 
 namespace {
     std::unordered_map<std::array<char,2>, DMatrix, 
-        boost::hash<std::array<char,2>> > intCache;
-    std::unordered_map<std::array<char,2>, DMatrix, 
         boost::hash<std::array<char,2>> > nPlus2Cache;
 
     std::unordered_map<std::size_t,DMatrix> zeroMatrix;
@@ -65,19 +63,33 @@ namespace {
         boost::hash<std::array<builtin_class,3>> > betaCache;
 } // anonymous namespace
 
+// before transformation, first exponent is that of alpha, and the second is 
+// that of r; afterward, the first is the exponent of sqrt(alpha), and the
+// second is the exponent of r
 const DMatrix& MuPart_NtoN(const unsigned int n,
-                           const std::array<char,2>& exponents, 
+                           std::array<char,2> exponents, 
                            const std::size_t partitions) {
-    coeff_class partWidth = coeff_class(1) / partitions;
+    static std::unordered_map<std::array<char,2>, DMatrix, 
+                              boost::hash<std::array<char,2>> > intCache;
+
+    exponents[0] = 2*exponents[0] + n - 3;
+    exponents[1] = exponents[1] + n - 3;
+    builtin_class partWidth = builtin_class(1) / partitions;
     if (intCache.count(exponents) == 0) {
         DMatrix block(partitions, partitions);
         for (std::size_t winA = 0; winA < partitions; ++winA) {
-            for (std::size_t winB = 0; winB < partitions; ++winB) {
-                block(winA, winB) = NtoNWindow(n, exponents, 
-                        {{static_cast<builtin_class>(winA*partWidth),
-                        static_cast<builtin_class>((winA+1)*partWidth)}},
-                        {{static_cast<builtin_class>(winB*partWidth), 
-                        static_cast<builtin_class>((winB+1)*partWidth)}} );
+            block(winA, winA) = NtoNWindow_Equal(exponents,
+                                                 {{winA*partWidth, 
+                                                   (winA+1)*partWidth}} );
+            for (std::size_t winB = winA+1; winB < partitions; ++winB) {
+                std::array<builtin_class,2> mu1sq_ab{{winA*partWidth, 
+                                                      (winA+1)*partWidth}};
+                std::array<builtin_class,2> mu2sq_ab{{winB*partWidth, 
+                                                      (winB+1)*partWidth}};
+                block(winA, winB) = NtoNWindow_Less(exponents, mu1sq_ab,
+                                                    mu2sq_ab);
+                block(winB, winA) = NtoNWindow_Greater(exponents, mu2sq_ab,
+                                                       mu1sq_ab);
             }
         }
         intCache.emplace(exponents, std::move(block));
@@ -86,42 +98,11 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
     return intCache[exponents];
 }
 
-// first exponent is that of alpha, and the second is that of r
-// FIXME: this needs a special case for 4*exponents[0] + n == 5
-coeff_class NtoNWindow(const unsigned int n,
-                       const std::array<char,2>& exponents,
-                       const std::array<builtin_class,2>& mu1sq_ab,
-                       const std::array<builtin_class,2>& mu2sq_ab) {
-    // a is the exponent of alpha^2; b is the exponent of r (not squared)
-    const builtin_class a = exponents[0]/2.0 + n/4.0;
-    const builtin_class b = exponents[1];
-
-    coeff_class output = 16;
-    output *= std::pow(mu1sq_ab[1], a + 0.25) - std::pow(mu1sq_ab[0], a + 0.25);
-    output /= (b + 1)*(4*a - 5)*(4*a + 1);
-
-    if (mu2sq_ab[0] == 0) {
-        output *= std::pow(mu2sq_ab[1], 1.25 - a);
-    } else {
-        output *= std::pow(mu2sq_ab[0], 1.25)*std::pow(mu2sq_ab[1], a)
-                - std::pow(mu2sq_ab[1], 1.25)*std::pow(mu2sq_ab[0], a);
-        output /= std::pow(mu2sq_ab[0]*mu2sq_ab[1], a);
-    }
-
-    if (!std::isfinite(static_cast<builtin_class>(output))) {
-        std::cerr << "Error: NtoNWindow(" << n << ", " <<  exponents << ", " 
-            << mu1sq_ab << ", " << mu2sq_ab << ") not finite. (a,b) = (" 
-            << a << ", " << b << ")" << std::endl;
-    }
-    return output;
-}
-
-// FIXME?? special case for n=2 (no r integral)??
 coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
-                       const std::array<builtin_class,2>& mu1sq_ab,
-                       const std::array<builtin_class,2>& mu2sq_ab) {
-    const char r = exponents[0]; // exponent of r     (not r^2)
-    const char a = exponents[1]; // exponent of alpha (not alpha^2)
+                            const std::array<builtin_class,2>& mu1sq_ab,
+                            const std::array<builtin_class,2>& mu2sq_ab) {
+    const builtin_class a = exponents[0]/2.0; // exponent of alpha (not alpha^2)
+    const builtin_class r = exponents[1];     // exponent of r     (not r^2)
     const coeff_class overall = std::sqrt(M_PI)*std::tgamma(0.5 + r/2.0) / 3.0;
 
     coeff_class hypergeos = 0;
@@ -147,21 +128,22 @@ coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
         std::cerr << "Error: NtoNWindow(" << exponents << ", " 
             << mu1sq_ab << ", " << mu2sq_ab << ") not finite." << std::endl;
     }
+
     return overall * hypergeos;
 }
 
 coeff_class NtoNWindow_Greater(const std::array<char,2>& exponents,
                        const std::array<builtin_class,2>& mu1sq_ab,
                        const std::array<builtin_class,2>& mu2sq_ab) {
-    return NtoNWindow_Less({{exponents[0],
-                             static_cast<char>(exponents[0]-exponents[1])}}, 
+    return NtoNWindow_Less({{static_cast<char>(2*exponents[1]-exponents[0]), 
+                             exponents[1]}}, 
                              mu2sq_ab, mu1sq_ab);
 }
 
 coeff_class NtoNWindow_Equal(const std::array<char,2>& exponents,
                              const std::array<builtin_class,2>& musq_ab) {
-    const char r = exponents[0]; // exponent of r     (not r^2)
-    const char a = exponents[1]; // exponent of alpha (not alpha^2)
+    const builtin_class a = exponents[0]/2.0; // exponent of alpha (was sqrt(a))
+    const builtin_class r = exponents[1];     // exponent of r
     const coeff_class overall = std::sqrt(M_PI)*std::tgamma(0.5 + r/2.0) / 3.0;
 
     coeff_class hypergeos = 0;
@@ -170,18 +152,32 @@ coeff_class NtoNWindow_Equal(const std::array<char,2>& exponents,
     hypergeos += NtoNWindow_Equal_Term(musq_ab, ((r-a)+2.0)/2.0, r, true );
     hypergeos -= NtoNWindow_Equal_Term(musq_ab, ((r-a)-1.0)/2.0, r, false);
 
+    if (!std::isfinite(static_cast<builtin_class>(hypergeos))) {
+        std::cerr << "Error: NtoNWindow(" << exponents << ", " 
+            << musq_ab << ") not finite." << std::endl;
+    }
+
     return overall * hypergeos;
 }
 
 coeff_class NtoNWindow_Equal_Term(const std::array<builtin_class,2>& musq_ab,
-                                  const builtin_class arg, const char r,
+                                  const builtin_class arg, 
+                                  const builtin_class r,
                                   const bool useMuB) {
     const builtin_class& msA = musq_ab[0];
     const builtin_class& msB = musq_ab[1];
-    coeff_class output = useMuB ? std::pow(msB, 1.5) : std::pow(msA, 1.5);
     auto HGR = &NtoNWindow_Equal_Hypergeometric;
-    output *= HGR(arg, r, 1);
-    output -= std::pow(msA/msB, arg+0.5)*std::sqrt(msA)*HGR(arg, r, msA/msB);
+    // output *= HGR(arg, r, 1);
+    // output -= std::pow(msA/msB, arg) * std::pow(msA, 1.5) * HGR(arg, r, msA/msB);
+    coeff_class output = useMuB ? std::pow(msB, 1.5) : std::pow(msA, 1.5);
+    if (msA == 0) {
+        // if msA == 0, the second HGR is just 1, so the second term is either
+        // 0 or infinity. If it's infinity it's going to have to cancel, so we
+        // drop it; if it's zero, it'll be zero either way.
+        output *= HGR(arg, r, 1);
+    } else {
+        output *= HGR(arg, r, 1) - std::pow(msA/msB, arg)*HGR(arg, r, msA/msB);
+    }
     return std::tgamma(arg) * output;
 }
 
@@ -312,26 +308,21 @@ coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,6>& params) {
     if (hgfrCache.count(params) == 0) {
         // coeff_class reg = std::tgamma(b[0]) * std::tgamma(b[1]);
         // hgfrCache.emplace(params, Hypergeometric3F2(a, b, x) / reg);
-        coeff_class value = HypergeometricPFQ_Reg<3,2>({{params[0], 
-                                                         params[1], 
-                                                         params[2]}},
-                                                       {{params[3], 
-                                                         params[4]}}, 
-                                                         params[5]);
+        coeff_class value;
+        try {
+            value = HypergeometricPFQ_Reg<3,2>({{params[0], params[1], 
+                                                 params[2]}},
+                                               {{params[3], params[4]}}, 
+                                               params[5]);
+        }
+        catch (const std::runtime_error& err) {
+            std::cerr << "Error: 3F2(" << params << ") did not converge.\n";
+            value = 0.0/0.0;
+        }
+        // std::cout << "Hypergeometric3F2_Reg(" << params << ") = " <<  value 
+            // << '\n';
         hgfrCache.emplace(params, value);
     }
 
     return hgfrCache[params];
-}
-
-// this is the INCOMPLETE BETA FUNCTION, B_args[0](args[1], args[2])
-coeff_class Beta(const std::array<builtin_class,3>& args) {
-    if (betaCache.count(args) == 0) {
-        // need to multiply beta in to go from gsl's regularized IBF -> IBF
-        coeff_class beta = std::exp(std::lgamma(args[1]) + std::lgamma(args[2]) 
-                - std::lgamma(args[1] + args[2]) );
-        betaCache.emplace(args, beta*gsl_sf_beta_inc(args[1], args[2], args[0]));
-    }
-
-    return betaCache[args];
 }

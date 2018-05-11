@@ -34,6 +34,7 @@ bool UPlusIntegral_Case(const builtin_class a, const builtin_class b,
 
 bool Hypergeometric(OStream& console);
 bool InteractionMatrix(const Basis<Mono>& basis, const Arguments& args);
+bool MuPart_NtoN(const Arguments& args);
 
 // templates for testing templates --------------------------------------------
 

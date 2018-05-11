@@ -24,12 +24,8 @@ DMatrix MuPart_Kinetic(const std::size_t partitions);
 // same-n interactions --------------------------------------------------------
 
 const DMatrix& MuPart_NtoN(const unsigned int n, 
-                           const std::array<char,2>& exponents, 
+                           std::array<char,2> exponents, 
                            const std::size_t partitions);
-coeff_class NtoNWindow(const unsigned int n, 
-                       const std::array<char,2>& exponents,
-                       const std::array<builtin_class,2>& mu1_ab,
-                       const std::array<builtin_class,2>& mu2_ab);
 
 coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
                        const std::array<builtin_class,2>& mu1sq_ab,
@@ -40,7 +36,8 @@ coeff_class NtoNWindow_Greater(const std::array<char,2>& exponents,
 coeff_class NtoNWindow_Equal(const std::array<char,2>& exponents,
                              const std::array<builtin_class,2>& musq_ab);
 coeff_class NtoNWindow_Equal_Term(const std::array<builtin_class,2>& musq_ab,
-                                  const builtin_class arg, const char r,
+                                  const builtin_class arg, 
+                                  const builtin_class r,
                                   const bool useMuB);
 builtin_class NtoNWindow_Equal_Hypergeometric(const builtin_class arg, 
                                               const builtin_class r,
@@ -72,6 +69,5 @@ coeff_class NPlus2Window_Equal(const char n, const char r,
 
 coeff_class Hypergeometric2F1(const builtin_class a, const builtin_class b,
         const builtin_class c, const builtin_class x);
-coeff_class Beta(const std::array<builtin_class,3>& args);
 
 #endif

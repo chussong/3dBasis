@@ -192,7 +192,7 @@ coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type) {
 DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         const std::size_t partitions) {
     if (type == MAT_INTER_SAME_N) {
-        auto terms = MatrixTerm_NtoN(A, B);
+        NtoN_Final terms = MatrixTerm_NtoN(A, B);
         DMatrix output = DMatrix::Zero(partitions, partitions);
         std::cout << "NtoN terms for " << A << " x " << B << ":\n";
         for (auto& term : terms) {
@@ -699,6 +699,7 @@ InteractionTerm_Step2 CombineInteractionFs_OneTerm(
         output.r[2] = f2.yTilde.back();
     } else {
         // set output r so that it doesn't get erased after it's returned
+        output.alpha = 0;
         output.r = {{0, 0, 0}};
     }
     return output;

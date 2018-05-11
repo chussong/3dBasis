@@ -36,6 +36,8 @@ bool RunAllTests(const Arguments& args) {
     Basis<Mono> minBasis = ::MinimalBasis(evenStates);
     // result &= Test::InteractionMatrix(minBasis, args);
 
+    result &= MuPart_NtoN(args);
+
     return result;
 }
 
@@ -224,6 +226,28 @@ bool InteractionMatrix(const Basis<Mono>& basis, const Arguments& args) {
     console << ::InteractionMatrix(basis, args.partitions) << endl;
     console << "----- PASSED -----" << endl;
     return true;
+}
+
+bool MuPart_NtoN(const Arguments& args) {
+    OStream& console = *args.console;
+    console << "----- ::MuPart_NtoN -----" << endl;
+    DMatrix muPart = ::MuPart_NtoN(3, {{0, 0}}, 5);
+    DMatrix reference(5, 5);
+    reference << 0.2385140, 0.1321650, 0.0947868, 0.0783601, 0.0683649,
+                 0.1321650, 0.1717750, 0.1140410, 0.0866316, 0.0733793,
+                 0.0947868, 0.1140410, 0.1470790, 0.1032710, 0.0808491,
+                 0.0783601, 0.0866316, 0.1032710, 0.1322320, 0.0957497,
+                 0.0683649, 0.0733793, 0.0808491, 0.0957497, 0.1218690;
+    DMatrix quotient = muPart.array() / reference.array();
+    if (quotient.isOnes(1e-5)) {
+        console << "----- PASSED -----" << endl;
+        return true;
+    } else {
+        console << muPart << "\n^muPart not equal to reference_\n" << reference
+            << "\nratio:\n" << quotient << '\n';
+        console << "----- FAILED -----" << endl;
+        return false;
+    }
 }
 
 } // namespace Test

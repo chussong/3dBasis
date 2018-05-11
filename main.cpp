@@ -9,7 +9,7 @@ int main(int argc, char* argv[]) {
         return EXIT_SUCCESS;
     }
 
-    if ((args.options & OPT_GUI) != 0) {
+    if ((args.options & OPT_TEST) == 0 && (args.options & OPT_GUI) != 0) {
 #ifdef NO_GUI
         std::cerr << "Error: you must enter a number of particles and a degree."
             << std::endl;

@@ -82,7 +82,7 @@ QFrame* CalcWidget::SetupAllLevelsFrame(const Arguments& args) {
     layout->addWidget(dLabel);
     layout->addWidget(dBox);
     dBox->setRange(3.0, 20.0);
-    dBox->setValue(args.delta);
+    dBox->setValue(8.0);
     dBox->setSingleStep(0.5);
     dBox->setStatusTip(tr("Maximum total dimension"));
 
