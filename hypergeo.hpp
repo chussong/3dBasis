@@ -12,7 +12,7 @@
 
 // generic hypergeometric function --------------------------------------------
 
-constexpr int ITERATION_LIMIT = 30000;
+constexpr int ITERATION_LIMIT = 3e6;
 constexpr coeff_class PRECISION_LIMIT = 1e-10;
 
 inline bool IsNegInt(const builtin_class x) {

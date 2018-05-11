@@ -72,8 +72,11 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
     static std::unordered_map<std::array<char,2>, DMatrix, 
                               boost::hash<std::array<char,2>> > intCache;
 
-    exponents[0] = 2*exponents[0] + n - 3;
-    exponents[1] = exponents[1] + n - 3;
+    if (n > 2) {
+        exponents[0] = 2*exponents[0] + n - 3;
+        exponents[1] = exponents[1] + n - 3;
+    }
+
     builtin_class partWidth = builtin_class(1) / partitions;
     if (intCache.count(exponents) == 0) {
         DMatrix block(partitions, partitions);
@@ -118,14 +121,18 @@ coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
             hypergeos += common * std::tgamma((a+2.0)/2.0) *
                 Hypergeometric3F2_Reg(0.5, 0.5 + r/2.0, (a+2.0)/2.0,
                                       r/2.0 + 1.0, (a+2.0)/2.0 + 1.0, x);
-            hypergeos -= common * std::tgamma((a-1.0)/2.0) *
-                Hypergeometric3F2_Reg(0.5, 0.5 + r/2.0, (a-1.0)/2.0, 
-                                      r/2.0 + 1.0, (a-1.0)/2.0 + 1.0, x);
+            // FIXME?? below assumes that all infinite terms must exactly cancel
+            // each other
+            if (exponents[0] != 2) {
+                hypergeos -= common * std::tgamma((a-1.0)/2.0) *
+                    Hypergeometric3F2_Reg(0.5, 0.5 + r/2.0, (a-1.0)/2.0, 
+                                          r/2.0 + 1.0, (a-1.0)/2.0 + 1.0, x);
+            }
         }
     }
 
     if (!std::isfinite(static_cast<builtin_class>(hypergeos))) {
-        std::cerr << "Error: NtoNWindow(" << exponents << ", " 
+        std::cerr << "Error: NtoNWindow_Less(" << exponents << ", " 
             << mu1sq_ab << ", " << mu2sq_ab << ") not finite." << std::endl;
     }
 
@@ -153,7 +160,7 @@ coeff_class NtoNWindow_Equal(const std::array<char,2>& exponents,
     hypergeos -= NtoNWindow_Equal_Term(musq_ab, ((r-a)-1.0)/2.0, r, false);
 
     if (!std::isfinite(static_cast<builtin_class>(hypergeos))) {
-        std::cerr << "Error: NtoNWindow(" << exponents << ", " 
+        std::cerr << "Error: NtoNWindow_Equal(" << exponents << ", " 
             << musq_ab << ") not finite." << std::endl;
     }
 
@@ -164,6 +171,13 @@ coeff_class NtoNWindow_Equal_Term(const std::array<builtin_class,2>& musq_ab,
                                   const builtin_class arg, 
                                   const builtin_class r,
                                   const bool useMuB) {
+    // FIXME?? dubious; but we're assuming that if arg is a pole of the gamma
+    // function it will just produce an infinity which has to cancel against
+    // something
+    if (arg - std::round(arg) < EPSILON) {
+        return 0;
+    }
+
     const builtin_class& msA = musq_ab[0];
     const builtin_class& msB = musq_ab[1];
     auto HGR = &NtoNWindow_Equal_Hypergeometric;
@@ -314,6 +328,9 @@ coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,6>& params) {
                                                  params[2]}},
                                                {{params[3], params[4]}}, 
                                                params[5]);
+            if (!std::isfinite(static_cast<builtin_class>(value))) {
+                std::cerr << "Error: 3F2(" << params << ") = " << value << '\n';
+            }
         }
         catch (const std::runtime_error& err) {
             std::cerr << "Error: 3F2(" << params << ") did not converge.\n";
