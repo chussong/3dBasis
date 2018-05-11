@@ -174,7 +174,7 @@ coeff_class NtoNWindow_Equal_Term(const std::array<builtin_class,2>& musq_ab,
     // FIXME?? dubious; but we're assuming that if arg is a pole of the gamma
     // function it will just produce an infinity which has to cancel against
     // something
-    if (arg - std::round(arg) < EPSILON) {
+    if (arg <= 0 && arg - std::round(arg) < EPSILON) {
         return 0;
     }
 
