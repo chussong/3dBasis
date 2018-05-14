@@ -2,6 +2,7 @@
 #define TEST_HPP
 
 #include <vector>
+#include <array>
 #include <algorithm> // random_shuffle
 
 #include "constants.hpp"
@@ -26,6 +27,7 @@ namespace MatrixInternal {
 bool PermuteXY(OStream& console);
 bool InteractionTermsFromXY(OStream& console);
 bool CombineInteractionFs(OStream& console);
+bool Expand(OStream& console);
 bool UPlusIntegral(OStream& console);
 bool UPlusIntegral_Case(const builtin_class a, const builtin_class b, 
         const builtin_class expected, OStream& console);

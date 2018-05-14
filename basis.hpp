@@ -431,8 +431,12 @@ inline bool SortPriority(const Mono& A, const Mono& B) {
         // FIXME: change so that
         // within a given degree, favor states that are wide rather than tall
         return A.MaxPm() > B.MaxPm();
-    } else {
+    } else if (A.MaxPt() != B.MaxPt()) {
         return A.MaxPt() > B.MaxPt();
+    } else {
+        // if both monos have the same number of each kind of derivative stacked
+        // in the same way, favor the one where p_\perp is farther left
+        return A.Pt(0) > B.Pt(0);
     }
 }
 

@@ -17,6 +17,7 @@ bool RunAllTests(const Arguments& args) {
     result &= MatrixInternal::PermuteXY(console);
     result &= MatrixInternal::InteractionTermsFromXY(console);
     result &= MatrixInternal::CombineInteractionFs(console);
+    result &= MatrixInternal::Expand(console);
     result &= MatrixInternal::UPlusIntegral(console);
     // result &= RIntegral(console);
     result &= Hypergeometric(console);
@@ -131,6 +132,32 @@ bool CombineInteractionFs(OStream& console) {
         for (const auto& res : results) {
             console << res << endl;
         }
+    }
+
+    console << "----- PASSED -----" << endl;
+    return true;
+}
+
+bool Expand(OStream& console) {
+    console << "----- MatrixInternal::Expand -----" << endl;
+
+    std::vector<std::array<char,3>> rCases{{{0, 0, 0}},
+                                           {{2, 0, 0}},
+                                           {{0, 2, 0}},
+                                           {{0, 0, 2}},
+                                           {{1, 2, 0}},
+                                           {{3, 0, 2}},
+                                           {{5, 4, 0}},
+                                           {{2, 2, 4}}};
+    for (const auto& rCase : rCases) {
+        ::MatrixInternal::NtoN_Final expanded(::MatrixInternal::Expand(rCase, 0));
+        console << rCase << " ->\n";
+        for (const auto& pair : expanded) {
+            console << '(' << pair.first << ',' << pair.second << ")\n";
+        }
+
+        // expanded = ::MatrixInternal::Expand(rCase, 3);
+        // console << rCase << " -> " << ::MatrixInternal::Expand(rCase, 3) <<'\n';
     }
 
     console << "----- PASSED -----" << endl;

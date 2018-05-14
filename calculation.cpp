@@ -101,8 +101,17 @@ DMatrix PolysOnMinBasis(const Basis<Mono>& minimalBasis,
 }
 
 DMatrix ComputeHamiltonian(const Arguments& args) {
-    *args.outStream << "(*Hamiltonian test with delta=" << args.delta << "*)"
-        << endl;
+    if (args.delta == 0.0) {
+        *args.outStream << "(*Hamiltonian test at (n,l)=(" << args.numP 
+            << "," << args.degree << "), ";
+    } else {
+        *args.outStream << "(*Hamiltonian test with delta=" << args.delta 
+            << ", ";
+    }
+    *args.outStream << "kMax=" << args.partitions 
+        << ". (m^2, \\lambda, \\Lambda) = (" << args.msq << ',' << args.lambda
+        << ',' << args.cutoff << ")*)" << endl;
+
     Timer overallTimer;
     
     *args.outStream << "(*EVEN STATES*)" << endl;
@@ -113,7 +122,7 @@ DMatrix ComputeHamiltonian(const Arguments& args) {
     Hamiltonian oddHam  = FullHamiltonian(args, true);
     // AnalyzeHamiltonian(oddHam, args);
 
-    *args.outStream << "\nEntire computation took " 
+    *args.console << "\nEntire computation took " 
         << overallTimer.TimeElapsedInWords() << "." << endl;
 
     return DMatrix();
@@ -300,7 +309,7 @@ void AnalyzeHamiltonian_Dense(const Hamiltonian& hamiltonian,
 }
 
 void AnalyzeHamiltonian_Sparse(const Hamiltonian& hamiltonian, 
-                               const Arguments& args) {
+                               const Arguments&) {
     Eigen::Index offset = 0;
     Eigen::Index trailingOffset = 0;
     std::vector<Triplet> triplets;
