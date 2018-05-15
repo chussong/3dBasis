@@ -13,8 +13,8 @@
 #include "constants.hpp"
 #include "hypergeo.hpp"
 
-DMatrix DiscretizePolys(const DMatrix& polysOnMinBasis, 
-        const std::size_t partitions);
+SMatrix DiscretizePolys(const DMatrix& polysOnMinBasis, 
+                        std::size_t partitions);
 
 // direct matrices ------------------------------------------------------------
 

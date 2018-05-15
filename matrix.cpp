@@ -144,10 +144,10 @@ OStream& operator<<(OStream& os, const InteractionTerm_Step2& out) {
 }
 
 // generically return direct or interaction matrix of the specified type
-DMatrix Matrix(const Basis<Mono>& basis, const std::size_t nPart, 
+DMatrix Matrix(const Basis<Mono>& basis, const std::size_t kMax, 
         const MATRIX_TYPE type) {
-    // nPart == 0 means that the Fock part has been requested by itself
-    if (nPart == 0) {
+    // kMax == 0 means that the Fock part has been requested by itself
+    if (kMax == 0) {
         DMatrix fockPart(basis.size(), basis.size());
         for (std::size_t i = 0; i < basis.size(); ++i) {
             fockPart(i, i) = MatrixTerm(basis[i], basis[i], type);
@@ -159,15 +159,15 @@ DMatrix Matrix(const Basis<Mono>& basis, const std::size_t nPart,
 
         return fockPart;
     } else {
-        DMatrix output(basis.size()*nPart, basis.size()*nPart);
+        DMatrix output(basis.size()*kMax, basis.size()*kMax);
         for (std::size_t i = 0; i < basis.size(); ++i) {
-            output.block(i*nPart, i*nPart, nPart, nPart)
-                = MatrixBlock(basis[i], basis[i], type, nPart);
+            output.block(i*kMax, i*kMax, kMax, kMax)
+                = MatrixBlock(basis[i], basis[i], type, kMax);
             for (std::size_t j = i+1; j < basis.size(); ++j) {
-                output.block(i*nPart, j*nPart, nPart, nPart)
-                    = MatrixBlock(basis[i], basis[j], type, nPart);
-                output.block(j*nPart, i*nPart, nPart, nPart)
-                    = output.block(i*nPart, j*nPart, nPart, nPart).transpose();
+                output.block(i*kMax, j*kMax, kMax, kMax)
+                    = MatrixBlock(basis[i], basis[j], type, kMax);
+                output.block(j*kMax, i*kMax, kMax, kMax)
+                    = output.block(i*kMax, j*kMax, kMax, kMax).transpose();
                 // FIXME: make sure above assignment is correct
             }
         }
@@ -277,7 +277,7 @@ NtoN_Final MatrixTerm_NtoN(const Mono& A, const Mono& B) {
     for (auto& count : B.CountIdentical()) degeneracy *= Factorial(count);
 
     coeff_class prefactor = degeneracy*A.Coeff()*B.Coeff()
-        * Prefactor(A, B, MAT_INTER_SAME_N);
+                          * Prefactor(A, B, MAT_INTER_SAME_N);
 
     std::string xAndy_A = ExtractXY(A);
     std::string xAndy_B = ExtractXY(B);
@@ -290,8 +290,7 @@ NtoN_Final MatrixTerm_NtoN(const Mono& A, const Mono& B) {
             fFromB = InteractionTermsFromXY(xAndy_B);
             combinedFs = CombineInteractionFs(fFromA, fFromB);
 
-            auto newTerms = InteractionOutput(combinedFs, MAT_INTER_SAME_N, 
-                    prefactor);
+            auto newTerms = InteractionOutput(combinedFs, prefactor);
             for (const auto& newTerm : newTerms) {
                 // if (!std::isfinite(static_cast<builtin_class>(newTerm.second))) {
                     // std::cerr << "Error: term (" << newTerm.first << ", " 
@@ -791,12 +790,11 @@ coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
 // return an object mapping {alpha and r exponents} -> value
 //
 // WARNING: this changes combinedFs so that it can't be reused
-NtoN_Final InteractionOutput(
-        std::vector<InteractionTerm_Step2>& combinedFs, 
-        const MATRIX_TYPE type, const coeff_class prefactor) {
+NtoN_Final InteractionOutput(std::vector<InteractionTerm_Step2>& combinedFs, 
+                             const coeff_class prefactor) {
     NtoN_Final output;
     for (auto& combinedF : combinedFs) {
-        coeff_class integralPart = prefactor*DoAllIntegrals(combinedF, type);
+        coeff_class integralPart = prefactor*DoAllIntegrals(combinedF);
 
         // if (!std::isfinite(static_cast<builtin_class>(integralPart))) {
             // std::cerr << "Error: integralPart(" << combinedF.u << ", " 
@@ -974,30 +972,23 @@ coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
 // do all the integrals for an interaction matrix computation
 //
 // WARNING: this changes the exponents in term, rendering it non-reusable
-//
-// TODO: may as well hash the results of this
-coeff_class DoAllIntegrals(InteractionTerm_Step2& term, const MATRIX_TYPE type){
+coeff_class DoAllIntegrals(InteractionTerm_Step2& term) {
     // std::cout << "DoAllIntegrals(" << term.u << ", " << term.theta << ")"
         // << std::endl;
     auto n = term.u.size()/2;
-    // using Nikhil's conventions, adjust exponents before doing integrals
-    if (type == MAT_INTER_SAME_N) {
-        for (std::size_t i = 0; i < n-2; ++i) {
-            term.u[2*i] += 3;
-            term.u[2*i + 1] += 5*(n-i) - 3;
-        }
-        term.u[term.u.size()-1] += 1;
-        term.u[term.u.size()-2] += 1;
-        term.u[term.u.size()-3] += 1;
-        term.u[term.u.size()-4] += 1;
 
-        for (std::size_t k = 0; k+4 < n; ++k) {
-            term.theta[2*k] += n-k-3;
-        }
+    // adjust exponents before doing integrals
+    for (std::size_t i = 0; i < n-2; ++i) {
+        term.u[2*i] += 3;
+        term.u[2*i + 1] += 5*(n-i) - 8;
+    }
+    term.u[term.u.size()-1] += 1;
+    term.u[term.u.size()-2] += 1;
+    term.u[term.u.size()-3] += 1;
+    term.u[term.u.size()-4] += 1;
 
-        // term.r[0] += n-3;
-        // term.r[1] -= 1;
-        // term.r[2] -= 1;
+    for (std::size_t k = 0; k+4 < n; ++k) {
+        term.theta[2*k] += n-k-3;
     }
 
     // this part actually does the integrals

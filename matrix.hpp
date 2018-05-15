@@ -195,9 +195,8 @@ std::vector<InteractionTerm_Step2> CombineInteractionFs(
         const std::vector<MatrixTerm_Intermediate>& F2 );
 InteractionTerm_Step2 CombineInteractionFs_OneTerm(
         const MatrixTerm_Intermediate& F1, const MatrixTerm_Intermediate& F2 );
-NtoN_Final InteractionOutput(
-        std::vector<InteractionTerm_Step2>& combinedFs, 
-        const MATRIX_TYPE type, const coeff_class prefactor);
+NtoN_Final InteractionOutput(std::vector<InteractionTerm_Step2>& combinedFs, 
+                             const coeff_class prefactor);
 const NtoN_Final& Expand(const std::array<char,3>& r, const char alpha);
 
 std::vector<NPlus2Term_Step2> CombineNPlus2Fs(
@@ -217,7 +216,7 @@ coeff_class NPlus2MatrixPrefactor(const char n);
 
 // integrals used in FinalResult
 coeff_class DoAllIntegrals(const MatrixTerm_Final& term);
-coeff_class DoAllIntegrals(InteractionTerm_Step2& term, const MATRIX_TYPE type);
+coeff_class DoAllIntegrals(InteractionTerm_Step2& term);
 coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term);
 builtin_class UPlusIntegral(const builtin_class a, const builtin_class b);
 builtin_class ThetaIntegral_Short(const builtin_class a, const builtin_class b);

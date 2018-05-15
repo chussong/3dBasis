@@ -3,19 +3,27 @@
 // Take a non-discretized polysOnMinBasis matrix and return one that expresses
 // the k'th slice of each polynomial in terms of the k'th slices of its 
 // constituent monomials
-DMatrix DiscretizePolys(const DMatrix& polysOnMinBasis, 
-        const std::size_t partitions) {
-    if (partitions == 0) return polysOnMinBasis;
+SMatrix DiscretizePolys(const DMatrix& polysOnMinBasis, 
+                        std::size_t partitions) {
+    // if (partitions == 0) return polysOnMinBasis;
+    if (partitions == 0) partitions = 1;
 
-    DMatrix output(polysOnMinBasis.rows()*partitions,
-            polysOnMinBasis.cols()*partitions);
+    SMatrix output(polysOnMinBasis.rows()*partitions,
+                   polysOnMinBasis.cols()*partitions);
+    std::vector<Triplet> triplets;
     for (Eigen::Index i = 0; i < polysOnMinBasis.rows(); ++i) {
         for (Eigen::Index j = 0; j < polysOnMinBasis.cols(); ++j) {
-            output.block(i*partitions, j*partitions, partitions, partitions) = 
-                polysOnMinBasis(i, j)*DMatrix::Identity(partitions, partitions);
+            for (std::size_t p = 0; p < partitions; ++p) {
+                triplets.emplace_back(i*partitions + p, 
+                                      j*partitions + p, 
+                                      polysOnMinBasis(i, j));
+            }
+            // output.block(i*partitions, j*partitions, partitions, partitions) = 
+                // polysOnMinBasis(i, j)*DMatrix::Identity(partitions, partitions);
         }
     }
 
+    output.setFromTriplets(triplets.begin(), triplets.end());
     return output;
 }
 

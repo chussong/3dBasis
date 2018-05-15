@@ -146,7 +146,7 @@ Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
     OStream& outStream = *args.outStream;
 
     std::vector<Basis<Mono>> minBases;
-    std::vector<DMatrix> discPolys;
+    std::vector<SMatrix> discPolys;
     for (int n = minN; n <= maxN; ++n) {
         // FIXME: remove adjustment so degree's consistently "L above dirichlet"
         if (args.delta != 0.0) {
@@ -207,7 +207,7 @@ Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
 }
 
 DMatrix DiagonalBlock(const Basis<Mono>& minimalBasis, 
-                      const DMatrix& discPolys, 
+                      const SMatrix& discPolys, 
                       const Arguments& args, const bool odd) {
     *args.console << "DiagonalBlock(" << args.numP << ", " << args.degree << ")" 
         << endl;
@@ -253,8 +253,8 @@ DMatrix DiagonalBlock(const Basis<Mono>& minimalBasis,
 }
 
 // basisA is the minBasis of degree n, while basisB is the one for degree n+2
-DMatrix NPlus2Block(const Basis<Mono>& basisA, const DMatrix& discPolysA,
-                    const Basis<Mono>& basisB, const DMatrix& discPolysB,
+DMatrix NPlus2Block(const Basis<Mono>& basisA, const SMatrix& discPolysA,
+                    const Basis<Mono>& basisB, const SMatrix& discPolysB,
                     const Arguments& args, const bool odd) {
     *args.console << "NPlus2Block(" << args.numP-2 << " -> " << args.numP << ")" 
         << endl;

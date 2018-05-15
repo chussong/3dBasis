@@ -72,7 +72,7 @@ QFrame* CalcWidget::SetupOneLevelFrame(const Arguments& args) {
     return frame;
 }
 
-QFrame* CalcWidget::SetupAllLevelsFrame(const Arguments& args) {
+QFrame* CalcWidget::SetupAllLevelsFrame(const Arguments&) {
     QFrame* frame = new QFrame;
     QHBoxLayout* layout = new QHBoxLayout;
 

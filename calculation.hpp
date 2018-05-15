@@ -39,10 +39,10 @@ DMatrix PolysOnMinBasis(const Basis<Mono>& minimalBasis,
 DMatrix ComputeHamiltonian(const Arguments& args);
 Hamiltonian FullHamiltonian(Arguments args, const bool odd);
 DMatrix DiagonalBlock(const Basis<Mono>& minimalBasis, 
-                      const DMatrix& discPolys, 
+                      const SMatrix& discPolys, 
                       const Arguments& args, const bool odd);
-DMatrix NPlus2Block(const Basis<Mono>& basisA, const DMatrix& discPolysA,
-                    const Basis<Mono>& basisB, const DMatrix& discPolysB,
+DMatrix NPlus2Block(const Basis<Mono>& basisA, const SMatrix& discPolysA,
+                    const Basis<Mono>& basisB, const SMatrix& discPolysB,
                     const Arguments& args, const bool odd);
 
 void AnalyzeHamiltonian(const Hamiltonian& hamiltonian, const Arguments& args);
