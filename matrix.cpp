@@ -439,8 +439,8 @@ std::string ExtractXY(const Mono& extractFromThis) {
 // in order followed by a list of all u- in order
 std::vector<char> UFromX(const std::string& x) {
     if (x.size() < 2) {
-        std::cerr << "Error: asked to do exponent transform from X to U but "
-            << "there were only " << x.size() << " entries in X." << std::endl;
+        // std::cerr << "Error: asked to do exponent transform from X to U but "
+            // << "there were only " << x.size() << " entries in X." << std::endl;
         return {};
     }
 
@@ -468,6 +468,7 @@ std::vector<char> UFromX(const std::string& x) {
 // two terms, so you end up with a sum of return terms, each with some 
 // binomial-derived coefficient.
 std::vector<MatrixTerm_Intermediate> YTildeFromY(const std::string& y) {
+    if (y.size() == 1) return {};
     //std::cout << "Transforming this y: " << y << std::endl;
     std::vector<MatrixTerm_Intermediate> ret;
     // i here is the i'th particle (pair); each one only sees those whose
@@ -758,7 +759,7 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
 coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
 		const MATRIX_TYPE type) {
     if (exponents.size() == 0) {
-        std::cerr << "No exponents detected; returning 1." << std::endl;
+        // std::cerr << "No exponents detected; returning 1." << std::endl;
         return 1;
     }
     // auto n = exponents.front().uPlus.size() + 1;
@@ -911,12 +912,15 @@ coeff_class MassMatrixPrefactor(const char n) {
     return InnerProductPrefactor(n);
 }
 
+// this is 4 times the prefactor appearing in Matrix Formulas because, rather
+// than generating F+ and F-, we're taking only the even terms, which are the
+// same in both; this gives two factors of 2
 coeff_class InteractionMatrixPrefactor(const char n) {
     static std::unordered_map<char, coeff_class> cache;
     if (cache.count(n) == 0) {
         coeff_class denominator = std::tgamma(n-1);
         denominator *= std::pow(M_PI*M_PI, n-1);
-        denominator *= 4*std::pow(8, n);
+        denominator *= std::pow(8, n);
         cache.emplace(n, 1/denominator);
     }
 

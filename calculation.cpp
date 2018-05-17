@@ -133,7 +133,7 @@ DMatrix ComputeHamiltonian(const Arguments& args) {
 Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
     int minN, maxN;
     if (args.delta != 0.0) {
-        minN = 2;
+        minN = 1;
         maxN = std::ceil(args.delta / 1.5);
     } else {
         minN = args.numP;
@@ -194,7 +194,7 @@ Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
         output.diagonal.push_back(DiagonalBlock(minBases[n-minN], 
                                                 discPolys[n-minN], 
                                                 args, odd));
-        if ((args.options & OPT_INTERACTING) != 0 && n-2 >= minN) {
+        if ((args.options & OPT_INTERACTING) != 0 && n >= minN+2) {
             output.nPlus2.push_back(NPlus2Block(minBases[n-2-minN], 
                                                 discPolys[n-2-minN],
                                                 minBases[n-minN],
@@ -288,11 +288,11 @@ void AnalyzeHamiltonian_Dense(const Hamiltonian& hamiltonian,
 
     Eigen::Index offset = 0;
     Eigen::Index trailingOffset = 0;
-    for (std::size_t n = 2; n < hamiltonian.diagonal.size()+2; ++n) {
-        const auto& block = hamiltonian.diagonal[n-2];
+    for (std::size_t n = 1; n < hamiltonian.diagonal.size()+1; ++n) {
+        const auto& block = hamiltonian.diagonal[n-1];
         matrixForm.block(offset, offset, block.rows(), block.cols()) = block;
 
-        if (n >= 4) {
+        if (n >= 3) {
             const auto& nPlus2Block = hamiltonian.nPlus2[n-4];
             matrixForm.block(trailingOffset, offset, nPlus2Block.rows(),
                              nPlus2Block.cols()) = nPlus2Block;
@@ -313,9 +313,9 @@ void AnalyzeHamiltonian_Sparse(const Hamiltonian& hamiltonian,
     Eigen::Index offset = 0;
     Eigen::Index trailingOffset = 0;
     std::vector<Triplet> triplets;
-    for (std::size_t n = 2; n < hamiltonian.diagonal.size()+2; ++n) {
+    for (std::size_t n = 1; n < hamiltonian.diagonal.size()+1; ++n) {
         // translate the diagonal block into sparse triplets
-        const auto& block = hamiltonian.diagonal[n-2];
+        const auto& block = hamiltonian.diagonal[n-1];
         for (Eigen::Index i = 0; i < block.rows(); ++i) {
             for (Eigen::Index j = 0; j < block.cols(); ++j) {
                 triplets.emplace_back(offset+i, offset+j, block(i,j));
@@ -323,7 +323,7 @@ void AnalyzeHamiltonian_Sparse(const Hamiltonian& hamiltonian,
         }
 
         // if there's an nPlus2 block ending on this n, tripletize it too
-        if (n >= 4) {
+        if (n >= 3) {
             const auto& nPlus2Block = hamiltonian.nPlus2[n-4];
             for (Eigen::Index i = 0; i < nPlus2Block.rows(); ++i) {
                 for (Eigen::Index j = 0; j < nPlus2Block.cols(); ++j) {

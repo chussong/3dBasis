@@ -109,23 +109,31 @@ inline Basis<Mono>::Basis(const int numP, int degree, const Arguments& args) {
     // 		in constructing the basis; for instance, the states where every
     // 		pm = 0 are followed by a copy of the earlier parts of the basis
 
+    // 1 particle is a special case: everything is a descendent of P_- \phi
+    if (numP == 1) { 
+        basisVectors.emplace_back(std::vector<int>{1}, std::vector<int>{0}, 1);
+        return;
+    }
+
     int options = args.options;
     OStream& console = *args.console;
     const bool debug = ((options & OPT_DEBUG) != 0);
-    if(debug) console << "***Generating basis at N=" << numP << ", D="
-            << degree << "***" << endl;
+    if(debug) {
+        console << "***Generating basis at N=" << numP << ", D=" << degree 
+            << "***" << endl;
+    }
 
     // subtract off the required Dirichlet derivatives
     degree -= numP;
 
-    if(degree < 0){
+    if (degree < 0) {
         console << "Error: there are no Dirichlet states with degree "
                 << "<= the number of particles." << endl;
         return;
     }
 
     // start with all possible configurations of P_-
-    if(degree == 0){
+    if (degree == 0) {
         std::vector<particle> onlyMono;
         onlyMono.resize(numP);
         for(auto& part : onlyMono){
@@ -134,16 +142,19 @@ inline Basis<Mono>::Basis(const int numP, int degree, const Arguments& args) {
         basisVectors.emplace_back(onlyMono);
         return;
     }
+
     std::vector<std::vector<int>> minus;
-    if(options & OPT_ALLMINUS){
+    if (options & OPT_ALLMINUS) {
         minus = GetStatesAtDegree<int>(numP, degree);
     } else {
         minus = GetStatesUpToDegree<int>(numP, degree);
     }
     std::vector<std::vector<particle>> particleCfgs;
-    for(auto& minusCfg : minus){
-        if(debug) console << "Here's a configuration of minuses: "
-            << minusCfg << endl;
+    for (auto& minusCfg : minus) {
+        if (debug) {
+            console << "Here's a configuration of minuses: " << minusCfg 
+                << endl;
+        }
         std::vector<particle> newCfg(minusCfg.size());
         for(auto i = 0u; i < newCfg.size(); ++i) newCfg[i].pm = minusCfg[i];
         particleCfgs.push_back(newCfg);
@@ -152,33 +163,33 @@ inline Basis<Mono>::Basis(const int numP, int degree, const Arguments& args) {
     // for each P_- configuration, generate all possible P_\perp configs
     std::vector<int> nodes;
     std::vector<std::vector<particle>> newCfgs;
-    for(auto& configuration : particleCfgs){
-        if(options & OPT_ALLMINUS){
+    for (auto& configuration : particleCfgs) {
+        if (options & OPT_ALLMINUS) {
             newCfgs.push_back(configuration);
             continue;
         }
         nodes = IdentifyNodes(configuration);
         int remainingEnergy = degree;
-        for(auto& part : configuration) remainingEnergy -= part.pm;
+        for (auto& part : configuration) remainingEnergy -= part.pm;
         std::vector<std::vector<int>> perp(CfgsFromNodes(remainingEnergy, nodes,
                                                                         true));
-        if(debug) console << "COMBINING SUBCONFIGS OF " << configuration 
+        if (debug) console << "COMBINING SUBCONFIGS OF " << configuration 
             << endl;
-        for(auto& newCfg : CombinedCfgs(configuration, perp, 2)){
-            if(debug) console << "NEW CONFIGURATION: " << newCfg << endl;
+        for (auto& newCfg : CombinedCfgs(configuration, perp, 2)) {
+            if (debug) console << "NEW CONFIGURATION: " << newCfg << endl;
             newCfgs.push_back(newCfg);
         }
     }
 
     // finally, add in the required P_- from being Dirichlet
     particleCfgs.clear();
-    for(auto& cfg : newCfgs){
-        for(auto& part : cfg) ++part.pm;
+    for (auto& cfg : newCfgs) {
+        for (auto& part : cfg) ++part.pm;
         particleCfgs.push_back(cfg);
     }
 
     //console << "Tick." << endl;
-    for(auto& cfg : particleCfgs){
+    for (auto& cfg : particleCfgs) {
         basisVectors.emplace_back(cfg);
         //console << cfg << endl;
     }

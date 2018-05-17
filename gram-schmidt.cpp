@@ -6,8 +6,6 @@ std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
     Timer timer;
     Basis<Mono> unifiedBasis = CombineBases(inputBases);
     Normalize(unifiedBasis);
-    // without the following stream, unifiedBasis segfaults
-    // outStream << "Normalized initial basis: " << unifiedBasis << std::endl;
 
     DMatrix gram = GramFock(unifiedBasis);
     if(gram.rows() == 0) return {};

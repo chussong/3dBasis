@@ -200,8 +200,8 @@ std::vector<int> Mono::IdentifyPtNodes() const {
 // identical except exactly one has 1 higher Pt than the others.
 bool Mono::IsNull() const {
     if (NParticles() < 2 ) {
-        std::cerr << "Error: tried to call IsNull() on a monomial with only " 
-            << NParticles() << " particles." << std::endl;
+        // std::cerr << "Error: tried to call IsNull() on a monomial with only " 
+            // << NParticles() << " particles." << std::endl;
         return false;
     }
     if (NParticles() == 2) return (Pm(0) == Pm(1)) && (TotalPt()%2 == 1);

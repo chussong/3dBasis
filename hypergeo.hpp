@@ -128,9 +128,10 @@ coeff_class HypergeometricPFQ_Body(const std::array<builtin_class,P>& a,
 }
 
 template<std::size_t P, std::size_t Q>
-coeff_class HypergeoUnitArgument_Reg(const std::array<builtin_class,P>&, 
-        const std::array<builtin_class,Q>&) {
-    throw std::logic_error("HypergeoUnitArgument_Reg: unspecialized (P,Q).");
+coeff_class HypergeoUnitArgument_Reg(const std::array<builtin_class,P>& a, 
+                                     const std::array<builtin_class,Q>& b) {
+    // for lack of better ideas, just try the series and hope it converges
+    return HypergeometricPFQ_Body<P,Q>(a, b, 1);
 }
 
 template<>
