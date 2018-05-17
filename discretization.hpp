@@ -26,6 +26,7 @@ DMatrix MuPart_Kinetic(const std::size_t partitions);
 const DMatrix& MuPart_NtoN(const unsigned int n, 
                            std::array<char,2> exponents, 
                            const std::size_t partitions);
+const DMatrix& MuPart_2to2(const std::size_t partitions);
 
 coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
                        const std::array<builtin_class,2>& mu1sq_ab,

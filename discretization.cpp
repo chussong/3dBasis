@@ -80,10 +80,10 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
     static std::unordered_map<std::array<char,2>, DMatrix, 
                               boost::hash<std::array<char,2>> > intCache;
 
-    if (n > 2) {
-        exponents[0] = 2*exponents[0] + n - 3;
-        exponents[1] = exponents[1] + n - 3;
-    }
+    if (n == 2) return MuPart_2to2(partitions);
+
+    exponents[0] = 2*exponents[0] + n - 3;
+    exponents[1] = exponents[1] + n - 3;
 
     builtin_class partWidth = builtin_class(1) / partitions;
     if (intCache.count(exponents) == 0) {
@@ -103,10 +103,27 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
                                                        mu1sq_ab);
             }
         }
+        // this is for the normalization of the g_k
+        block /= 2*M_PI*partWidth;
         intCache.emplace(exponents, std::move(block));
     }
 
     return intCache[exponents];
+}
+
+const DMatrix& MuPart_2to2(const std::size_t partitions) {
+    static std::unique_ptr<DMatrix> output;
+
+    if (output == nullptr) {
+        output = std::make_unique<DMatrix>(DMatrix::Zero(partitions, partitions));
+
+        builtin_class width = builtin_class(1)/partitions;
+        for (std::size_t i = 0; i < partitions; ++i) {
+            (*output)(i, i) = 2*(std::sqrt((i+1)*width) - std::sqrt(i*width));
+        }
+    }
+
+    return *output;
 }
 
 coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
@@ -129,8 +146,8 @@ coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
             hypergeos += common * std::tgamma((a+2.0)/2.0) *
                 Hypergeometric3F2_Reg(0.5, 0.5 + r/2.0, (a+2.0)/2.0,
                                       r/2.0 + 1.0, (a+2.0)/2.0 + 1.0, x);
-            // FIXME?? below assumes that all infinite terms must exactly cancel
-            // each other
+
+            // if exponents[0] == 2, these diverge and must be separated
             if (exponents[0] != 2) {
                 hypergeos -= common * std::tgamma((a-1.0)/2.0) *
                     Hypergeometric3F2_Reg(0.5, 0.5 + r/2.0, (a-1.0)/2.0, 
@@ -139,9 +156,20 @@ coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
         }
     }
 
+    // this is the limit of the naively divergent terms
+    if (exponents[0] == 2) {
+        hypergeos += (std::pow(mu1sq_ab[1], 1.5) - std::pow(mu1sq_ab[0], 1.5))
+                   * std::log(mu2sq_ab[1]/mu2sq_ab[0])
+                   / std::tgamma(r/2.0 + 1.0);
+    }
+
     if (!std::isfinite(static_cast<builtin_class>(hypergeos))) {
         std::cerr << "Error: NtoNWindow_Less(" << exponents << ", " 
-            << mu1sq_ab << ", " << mu2sq_ab << ") not finite." << std::endl;
+            << mu1sq_ab << ", " << mu2sq_ab << ") not finite.\n";
+    }
+    if (hypergeos < 0) {
+        std::cerr << "Error: NtoNWindow_Less(" << exponents << ", " 
+            << mu1sq_ab << ", " << mu2sq_ab << ") = " << hypergeos << " < 0.\n";
     }
 
     return overall * hypergeos;
@@ -169,7 +197,11 @@ coeff_class NtoNWindow_Equal(const std::array<char,2>& exponents,
 
     if (!std::isfinite(static_cast<builtin_class>(hypergeos))) {
         std::cerr << "Error: NtoNWindow_Equal(" << exponents << ", " 
-            << musq_ab << ") not finite." << std::endl;
+            << musq_ab << ") not finite.\n";
+    }
+    if (hypergeos < 0) {
+        std::cerr << "Error: NtoNWindow_Equal(" << exponents << ", " 
+            << musq_ab << ") is negative.\n";
     }
 
     return overall * hypergeos;
@@ -236,6 +268,8 @@ const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr,
                         static_cast<builtin_class>((winB+1)*partWidth)}} );
             }
         }
+        // this is for the normalization of the g_k
+        block /= 2*M_PI*partWidth;
         nPlus2Cache.emplace(nr, std::move(block));
     }
 

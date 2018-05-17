@@ -893,16 +893,16 @@ coeff_class Prefactor(const Mono& A, const Mono&, const MATRIX_TYPE type) {
 
 // this follows (2.2) in Matrix Formulas.pdf
 coeff_class InnerProductPrefactor(const char n) {
-    static std::unordered_map<char, coeff_class> ipPrefactorCache;
-    if (ipPrefactorCache.count(n) == 0) {
+    static std::unordered_map<char, coeff_class> cache;
+    if (cache.count(n) == 0) {
         coeff_class denominator = std::tgamma(n+1); // tgamma = "true" gamma fcn
         denominator *= std::pow(8, n-1);
         denominator *= std::pow(M_PI, 2*n-3);
         //std::cout << "PREFACTOR: " << 1/denominator << std::endl;
-        ipPrefactorCache.emplace(n, 1/denominator);
+        cache.emplace(n, 1/denominator);
     }
 
-    return ipPrefactorCache[n];
+    return cache[n];
 }
 
 // this follows (2.3) in Matrix Formulas.pdf
@@ -912,28 +912,28 @@ coeff_class MassMatrixPrefactor(const char n) {
 }
 
 coeff_class InteractionMatrixPrefactor(const char n) {
-    static std::unordered_map<char, coeff_class> sameNPrefactorCache;
-    if (sameNPrefactorCache.count(n) == 0) {
+    static std::unordered_map<char, coeff_class> cache;
+    if (cache.count(n) == 0) {
         coeff_class denominator = std::tgamma(n-1);
         denominator *= std::pow(M_PI*M_PI, n-1);
         denominator *= 4*std::pow(8, n);
-        sameNPrefactorCache.emplace(n, 1/denominator);
+        cache.emplace(n, 1/denominator);
     }
 
-    return sameNPrefactorCache[n];
+    return cache[n];
 }
 
 coeff_class NPlus2MatrixPrefactor(const char n) {
-    static std::unordered_map<char, coeff_class> nPlus2PrefactorCache;
-    if (nPlus2PrefactorCache.count(n) == 0) {
+    static std::unordered_map<char, coeff_class> cache;
+    if (cache.count(n) == 0) {
         coeff_class denominator = std::tgamma(n);
         denominator *= 6;
         denominator *= std::pow(M_PI, 2*n);
         denominator *= std::pow(8, n+1);
-        nPlus2PrefactorCache.emplace(n, 1/denominator);
+        cache.emplace(n, 1/denominator);
     }
 
-    return nPlus2PrefactorCache[n];
+    return cache[n];
 }
 
 // integrals ------------------------------------------------------------------
@@ -955,9 +955,9 @@ coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
     // these have constant terms which differ from Nikhil's because his i
     // starts at 1 instead of 0, so I use (i+1) instead
     if (n >= 3) {
-        for (auto i = 0u; i < n-3; ++i) {
+        for (auto i = 0u; i+3 < n; ++i) {
             output *= ThetaIntegral_Short(n - (i+1) - 2 + term.sinTheta[i],
-                            term.cosTheta[i] );
+                                          term.cosTheta[i]);
         }
         output *= ThetaIntegral_Long(term.sinTheta[n-3], term.cosTheta[n-3]);
     } else {
@@ -978,7 +978,7 @@ coeff_class DoAllIntegrals(InteractionTerm_Step2& term) {
     auto n = term.u.size()/2;
 
     // adjust exponents before doing integrals
-    for (std::size_t i = 0; i < n-2; ++i) {
+    for (std::size_t i = 0; i+2 < n; ++i) {
         term.u[2*i] += 3;
         term.u[2*i + 1] += 5*(n-i) - 8;
     }
@@ -988,7 +988,7 @@ coeff_class DoAllIntegrals(InteractionTerm_Step2& term) {
     term.u[term.u.size()-4] += 1;
 
     for (std::size_t k = 0; k+4 < n; ++k) {
-        term.theta[2*k] += n-k-3;
+        term.theta[2*k] += n-k-4;
     }
 
     // this part actually does the integrals
@@ -1036,7 +1036,7 @@ coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
     return output;
 }
 
-// this is the integral of uplus^a uminus^b d(uplus) instead of d(u)
+// this is the integral of uplus^a uminus^b dz instead of du
 builtin_class UPlusIntegral(const builtin_class a, const builtin_class b) {
     std::array<builtin_class,2> abArray{{a,b}};
     if (b < a) std::swap(abArray[0], abArray[1]);
