@@ -116,11 +116,11 @@ DMatrix ComputeHamiltonian(const Arguments& args) {
     
     *args.outStream << "(*EVEN STATES*)" << endl;
     Hamiltonian evenHam = FullHamiltonian(args, false);
-    // AnalyzeHamiltonian(evenHam, args);
+    AnalyzeHamiltonian(evenHam, args, false);
 
     *args.outStream << "(*ODD STATES*)" << endl;
     Hamiltonian oddHam  = FullHamiltonian(args, true);
-    // AnalyzeHamiltonian(oddHam, args);
+    AnalyzeHamiltonian(oddHam, args, true);
 
     *args.console << "\nEntire computation took " 
         << overallTimer.TimeElapsedInWords() << "." << endl;
@@ -243,7 +243,7 @@ DMatrix DiagonalBlock(const Basis<Mono>& minimalBasis,
         outStream << "hamiltonian[" << suffix <<"] = "
                 << MathematicaOutput(hamiltonian) << endl;
     } else {
-        EigenSolver solver(hamiltonian.cast<builtin_class>());
+        DEigenSolver solver(hamiltonian.cast<builtin_class>());
         outStream << "Here are the Hamiltonian eigenvalues:\n" 
             << solver.eigenvalues() << endl;
     }
@@ -270,14 +270,15 @@ DMatrix NPlus2Block(const Basis<Mono>& basisA, const SMatrix& discPolysA,
     return (args.lambda*args.cutoff) * polyNPlus2;
 }
 
-void AnalyzeHamiltonian(const Hamiltonian& hamiltonian, const Arguments& args) {
-    Eigen::Index totalSize = 0;
-    for (const auto& block : hamiltonian.diagonal) totalSize += block.rows();
-    if (totalSize <= MAX_DENSE_SIZE) {
-        AnalyzeHamiltonian_Dense(hamiltonian, args);
-    } else {
-        AnalyzeHamiltonian_Sparse(hamiltonian, args);
-    }
+void AnalyzeHamiltonian(const Hamiltonian& hamiltonian, const Arguments& args,
+                        const bool odd) {
+    // Eigen::Index totalSize = 0;
+    // for (const auto& block : hamiltonian.diagonal) totalSize += block.rows();
+    // if (totalSize <= MAX_DENSE_SIZE) {
+        // AnalyzeHamiltonian_Dense(hamiltonian, args);
+    // } else {
+        AnalyzeHamiltonian_Sparse(hamiltonian, args, odd);
+    // }
 }
 
 void AnalyzeHamiltonian_Dense(const Hamiltonian& hamiltonian, 
@@ -303,13 +304,13 @@ void AnalyzeHamiltonian_Dense(const Hamiltonian& hamiltonian,
         offset += block.rows();
     }
 
-    EigenSolver solver(matrixForm.cast<builtin_class>());
+    DEigenSolver solver(matrixForm.cast<builtin_class>());
     *args.console << "Hamiltonian eigenvalues:\n" 
         << solver.eigenvalues() << endl;
 }
 
 void AnalyzeHamiltonian_Sparse(const Hamiltonian& hamiltonian, 
-                               const Arguments&) {
+                               const Arguments& args, const bool odd) {
     Eigen::Index offset = 0;
     Eigen::Index trailingOffset = 0;
     std::vector<Triplet> triplets;
@@ -318,30 +319,48 @@ void AnalyzeHamiltonian_Sparse(const Hamiltonian& hamiltonian,
         const auto& block = hamiltonian.diagonal[n-1];
         for (Eigen::Index i = 0; i < block.rows(); ++i) {
             for (Eigen::Index j = 0; j < block.cols(); ++j) {
+                if (block(i,j) == 0) continue;
                 triplets.emplace_back(offset+i, offset+j, block(i,j));
             }
         }
 
         // if there's an nPlus2 block ending on this n, tripletize it too
         if (n >= 3) {
-            const auto& nPlus2Block = hamiltonian.nPlus2[n-4];
+            const auto& nPlus2Block = hamiltonian.nPlus2[n-3];
             for (Eigen::Index i = 0; i < nPlus2Block.rows(); ++i) {
                 for (Eigen::Index j = 0; j < nPlus2Block.cols(); ++j) {
+                    if (nPlus2Block(i,j) == 0) continue;
                     triplets.emplace_back(trailingOffset+i, offset+j, 
                                           nPlus2Block(i,j));
-                    triplets.emplace_back(offset+i, trailingOffset+j, 
+                    triplets.emplace_back(offset+j, trailingOffset+i, 
                                           nPlus2Block(i,j));
                 }
             }
-            trailingOffset += nPlus2Block.rows();
+            trailingOffset += hamiltonian.diagonal[n-3].rows();
         }
         offset += block.rows();
     }
 
     SMatrix matrixForm(offset, offset);
+    // std::cout << "Matrix size: " << offset << "x" << offset << '\n';
+    // for (const auto& trip : triplets) std::cout << trip << std::endl;
     matrixForm.setFromTriplets(triplets.begin(), triplets.end());
 
     // TODO: get eigenvalues of matrixForm
+    OStream& outStream = *args.outStream;
+    if ((args.options & OPT_MATHEMATICA) != 0) {
+        outStream << "hamiltonian[" << (odd ? "odd" : "even") << "] = "
+            << MathematicaOutput(DMatrix(matrixForm)) << '\n';
+    } else {
+        if (matrixForm.rows() <= 20) {
+            outStream << (odd ? "Odd" : "Even") << " Hamiltonian:\n" 
+                << DMatrix(matrixForm) << '\n';
+        }
+        outStream << (odd ? "Odd" : "Even") << " Hamiltonian eigenvalues:\n";
+        DMatrix denseForm(matrixForm);
+        DEigenSolver solver(denseForm.cast<builtin_class>());
+        outStream << solver.eigenvalues() << '\n';
+    }
 }
 
 void OutputMatrix(const DMatrix& monoMatrix, const DMatrix& polyMatrix,
@@ -365,7 +384,7 @@ void OutputMatrix(const DMatrix& monoMatrix, const DMatrix& polyMatrix,
             << timer.TimeElapsedInWords() << "; mono:\n" << monoMatrix 
             << "\npoly:\n" << polyMatrix << endl;
     } else if (polyMatrix.rows() == polyMatrix.cols()) {
-        EigenSolver solver(polyMatrix.cast<builtin_class>());
+        DEigenSolver solver(polyMatrix.cast<builtin_class>());
         outStream << "Computed a " << name << " for the basis in " 
             << timer.TimeElapsedInWords() << "; its eigenvalues are:\n"
             << solver.eigenvalues() << endl;

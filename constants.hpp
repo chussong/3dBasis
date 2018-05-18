@@ -93,7 +93,7 @@ typedef Eigen::FullPivHouseholderQR<
 
 // the below only works for symmetric matrices
 typedef Eigen::SelfAdjointEigenSolver<
-		Eigen::Matrix<builtin_class, Eigen::Dynamic, Eigen::Dynamic> > EigenSolver;
+		Eigen::Matrix<builtin_class, Eigen::Dynamic, Eigen::Dynamic> > DEigenSolver;
 
 /******************************************************************************/
 /***** Constants and struct definitions which should be widely accessible *****/
@@ -108,7 +108,7 @@ constexpr coeff_class EPSILON = 1e-8;
 constexpr unsigned int MAX_THREADS = 8u;
 // maximum side length of a matrix to represent it densely; above this, sparse
 // methods will usually be used. Note this is not the number of entries
-constexpr Eigen::Index MAX_DENSE_SIZE = 1e4;
+constexpr Eigen::Index MAX_DENSE_SIZE = 1e2;
 
 struct Arguments {
     int numP = -1;

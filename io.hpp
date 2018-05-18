@@ -101,14 +101,11 @@ inline std::ostream& operator<<(std::ostream& os, const std::array<char,N>& out)
     return os << static_cast<int>(out.back()) << " }";
 }
 
-
-/*
 // note: triplets displayed (row, column, value) despite matrix's storage type
 inline std::ostream& operator<<(std::ostream& os, const Triplet& out) {
 	return os << "(" << out.row() << "," << out.col() << "," << out.value()
 		<< ")";
 }
-*/
 
 namespace {
     constexpr char hexMap[16] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', 
