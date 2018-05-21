@@ -85,5 +85,13 @@ coeff_class Hypergeometric4F3(const std::array<builtin_class,4>& a,
                               const std::array<builtin_class,3>& b, 
                               const builtin_class x);
 coeff_class Hypergeometric4F3(const std::array<builtin_class,8>& params);
+coeff_class Hypergeometric4F3_Reg(const builtin_class a1, const builtin_class a2,
+                                  const builtin_class a3, const builtin_class a4,
+                                  const builtin_class b1, const builtin_class b2,
+                                  const builtin_class b3, const builtin_class x);
+coeff_class Hypergeometric4F3_Reg(const std::array<builtin_class,4>& a, 
+                                  const std::array<builtin_class,3>& b, 
+                                  const builtin_class x);
+coeff_class Hypergeometric4F3_Reg(const std::array<builtin_class,8>& params);
 
 #endif
