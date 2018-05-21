@@ -272,18 +272,27 @@ coeff_class NtoNWindow_Equal_Term(const std::array<builtin_class,2>& musq_ab,
                                   const builtin_class arg, 
                                   const builtin_class r,
                                   const bool useMuB) {
-    // FIXME?? dubious; but we're assuming that if arg is a pole of the gamma
-    // function it will just produce an infinity which has to cancel against
-    // something
-    if (arg <= 0 && arg - std::round(arg) < EPSILON) {
-        return 0;
-    }
-
     const builtin_class& msA = musq_ab[0];
     const builtin_class& msB = musq_ab[1];
     auto HGR = &NtoNWindow_Equal_Hypergeometric;
-    // output *= HGR(arg, r, 1);
-    // output -= std::pow(msA/msB, arg) * std::pow(msA, 1.5) * HGR(arg, r, msA/msB);
+
+    if (std::abs(arg) < EPSILON) {
+        coeff_class output = (r + 1.0)/4.0;
+        output *= Hypergeometric4F3(1.0, 1.0, 1.5, 1.5 + r/2.0,
+                                    2.0, 2.0, 2.0 + r/2.0, 1)
+                - msA/msB*Hypergeometric4F3(1.0, 1.0, 1.5, 1.5 + r/2.0,
+                                            2.0, 2.0, 2.0 + r/2.0, msA/msB);
+        output -= std::log(msA/msB) / std::tgamma(1.0 + r/2.0);
+        output *= (useMuB ? std::pow(msB, 1.5) : std::pow(msA, 1.5));
+        return output;
+    }
+
+    if (arg < 0 && std::abs(arg - std::round(arg)) < EPSILON) {
+        std::cerr << "Error: NtoNWindow_Equal_Term(" << arg << ") diverges but "
+            << "there's no special case for it.\n";
+        return 0.0;
+    }
+
     coeff_class output = useMuB ? std::pow(msB, 1.5) : std::pow(msA, 1.5);
     if (msA == 0) {
         // if msA == 0, the second HGR is just 1, so the second term is either
@@ -296,6 +305,8 @@ coeff_class NtoNWindow_Equal_Term(const std::array<builtin_class,2>& musq_ab,
     return std::tgamma(arg) * output;
 }
 
+// this function called "HGR" is the hypergeometric form that appears many times
+// in the NtoNWindow_Equal terms
 builtin_class NtoNWindow_Equal_Hypergeometric(const builtin_class arg, 
                                               const builtin_class r,
                                               const builtin_class x) {

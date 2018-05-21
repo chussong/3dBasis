@@ -346,7 +346,6 @@ void AnalyzeHamiltonian_Sparse(const Hamiltonian& hamiltonian,
     // for (const auto& trip : triplets) std::cout << trip << std::endl;
     matrixForm.setFromTriplets(triplets.begin(), triplets.end());
 
-    // TODO: get eigenvalues of matrixForm
     OStream& outStream = *args.outStream;
     if ((args.options & OPT_MATHEMATICA) != 0) {
         outStream << "hamiltonian[" << (odd ? "odd" : "even") << "] = "
@@ -357,6 +356,7 @@ void AnalyzeHamiltonian_Sparse(const Hamiltonian& hamiltonian,
                 << DMatrix(matrixForm) << '\n';
         }
         outStream << (odd ? "Odd" : "Even") << " Hamiltonian eigenvalues:\n";
+        // TODO: use sparse Lanczos instead of converting to dense
         DMatrix denseForm(matrixForm);
         DEigenSolver solver(denseForm.cast<builtin_class>());
         outStream << solver.eigenvalues() << '\n';
