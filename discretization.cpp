@@ -170,6 +170,8 @@ coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
     return overall * hypergeos;
 }
 
+// this is the special case of NtoNWindow_Less that happens when a == 1, i.e. 
+// there is exactly 1 power of alpha (equivalently, 1/2 power of alpha^2)
 coeff_class NtoNWindow_Less_Special(const builtin_class r, 
                                 const std::array<builtin_class,2>& mu1sq_ab, 
                                 const std::array<builtin_class,2>& mu2sq_ab) {
@@ -282,7 +284,7 @@ coeff_class NtoNWindow_Equal_Term(const std::array<builtin_class,2>& musq_ab,
                                     2.0, 2.0, 2.0 + r/2.0, 1)
                 - msA/msB*Hypergeometric4F3(1.0, 1.0, 1.5, 1.5 + r/2.0,
                                             2.0, 2.0, 2.0 + r/2.0, msA/msB);
-        output -= std::log(msA/msB) / std::tgamma(1.0 + r/2.0);
+        if (msA != 0.0) output -= std::log(msA/msB) / std::tgamma(1.0 + r/2.0);
         output *= (useMuB ? std::pow(msB, 1.5) : std::pow(msA, 1.5));
         return output;
     }
