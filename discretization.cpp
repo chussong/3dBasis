@@ -103,7 +103,7 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
                                                        mu1sq_ab);
             }
         }
-        // this is for the normalization of the g_k
+        // this is from the normalization of the g_k
         block /= 2*M_PI*partWidth;
         intCache.emplace(exponents, std::move(block));
     }
@@ -182,17 +182,12 @@ coeff_class NtoNWindow_Less_Special(const builtin_class r,
     if (mu1sq_ab[1] == mu2sq_ab[0]) {
         builtin_class mu1sq = (mu1sq_ab[1]+mu1sq_ab[0])/2.0;
         builtin_class mu2sq = (mu2sq_ab[1]+mu2sq_ab[0])/2.0;
-        builtin_class x = mu1sq / mu2sq;
 
-        coeff_class overall = std::sqrt(M_PI) * std::sqrt(mu1sq)
-                            * std::tgamma((3.0 + r)/2.0);
-        overall /= 2.0 * (1.0 + r) * (mu2sq - mu1sq) * std::tgamma(2.0 + r/2.0);
+        coeff_class midValue = std::sqrt(M_PI) * std::sqrt(mu1sq) / (2*mu2sq)
+                             * std::tgamma((1.0+r)/2.0)
+                             * Hypergeometric2F1_Reg(0.5, 0.5+r/2.0, 
+                                                     1.0+r/2.0, mu1sq/mu2sq);
 
-        coeff_class hypergeos = (2.0 + r) * Hypergeometric2F1(-0.5, 0.5 + r/2.0,
-                                                              1.0 + r/2.0, x);
-        hypergeos -= x * Hypergeometric2F1(0.5, 0.5 + r/2.0, 2.0 + r/2.0, x);
-
-        coeff_class midValue = overall * hypergeos;
         return midValue * (mu1sq_ab[1]-mu1sq_ab[0]) * (mu2sq_ab[1]-mu2sq_ab[0]);
     }
 
@@ -226,16 +221,22 @@ coeff_class NtoNWindow_Less_Special(const builtin_class r,
         }
     }
 
-    if (!std::isfinite(static_cast<builtin_class>(hypergeos))) {
+    coeff_class output = std::sqrt(M_PI) * std::tgamma(0.5 + r/2.0)
+                       / (3 * std::tgamma(1.0 + r/2.0));
+    output *= std::pow(mu1sq_ab[1], 1.5) - std::pow(mu1sq_ab[0], 1.5);
+    output *= std::log(mu2sq_ab[1] / mu2sq_ab[0]);
+    output += overall * hypergeos;
+
+    if (!std::isfinite(static_cast<builtin_class>(output))) {
         std::cerr << "Error: NtoNWindow_Less_Special(" << r << ", " 
             << mu1sq_ab << ", " << mu2sq_ab << ") not finite.\n";
     }
-    if (hypergeos < 0) {
+    if (output < 0) {
         std::cerr << "Error: NtoNWindow_Less_Special(" << r << ", " 
             << mu1sq_ab << ", " << mu2sq_ab << ") = " << hypergeos << " < 0.\n";
     }
 
-    return overall * hypergeos;
+    return output;
 }
 
 coeff_class NtoNWindow_Greater(const std::array<char,2>& exponents,
@@ -318,16 +319,16 @@ builtin_class NtoNWindow_Equal_Hypergeometric(const builtin_class arg,
 
 const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr, 
                              const std::size_t partitions) {
-    if (nr[1]%2 == 1) {
-        if (zeroMatrix.count(partitions) == 0) {
-            zeroMatrix.emplace(partitions, DMatrix::Zero(partitions, partitions));
-        }
-        return zeroMatrix[partitions];
-    }
+    // if (nr[1]%2 == 1) {
+        // if (zeroMatrix.count(partitions) == 0) {
+            // zeroMatrix.emplace(partitions, DMatrix::Zero(partitions, partitions));
+        // }
+        // return zeroMatrix[partitions];
+    // }
 
     coeff_class partWidth = coeff_class(1) / partitions;
     if (nPlus2Cache.count(nr) == 0) {
-        DMatrix block(partitions, partitions);
+        DMatrix block = DMatrix::Zero(partitions, partitions);
         for (std::size_t winA = 0; winA < partitions; ++winA) {
             // entry is 0 when alpha > 1, so winB >= winA; when winB == winA, we
             // need to use a special answer as well
@@ -335,14 +336,14 @@ const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr,
                                                    winA*partWidth, 
                                                    (winA+1)*partWidth);
             for (std::size_t winB = winA+1; winB < partitions; ++winB) {
-                block(winA, winB) = NPlus2Window(nr[0], nr[1], 
+                block(winA, winB) = NPlus2Window_Less(nr[0], nr[1], 
                         {{static_cast<builtin_class>(winA*partWidth),
                         static_cast<builtin_class>((winA+1)*partWidth)}},
                         {{static_cast<builtin_class>(winB*partWidth), 
                         static_cast<builtin_class>((winB+1)*partWidth)}} );
             }
         }
-        // this is for the normalization of the g_k
+        // this is from the normalization of the g_k
         block /= 2*M_PI*partWidth;
         nPlus2Cache.emplace(nr, std::move(block));
     }
@@ -350,7 +351,7 @@ const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr,
     return nPlus2Cache[nr];
 }
 
-coeff_class NPlus2Window(const char n, const char r, 
+coeff_class NPlus2Window_Less(const char n, const char r, 
         const std::array<builtin_class,2>& mu1_ab,
         const std::array<builtin_class,2>& mu2_ab) {
     builtin_class a = 0.5 * r;
@@ -375,7 +376,7 @@ coeff_class NPlus2Window(const char n, const char r,
     }
 
     if (!std::isfinite(static_cast<builtin_class>(hypergeos))) {
-        std::cerr << "Error: NPlus2Window(" << (int)n << ", " << a 
+        std::cerr << "Error: NPlus2Window_Less(" << (int)n << ", " << a 
             << ", " << mu1_ab << ", " << mu2_ab << ") not finite." 
             << std::endl;
     }
@@ -402,156 +403,4 @@ coeff_class NPlus2Window_Equal(const char n, const char r,
                / (3.0 * std::pow(mu_b, (n-5.0)/4.0));
 
     return gammaPart + hyperPart;
-}
-
-coeff_class Hypergeometric2F1(const builtin_class a, const builtin_class b,
-        const builtin_class c, const builtin_class x) {
-    static std::unordered_map< std::array<builtin_class,4>,coeff_class,
-                          boost::hash<std::array<builtin_class,4>> > hg2f1Cache;
-
-    const std::array<builtin_class,4> params = {{a, b, c, x}};
-    if (hg2f1Cache.count(params) == 0) {
-        hg2f1Cache.emplace(params, HypergeometricPFQ<2,1>({{a,b}}, {{c}}, x));
-    }
-
-    return hg2f1Cache[params];
-}
-
-coeff_class Hypergeometric3F2(const builtin_class a1, const builtin_class a2,
-                              const builtin_class a3, const builtin_class b1,
-                              const builtin_class b2, const builtin_class x) {
-    return Hypergeometric3F2({{a1, a2, a3, b1, b2, x}});
-}
-
-coeff_class Hypergeometric3F2(const std::array<builtin_class,3>& a, 
-                              const std::array<builtin_class,2>& b, 
-                              const builtin_class x) {
-    return Hypergeometric3F2({{a[0], a[1], a[2], b[0], b[1], x}});
-}
-
-coeff_class Hypergeometric3F2(const std::array<builtin_class,6>& params) {
-    return Hypergeometric3F2_Reg(params) 
-           * std::tgamma(params[3]) * std::tgamma(params[4]);
-}
-
-coeff_class Hypergeometric3F2_Reg(const builtin_class a1, 
-                                  const builtin_class a2,
-                                  const builtin_class a3,
-                                  const builtin_class b1,
-                                  const builtin_class b2,
-                                  const builtin_class x) {
-    return Hypergeometric3F2_Reg({{a1, a2, a3, b1, b2, x}});
-}
-
-coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,3>& a, 
-        const std::array<builtin_class,2>& b, const builtin_class x) {
-    return Hypergeometric3F2_Reg({{a[0], a[1], a[2], b[0], b[1], x}});
-}
-
-coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,6>& params) {
-    static std::unordered_map<std::array<builtin_class,6>,coeff_class,
-                          boost::hash<std::array<builtin_class,6>> > hgfrCache;
-
-    if (hgfrCache.count(params) == 0) {
-        coeff_class value;
-        try {
-            value = HypergeometricPFQ_Reg<3,2>({{params[0], params[1], 
-                                                 params[2]}},
-                                               {{params[3], params[4]}}, 
-                                               params[5]);
-            if (!std::isfinite(static_cast<builtin_class>(value))) {
-                std::cerr << "Error: 3F2(" << params << ") = " << value << '\n';
-            }
-        }
-        catch (const std::runtime_error& err) {
-            std::cerr << "Error: 3F2(" << params << ") did not converge.\n";
-            value = 0.0/0.0;
-        }
-        // std::cout << "Hypergeometric3F2_Reg(" << params << ") = " <<  value 
-            // << '\n';
-        hgfrCache.emplace(params, value);
-    }
-
-    return hgfrCache[params];
-}
-
-coeff_class Hypergeometric4F3(const builtin_class a1, const builtin_class a2,
-                              const builtin_class a3, const builtin_class a4,
-                              const builtin_class b1, const builtin_class b2,
-                              const builtin_class b3, const builtin_class x) {
-    return Hypergeometric4F3({{a1, a2, a3, a4, b1, b2, b3, x}});
-}
-
-coeff_class Hypergeometric4F3(const std::array<builtin_class,4>& a, 
-                              const std::array<builtin_class,3>& b, 
-                              const builtin_class x) {
-    return Hypergeometric4F3({{a[0], a[1], a[2], a[3], b[0], b[1], b[2], x}});
-}
-
-coeff_class Hypergeometric4F3(const std::array<builtin_class,8>& params) {
-    static std::unordered_map<std::array<builtin_class,8>,coeff_class,
-                          boost::hash<std::array<builtin_class,8>> > cache;
-
-    if (cache.count(params) == 0) {
-        coeff_class value;
-        try {
-            value = HypergeometricPFQ<4,3>({{params[0],   params[1], 
-                                             params[2],   params[3]}},
-                                           {{params[4],   params[5],
-                                             params[6]}}, params[7]);
-            if (!std::isfinite(static_cast<builtin_class>(value))) {
-                std::cerr << "Error: 4F3(" << params << ") = " << value << '\n';
-            }
-        }
-        catch (const std::runtime_error& err) {
-            std::cerr << "Error: 4F3(" << params << ") did not converge.\n";
-            value = 0.0/0.0;
-        }
-        // std::cout << "Hypergeometric4F3(" << params << ") = " <<  value 
-            // << '\n';
-        cache.emplace(params, value);
-    }
-
-    return cache[params];
-}
-
-coeff_class Hypergeometric4F3_Reg(const builtin_class a1, const builtin_class a2,
-                                  const builtin_class a3, const builtin_class a4,
-                                  const builtin_class b1, const builtin_class b2,
-                                  const builtin_class b3, const builtin_class x) {
-    return Hypergeometric4F3_Reg({{a1, a2, a3, a4, b1, b2, b3, x}});
-}
-
-coeff_class Hypergeometric4F3_Reg(const std::array<builtin_class,4>& a, 
-                                  const std::array<builtin_class,3>& b, 
-                                  const builtin_class x) {
-    return Hypergeometric4F3_Reg({{a[0], a[1], a[2], a[3], b[0], b[1], b[2], x}});
-}
-
-coeff_class Hypergeometric4F3_Reg(const std::array<builtin_class,8>& params) {
-    static std::unordered_map<std::array<builtin_class,8>,coeff_class,
-                          boost::hash<std::array<builtin_class,8>> > cache;
-
-    if (cache.count(params) == 0) {
-        coeff_class value;
-        try {
-            value = HypergeometricPFQ_Reg<4,3>({{params[0],   params[1], 
-                                                 params[2],   params[3]}},
-                                               {{params[4],   params[5],
-                                                 params[6]}}, params[7]);
-            if (!std::isfinite(static_cast<builtin_class>(value))) {
-                std::cerr << "Error: 4F3_Reg(" << params << ") = " << value 
-                    << '\n';
-            }
-        }
-        catch (const std::runtime_error& err) {
-            std::cerr << "Error: 4F3_Reg(" << params << ") did not converge.\n";
-            value = 0.0/0.0;
-        }
-        // std::cout << "Hypergeometric4F3_Reg(" << params << ") = " <<  value 
-            // << '\n';
-        cache.emplace(params, value);
-    }
-
-    return cache[params];
 }

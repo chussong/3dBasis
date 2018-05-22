@@ -3,23 +3,79 @@
 
 #include <cmath>
 #include <array>
+#include <set>
+#include <unordered_map>
 #include <iostream>
 
-#include <gsl/gsl_sf_hyperg.h>
+#include <boost/functional/hash.hpp>
 
 #include "constants.hpp"
 #include "io.hpp"
 
-// generic hypergeometric function --------------------------------------------
+// generalized hypergeometric function via templates. Also includes memoized
+// versions of 2F1, 3F2, and 4F3 in cpp file, but the templates are not memoized
+// and work with the header by itself
+//
+// warning: my application uses small numbers (< 10 or so) for a and b, so I 
+// just use std::tgamma; if you want this to be usable for larger arguments,
+// change std::tgamma to std::lgamma and adjust arithmetic accordingly
+
+// parameters -----------------------------------------------------------------
 
 constexpr int ITERATION_LIMIT = 3e6;
 constexpr coeff_class PRECISION_LIMIT = 1e-10;
+
+// memoized functions for specific cases --------------------------------------
+
+coeff_class Hypergeometric2F1(const builtin_class a, const builtin_class b,
+                              const builtin_class c, const builtin_class x);
+coeff_class Hypergeometric2F1_Reg(const builtin_class a, const builtin_class b,
+                                  const builtin_class c, const builtin_class x);
+coeff_class Hypergeometric3F2(const builtin_class a1, const builtin_class a2,
+                              const builtin_class a3, const builtin_class b1,
+                              const builtin_class b2, const builtin_class x);
+coeff_class Hypergeometric3F2(const std::array<builtin_class,3>& a, 
+                              const std::array<builtin_class,2>& b, 
+                              const builtin_class x);
+coeff_class Hypergeometric3F2(const std::array<builtin_class,6>& params);
+coeff_class Hypergeometric3F2_Reg(const builtin_class a1, 
+                                  const builtin_class a2,
+                                  const builtin_class a3,
+                                  const builtin_class b1,
+                                  const builtin_class b2,
+                                  const builtin_class x);
+coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,3>& a, 
+        const std::array<builtin_class,2>& b, const builtin_class x);
+coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,6>& params);
+coeff_class Hypergeometric4F3(const builtin_class a1, const builtin_class a2,
+                              const builtin_class a3, const builtin_class a4,
+                              const builtin_class b1, const builtin_class b2,
+                              const builtin_class b3, const builtin_class x);
+coeff_class Hypergeometric4F3(const std::array<builtin_class,4>& a, 
+                              const std::array<builtin_class,3>& b, 
+                              const builtin_class x);
+coeff_class Hypergeometric4F3(const std::array<builtin_class,8>& params);
+coeff_class Hypergeometric4F3_Reg(const builtin_class a1, const builtin_class a2,
+                                  const builtin_class a3, const builtin_class a4,
+                                  const builtin_class b1, const builtin_class b2,
+                                  const builtin_class b3, const builtin_class x);
+coeff_class Hypergeometric4F3_Reg(const std::array<builtin_class,4>& a, 
+                                  const std::array<builtin_class,3>& b, 
+                                  const builtin_class x);
+coeff_class Hypergeometric4F3_Reg(const std::array<builtin_class,8>& params);
+
+// general templates ----------------------------------------------------------
 
 inline bool IsNegInt(const builtin_class x) {
     return std::round(x) < 0 && std::abs(std::round(x) - x) < EPSILON;
 }
 
 // this is an adaptation of the series representation of GSL's Hypergeometric2F1
+//
+// CAREFUL: this is the RENORMALIZED generalized hypergeometric function, i.e.
+// it has been divided by Product(Gamma(b[i])); the ordinary PFQ is implemented 
+// in terms of the renormalized one, although it would work very slightly better
+// to have it as a separate, nearly identical function
 template<std::size_t P, std::size_t Q>
 coeff_class HypergeometricPFQ_Body(const std::array<builtin_class,P>& a, 
         const std::array<builtin_class,Q>& b, const builtin_class x) {
@@ -29,12 +85,15 @@ coeff_class HypergeometricPFQ_Body(const std::array<builtin_class,P>& a,
     builtin_class k = 0.0; // k is the index of the most recent COMPLETED term
     int i = 0;
 
+    // if any a is a negative integer, all terms AFTER -a[i] will be 0
     std::set<coeff_class> zeros;
     for (std::size_t i = 0; i < P; ++i) {
         if (IsNegInt(a[i])) {
             zeros.insert(std::round(-a[i]));
         }
     }
+    // if any b is a negative integer, all terms BEFORE -b[i] will be 0
+    // note: these are not actually divergences because PFQ is renormalized
     std::set<coeff_class> divergences;
     for (std::size_t i = 0; i < Q; ++i) {
         if (IsNegInt(b[i])) {
@@ -277,8 +336,10 @@ coeff_class HypergeometricPFQ_Reg(const std::array<builtin_class,P>& a,
 template<>
 inline coeff_class HypergeometricPFQ_Reg<2,1>(const std::array<builtin_class,2>& a,
         const std::array<builtin_class,1>& b, const builtin_class x) {
-    // disabling GSL because it actually manages to get the wrong answer for
-    // (1, 2, -3, 0.4)! Specifically anything with a negative c will do this.
+    // previously I called the gsl implementation of this, but as of May 2018 it
+    // actually has a bug in gsl_sf_hyperg_2F1_renorm (renorm version only) 
+    // where it gives the wrong answer if c (our b[0]) is negative, so we'll use
+    // the implementation in this file
 
     // builtin_class gslResult = gsl_sf_hyperg_2F1_renorm(a[0], a[1], b[0], x);
     // if (std::isfinite(gslResult)) {

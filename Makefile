@@ -74,7 +74,8 @@ LDFLAGS_QT := $(QTLIB) $(LDFLAGS_GLOBAL)
 EXECUTABLE := 3dBasis
 
 SOURCES_CORE := main.cpp calculation.cpp mono.cpp poly.cpp multinomial.cpp \
-		matrix.cpp gram-schmidt.cpp discretization.cpp test.cpp
+		matrix.cpp gram-schmidt.cpp discretization.cpp test.cpp \
+		hypergeo.cpp
 SOURCES_QT := gui/main_window.cpp gui/moc_main_window.cpp gui/calc_widget.cpp \
 	  gui/moc_calc_widget.cpp gui/file_widget.cpp gui/moc_file_widget.cpp \
 	  gui/console_widget.cpp gui/moc_console_widget.cpp
@@ -136,6 +137,9 @@ matrix.o: matrix.cpp matrix.hpp multinomial.hpp mono.hpp basis.hpp io.hpp \
 
 discretization.o: discretization.cpp discretization.hpp constants.hpp \
 	hypergeo.hpp
+	$(CXX) $(CXXFLAGS_CORE) $< -o $@
+
+hypergeo.o: hypergeo.cpp hypergeo.hpp constants.hpp
 	$(CXX) $(CXXFLAGS_CORE) $< -o $@
 
 test.o: test.cpp test.hpp io.hpp discretization.hpp matrix.hpp gram-schmidt.hpp\

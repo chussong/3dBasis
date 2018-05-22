@@ -715,9 +715,9 @@ std::vector<NPlus2Term_Step2> CombineNPlus2Fs(
         }
     }
     // terms with odd powers of r will eventually integrate to 0 so ditch them
-    output.erase(std::remove_if(output.begin(), output.end(),
-                [](const NPlus2Term_Step2& term){return term.r%2 == 1;}),
-            output.end());
+    // output.erase(std::remove_if(output.begin(), output.end(),
+                // [](const NPlus2Term_Step2& term){return term.r%2 == 1;}),
+            // output.end());
     return output;
 }
 

@@ -52,46 +52,10 @@ builtin_class NtoNWindow_Equal_Hypergeometric(const builtin_class arg,
 const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr, 
                              const std::size_t partitions);
 
-coeff_class NPlus2Window(const char n, const char r,
+coeff_class NPlus2Window_Less(const char n, const char r,
         const std::array<builtin_class,2>& mu1_ab,
         const std::array<builtin_class,2>& mu2_ab);
 coeff_class NPlus2Window_Equal(const char n, const char r, 
         const builtin_class mu_a, const builtin_class mu_b);
-
-// memoized interfaces to hypergeometric functions ----------------------------
-coeff_class Hypergeometric2F1(const builtin_class a, const builtin_class b,
-                              const builtin_class c, const builtin_class x);
-coeff_class Hypergeometric3F2(const builtin_class a1, const builtin_class a2,
-                              const builtin_class a3, const builtin_class b1,
-                              const builtin_class b2, const builtin_class x);
-coeff_class Hypergeometric3F2(const std::array<builtin_class,3>& a, 
-                              const std::array<builtin_class,2>& b, 
-                              const builtin_class x);
-coeff_class Hypergeometric3F2(const std::array<builtin_class,6>& params);
-coeff_class Hypergeometric3F2_Reg(const builtin_class a1, 
-                                  const builtin_class a2,
-                                  const builtin_class a3,
-                                  const builtin_class b1,
-                                  const builtin_class b2,
-                                  const builtin_class x);
-coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,3>& a, 
-        const std::array<builtin_class,2>& b, const builtin_class x);
-coeff_class Hypergeometric3F2_Reg(const std::array<builtin_class,6>& params);
-coeff_class Hypergeometric4F3(const builtin_class a1, const builtin_class a2,
-                              const builtin_class a3, const builtin_class a4,
-                              const builtin_class b1, const builtin_class b2,
-                              const builtin_class b3, const builtin_class x);
-coeff_class Hypergeometric4F3(const std::array<builtin_class,4>& a, 
-                              const std::array<builtin_class,3>& b, 
-                              const builtin_class x);
-coeff_class Hypergeometric4F3(const std::array<builtin_class,8>& params);
-coeff_class Hypergeometric4F3_Reg(const builtin_class a1, const builtin_class a2,
-                                  const builtin_class a3, const builtin_class a4,
-                                  const builtin_class b1, const builtin_class b2,
-                                  const builtin_class b3, const builtin_class x);
-coeff_class Hypergeometric4F3_Reg(const std::array<builtin_class,4>& a, 
-                                  const std::array<builtin_class,3>& b, 
-                                  const builtin_class x);
-coeff_class Hypergeometric4F3_Reg(const std::array<builtin_class,8>& params);
 
 #endif
