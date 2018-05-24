@@ -115,11 +115,15 @@ const DMatrix& MuPart_2to2(const std::size_t partitions) {
     static std::unique_ptr<DMatrix> output;
 
     if (output == nullptr) {
-        output = std::make_unique<DMatrix>(DMatrix::Zero(partitions, partitions));
+        output = std::make_unique<DMatrix>(DMatrix::Constant(partitions, 
+                                                             partitions,
+                                                             1/M_PI));
 
-        builtin_class width = builtin_class(1)/partitions;
         for (std::size_t i = 0; i < partitions; ++i) {
-            (*output)(i, i) = 2*(std::sqrt((i+1)*width) - std::sqrt(i*width));
+            output->row(i) *= (std::sqrt((i+1)) - std::sqrt(i));
+        }
+        for (std::size_t j = 0; j < partitions; ++j) {
+            output->col(j) *= (std::sqrt((j+1)) - std::sqrt(j));
         }
     }
 
@@ -354,6 +358,7 @@ const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr,
 coeff_class NPlus2Window_Less(const char n, const char r, 
         const std::array<builtin_class,2>& mu1_ab,
         const std::array<builtin_class,2>& mu2_ab) {
+    if (n == 1) return NPlus2Window_1_Less(r, mu1_ab, mu2_ab);
     builtin_class a = 0.5 * r;
     coeff_class overall = 8.0 / 3.0;
 
@@ -383,10 +388,53 @@ coeff_class NPlus2Window_Less(const char n, const char r,
     return overall * hypergeos;
 }
 
+// when n=1, the general case seems to be unsolvable, so we expand in binomials
+coeff_class NPlus2Window_1_Less(const char r, 
+                                const std::array<builtin_class,2>& mu1_ab,
+                                const std::array<builtin_class,2>& mu2_ab) {
+    coeff_class output = 0;
+
+    for (char a = 0; a <= r; a += 1) {
+        output += (a%2 == 0 ? 1.0 : -1.0) * Multinomial::Choose(r, a) 
+                  * NPlus2Window_1_Less_Term(a, mu1_ab, mu2_ab);
+    }
+
+    if (!std::isfinite(static_cast<builtin_class>(output))) {
+        std::cerr << "Error: NPlus2Window_Less(1, " << (int)r << ", " << mu1_ab 
+            << ", " << mu2_ab << ") not finite.\n";
+    }
+
+    return output;
+}
+
+// a single term of the above function
+coeff_class NPlus2Window_1_Less_Term(const builtin_class a,
+                                    const std::array<builtin_class,2>& mu1_ab,
+                                    const std::array<builtin_class,2>& mu2_ab) {
+    if (a == 0) {
+        coeff_class output = 2.0*std::sqrt(mu1_ab[1] - mu1_ab[0]);
+        output *= mu2_ab[1] - mu2_ab[0];
+        return output;
+    }
+
+    if (a == 1) {
+        coeff_class output = 2.0*std::log(mu2_ab[1]/mu2_ab[0])/3.0;
+        output *= std::pow(mu2_ab[1], 1.5) - std::pow(mu2_ab[0], 1.5);
+        return output;
+    }
+
+    coeff_class output = std::pow(mu2_ab[0], 1-a) - std::pow(mu2_ab[1], 1-a);
+    output *= 2.0*std::pow(mu1_ab[1], 0.5+a) - std::pow(mu1_ab[0], 0.5+a);
+    output /= (a - 1.0)*(2.0*a + 1.0);
+    return output;
+}
+
 // This is different from the generic case because it needs to stop when alpha
 // is 1, i.e. when mu2 >= mu1; luckily it's still pretty simple
 coeff_class NPlus2Window_Equal(const char n, const char r, 
-        const builtin_class mu_a, const builtin_class mu_b) {
+                               const builtin_class mu_a, 
+                               const builtin_class mu_b) {
+    if (n == 1) return NPlus2Window_1_Equal(r, mu_a, mu_b);
     builtin_class a = 0.5 * r;
     
     coeff_class gammaPart = std::pow(mu_b, 1.5) * std::tgamma((n+1.0)/4.0) 
@@ -404,3 +452,56 @@ coeff_class NPlus2Window_Equal(const char n, const char r,
 
     return gammaPart + hyperPart;
 }
+
+coeff_class NPlus2Window_1_Equal(const char r, const builtin_class mu_a, 
+                               const builtin_class mu_b) {
+    coeff_class output = 0;
+
+    for (char a = 0; a <= r; a += 1) {
+        output += (a%2 == 0 ? 1.0 : -1.0) * Multinomial::Choose(r, a) 
+                  * NPlus2Window_1_Equal_Term(a, mu_a, mu_b);
+    }
+
+    if (!std::isfinite(static_cast<builtin_class>(output))) {
+        std::cerr << "Error: NPlus2Window_Equal(1, " << (int)r << ", " << mu_a 
+            << ", " << mu_b << ") not finite.\n";
+    }
+
+    return output;
+}
+
+// a single term of the above function
+coeff_class NPlus2Window_1_Equal_Term(const builtin_class a,
+                                      const builtin_class mu_a,
+                                      const builtin_class mu_b) {
+    if (a == 0) {
+        coeff_class output = std::pow(mu_b, 1.5) + 2.0*std::pow(mu_a, 1.5)
+                           - 3.0*mu_a*std::sqrt(mu_b);
+        return 2.0*output/3.0;
+    }
+
+    if (a == 1) {
+        coeff_class output = 3.0*std::pow(mu_b, 1.5)*std::log(mu_b)
+                           + 2.0*std::pow(mu_a, 1.5) - 2.0*std::pow(mu_b, 1.5);
+
+        if (std::abs(mu_a) > EPSILON) {
+            output -= 3.0*std::pow(mu_b, 1.5)*std::log(mu_a);
+        }
+
+        return 2.0*output/9.0;
+    }
+
+    // FIXME: seems to not actually converge here...
+    if (std::abs(mu_a) < EPSILON) {
+        return (2.0*std::pow(mu_b, 1.5)) / (3.0 * (1.0 - a));
+    }
+
+    coeff_class num = std::pow(mu_b, a) * mu_a - std::pow(mu_a, a) * mu_b;
+    num *= std::pow(mu_b, a+0.5) - std::pow(mu_a, a+0.5);
+
+    coeff_class den = 6.0*std::pow(mu_a, 1.0)*std::pow(mu_b, 2*a+0.5)
+                    + 4.0*(a - 1.0)*std::pow(mu_a, a+1.5)*std::pow(mu_b, a)
+                    - 2.0*(2.0*a + 1.0)*std::pow(mu_a, a)*std::pow(mu_b, a+1.5);
+    return (6.0 * num) / den;
+}
+

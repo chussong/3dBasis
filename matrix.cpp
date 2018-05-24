@@ -168,7 +168,7 @@ DMatrix Matrix(const Basis<Mono>& basis, const std::size_t kMax,
                     = MatrixBlock(basis[i], basis[j], type, kMax);
                 output.block(j*kMax, i*kMax, kMax, kMax)
                     = output.block(i*kMax, j*kMax, kMax, kMax).transpose();
-                // FIXME: make sure above assignment is correct
+                // FIXME?? make sure above assignment is correct
             }
         }
         return output;
@@ -202,6 +202,7 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
             // }
             std::cout << "(" << term.first << ", " << term.second << ")" 
                 << std::endl;
+            if (term.second == 0) continue;
             output += term.second*MuPart_NtoN(A.NParticles(), term.first, 
                                               partitions);
         }
@@ -415,10 +416,6 @@ const std::vector<MatrixTerm_Intermediate>& InteractionTermsFromXY(
 }
 
 // exponent transformations ---------------------------------------------------
-//
-// rather than transforming the variables themselves, these take in a list of 
-// exponents in one coordinate system and give out lists of exponents in the new 
-// coordinate system.
 
 // just gets the exponents of each x and y, so we don't have to worry about
 // things like dividing by P or \mu
@@ -438,11 +435,7 @@ std::string ExtractXY(const Mono& extractFromThis) {
 // goes from x to u using Zuhair's (4.21); returned vector has a list of all u+ 
 // in order followed by a list of all u- in order
 std::vector<char> UFromX(const std::string& x) {
-    if (x.size() < 2) {
-        // std::cerr << "Error: asked to do exponent transform from X to U but "
-            // << "there were only " << x.size() << " entries in X." << std::endl;
-        return {};
-    }
+    if (x.size() == 1) return {};
 
     std::vector<char> u(2*x.size() - 2);
     // the terms from x_1 through x_{n-1} are regular
@@ -468,7 +461,7 @@ std::vector<char> UFromX(const std::string& x) {
 // two terms, so you end up with a sum of return terms, each with some 
 // binomial-derived coefficient.
 std::vector<MatrixTerm_Intermediate> YTildeFromY(const std::string& y) {
-    if (y.size() == 1) return {};
+    if (y.size() == 1) return std::vector<MatrixTerm_Intermediate>(1);
     //std::cout << "Transforming this y: " << y << std::endl;
     std::vector<MatrixTerm_Intermediate> ret;
     // i here is the i'th particle (pair); each one only sees those whose
@@ -602,6 +595,12 @@ std::vector<MatrixTerm_Final> ThetaFromYTilde(
     std::vector<MatrixTerm_Final> ret;
 
     for (auto& term : intermediateTerms) {
+        if (term.yTilde.size() == 0) {
+            ret.emplace_back(term.coeff, term.uPlus, term.uMinus, 
+                             std::vector<char>(), std::vector<char>());
+            continue;
+        }
+
         // sine[i] appears in all yTilde[j] with j > i (strictly greater)
         std::vector<char> sines(term.yTilde.size()-1, 0);
         for (auto i = 0u; i < sines.size(); ++i) {
@@ -650,12 +649,7 @@ std::vector<InteractionTerm_Step2> CombineInteractionFs(
             output.push_back(CombineInteractionFs_OneTerm(f1, f2));
         }
     }
-    // terms with odd powers of r will eventually integrate to 0 so ditch them
-    // output.erase(std::remove_if(output.begin(), output.end(),
-                // [](const InteractionTerm_Step2& term){return term.r[0]%2 == 1;}),
-            // output.end());
-    // TODO: verify that this variant targeting all odd powers is legitimate,
-    //        and make sure it's not safe to delete odd r[0] as well
+    // terms with odd powers of yTilde_1 cancel when adding the two Fbars
     output.erase(std::remove_if(output.begin(), output.end(),
                 [](const InteractionTerm_Step2& term)
                 {return term.r[1]%2 == 1 || term.r[2]%2 == 1;}),
@@ -667,6 +661,12 @@ InteractionTerm_Step2 CombineInteractionFs_OneTerm(
         const MatrixTerm_Intermediate& f1, const MatrixTerm_Intermediate& f2) {
     InteractionTerm_Step2 output;
     output.coeff = f1.coeff * f2.coeff;
+
+    if (f1.uPlus.size() == 0) {
+        output.r = {0, 0, 0};
+        output.alpha = 0;
+        return output;
+    }
 
     output.u.resize(f1.uPlus.size() + f1.uMinus.size() + 2);
     for (std::size_t i = 0; i < f1.uPlus.size()-1; ++i) {
@@ -746,11 +746,14 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
         }
         output.theta[2*i + 1] = f1.yTilde[i] + f2.yTilde[i];
     }
-    output.theta[output.theta.size()-2] = f2.yTilde[f2.yTilde.size()-1];
-    output.theta[output.theta.size()-1] = f2.yTilde[f2.yTilde.size()-2];
+    if (output.theta.size() >= 2) {
+        output.theta[output.theta.size()-2] = f2.yTilde[f2.yTilde.size()-1];
+        output.theta[output.theta.size()-1] = f2.yTilde[f2.yTilde.size()-2];
+    }
 
     output.r = f2.yTilde[f2.yTilde.size()-2] + f2.yTilde[f2.yTilde.size()-1];
 
+    // if (f1.uPlus.size() == 0) std::cout << "Term constructed\n";
     return output;
 }
 
@@ -765,6 +768,10 @@ coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
     // auto n = exponents.front().uPlus.size() + 1;
     coeff_class totalFromIntegrals = 0;
     for (auto& term : exponents) {
+        if (term.uPlus.size() == 0) {
+            totalFromIntegrals += 1;
+            continue;
+        }
         if (type == MAT_INNER) {
             // just do the integrals
             totalFromIntegrals += DoAllIntegrals(term);
@@ -871,7 +878,7 @@ std::vector<NPlus2Term_Output> NPlus2Output(
     std::vector<NPlus2Term_Output> output;
     for (auto& combinedF : combinedFs) {
         output.emplace_back(prefactor*DoAllIntegrals_NPlus2(combinedF), 
-                combinedF.r );
+                            combinedF.r );
     }
     return output;
 }
@@ -916,6 +923,8 @@ coeff_class MassMatrixPrefactor(const char n) {
 // than generating F+ and F-, we're taking only the even terms, which are the
 // same in both; this gives two factors of 2
 coeff_class InteractionMatrixPrefactor(const char n) {
+    if (n == 1) return 0;
+
     static std::unordered_map<char, coeff_class> cache;
     if (cache.count(n) == 0) {
         coeff_class denominator = std::tgamma(n-1);
@@ -977,6 +986,7 @@ coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
 //
 // WARNING: this changes the exponents in term, rendering it non-reusable
 coeff_class DoAllIntegrals(InteractionTerm_Step2& term) {
+    if (term.u.size() == 0) return 1;
     // std::cout << "DoAllIntegrals(" << term.u << ", " << term.theta << ")"
         // << std::endl;
     auto n = term.u.size()/2;
@@ -1033,8 +1043,9 @@ coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
         output *= ThetaIntegral_Long(term.theta[2*(n-3)],
                 term.theta[2*(n-3) + 1]);
     }
-    // I think this one (the primed one) is guaranteed to be there
-    output *= ThetaIntegral_Long(term.theta[2*(n-2)], term.theta[2*(n-2) + 1]);
+    if (n >= 2) {
+        output *= ThetaIntegral_Long(term.theta[2*(n-2)], term.theta[2*(n-2) + 1]);
+    }
 
     // std::cout << "DOALLINTEGRALS_OUTPUT:" << output << '\n';
     return output;

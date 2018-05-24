@@ -281,33 +281,33 @@ void AnalyzeHamiltonian(const Hamiltonian& hamiltonian, const Arguments& args,
     // }
 }
 
-void AnalyzeHamiltonian_Dense(const Hamiltonian& hamiltonian, 
-                               const Arguments& args) {
-    Eigen::Index totalSize = 0;
-    for (const auto& block : hamiltonian.diagonal) totalSize += block.rows();
-    DMatrix matrixForm(totalSize, totalSize);
-
-    Eigen::Index offset = 0;
-    Eigen::Index trailingOffset = 0;
-    for (std::size_t n = 1; n < hamiltonian.diagonal.size()+1; ++n) {
-        const auto& block = hamiltonian.diagonal[n-1];
-        matrixForm.block(offset, offset, block.rows(), block.cols()) = block;
-
-        if (n >= 3) {
-            const auto& nPlus2Block = hamiltonian.nPlus2[n-4];
-            matrixForm.block(trailingOffset, offset, nPlus2Block.rows(),
-                             nPlus2Block.cols()) = nPlus2Block;
-            matrixForm.block(offset, trailingOffset, nPlus2Block.cols(),
-                             nPlus2Block.rows()) = nPlus2Block.transpose();
-            trailingOffset += nPlus2Block.rows();
-        }
-        offset += block.rows();
-    }
-
-    DEigenSolver solver(matrixForm.cast<builtin_class>());
-    *args.console << "Hamiltonian eigenvalues:\n" 
-        << solver.eigenvalues() << endl;
-}
+// void AnalyzeHamiltonian_Dense(const Hamiltonian& hamiltonian, 
+                               // const Arguments& args) {
+    // Eigen::Index totalSize = 0;
+    // for (const auto& block : hamiltonian.diagonal) totalSize += block.rows();
+    // DMatrix matrixForm(totalSize, totalSize);
+// 
+    // Eigen::Index offset = 0;
+    // Eigen::Index trailingOffset = 0;
+    // for (std::size_t n = 1; n < hamiltonian.diagonal.size()+1; ++n) {
+        // const auto& block = hamiltonian.diagonal[n-1];
+        // matrixForm.block(offset, offset, block.rows(), block.cols()) = block;
+// 
+        // if (n >= 3) {
+            // const auto& nPlus2Block = hamiltonian.nPlus2[n-4];
+            // matrixForm.block(trailingOffset, offset, nPlus2Block.rows(),
+                             // nPlus2Block.cols()) = nPlus2Block;
+            // matrixForm.block(offset, trailingOffset, nPlus2Block.cols(),
+                             // nPlus2Block.rows()) = nPlus2Block.transpose();
+            // trailingOffset += nPlus2Block.rows();
+        // }
+        // offset += block.rows();
+    // }
+// 
+    // DEigenSolver solver(matrixForm.cast<builtin_class>());
+    // *args.console << "Hamiltonian eigenvalues:\n" 
+        // << solver.eigenvalues() << endl;
+// }
 
 void AnalyzeHamiltonian_Sparse(const Hamiltonian& hamiltonian, 
                                const Arguments& args, const bool odd) {

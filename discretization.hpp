@@ -12,6 +12,7 @@
 
 #include "constants.hpp"
 #include "hypergeo.hpp"
+#include "multinomial.hpp"
 
 SMatrix DiscretizePolys(const DMatrix& polysOnMinBasis, 
                         std::size_t partitions);
@@ -57,5 +58,16 @@ coeff_class NPlus2Window_Less(const char n, const char r,
         const std::array<builtin_class,2>& mu2_ab);
 coeff_class NPlus2Window_Equal(const char n, const char r, 
         const builtin_class mu_a, const builtin_class mu_b);
+coeff_class NPlus2Window_1_Less(const char r, 
+                                const std::array<builtin_class,2>& mu1_ab,
+                                const std::array<builtin_class,2>& mu2_ab);
+coeff_class NPlus2Window_1_Less_Term(const builtin_class a,
+                                     const std::array<builtin_class,2>& mu1_ab,
+                                     const std::array<builtin_class,2>& mu2_ab);
+coeff_class NPlus2Window_1_Equal(const char r, const builtin_class mu_a, 
+                                 const builtin_class mu_b);
+coeff_class NPlus2Window_1_Equal_Term(const builtin_class a,
+                                      const builtin_class mu_a,
+                                      const builtin_class mu_b);
 
 #endif

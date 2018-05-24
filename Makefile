@@ -136,7 +136,7 @@ matrix.o: matrix.cpp matrix.hpp multinomial.hpp mono.hpp basis.hpp io.hpp \
 	$(CXX) $(CXXFLAGS_CORE) $< -o $@
 
 discretization.o: discretization.cpp discretization.hpp constants.hpp \
-	hypergeo.hpp
+	hypergeo.hpp multinomial.hpp
 	$(CXX) $(CXXFLAGS_CORE) $< -o $@
 
 hypergeo.o: hypergeo.cpp hypergeo.hpp constants.hpp
