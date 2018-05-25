@@ -358,7 +358,7 @@ const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr,
 coeff_class NPlus2Window_Less(const char n, const char r, 
         const std::array<builtin_class,2>& mu1_ab,
         const std::array<builtin_class,2>& mu2_ab) {
-    if (n == 1) return NPlus2Window_1_Less(r, mu1_ab, mu2_ab);
+    if (n == 1 || n == 5) return NPlus2Window_15_Less(n, r, mu1_ab, mu2_ab);
     builtin_class a = 0.5 * r;
     coeff_class overall = 8.0 / 3.0;
 
@@ -375,11 +375,6 @@ coeff_class NPlus2Window_Less(const char n, const char r,
                              / std::pow(mu2, (n-5.0)/4.0);
             hypergeos += term * 
                 Hypergeometric2F1(-a, (n+1.0)/4.0, (n+5.0)/4.0, x) / (n + 1.0);
-            if (n == 1 || n == 5) {
-                // FIXME: there's a weird divergence here that seems to actually
-                // be infinite?? I can't actually get the limit of it
-                continue;
-            }
             hypergeos -= term * 
                 Hypergeometric2F1(-a, (n-5.0)/4.0, (n-1.0)/4.0, x) / (n - 5.0);
         }
@@ -394,10 +389,34 @@ coeff_class NPlus2Window_Less(const char n, const char r,
 }
 
 // when n=1, the general case seems to be unsolvable, so we expand in binomials
-coeff_class NPlus2Window_1_Less(const char r, 
-                                const std::array<builtin_class,2>& mu1_ab,
-                                const std::array<builtin_class,2>& mu2_ab) {
+coeff_class NPlus2Window_15_Less(const char n, const char r, 
+                                 const std::array<builtin_class,2>& mu1_ab,
+                                 const std::array<builtin_class,2>& mu2_ab) {
+    // the analytic answer to this is up to some crazy shit => trapezoid time
+    builtin_class a = 0.5*r;
     coeff_class output = 0;
+    for (auto mu2 : mu2_ab) {
+        if (n == 1) {
+            if (mu1_ab[0] == 0) {
+                builtin_class mu1 = mu1_ab[1]/2.0;
+                output += std::pow(1.0 - mu1/mu2, a)/(2.0*std::sqrt(mu1));
+            } else {
+                for (auto mu1 : mu1_ab) {
+                    output += std::pow(1.0 - mu1/mu2, a)/(4.0*std::sqrt(mu1));
+                }
+            }
+        } else if (n == 5) {
+            for (auto mu1 : mu1_ab) {
+                output += std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/(4.0*mu2);
+            }
+        } else {
+            throw std::logic_error("NPlus2Window_15_Less called with invalid n");
+        }
+    }
+    output *= (mu1_ab[1] - mu1_ab[0])*(mu2_ab[1] - mu2_ab[0]);
+    return output;
+
+    /*coeff_class output = 0;
 
     for (char a = 0; a <= r; a += 1) {
         output += (a%2 == 0 ? 1.0 : -1.0) * Multinomial::Choose(r, a) 
@@ -409,11 +428,11 @@ coeff_class NPlus2Window_1_Less(const char r,
             << ", " << mu2_ab << ") not finite.\n";
     }
 
-    return output;
+    return output;*/
 }
 
 // a single term of the above function
-coeff_class NPlus2Window_1_Less_Term(const builtin_class a,
+/*coeff_class NPlus2Window_1_Less_Term(const builtin_class a,
                                     const std::array<builtin_class,2>& mu1_ab,
                                     const std::array<builtin_class,2>& mu2_ab) {
     if (a == 0) {
@@ -432,41 +451,53 @@ coeff_class NPlus2Window_1_Less_Term(const builtin_class a,
     output *= 2.0*std::pow(mu1_ab[1], 0.5+a) - std::pow(mu1_ab[0], 0.5+a);
     output /= (a - 1.0)*(2.0*a + 1.0);
     return output;
-}
+}*/
 
 // This is different from the generic case because it needs to stop when alpha
 // is 1, i.e. when mu2 >= mu1; luckily it's still pretty simple
 coeff_class NPlus2Window_Equal(const char n, const char r, 
                                const builtin_class mu_a, 
                                const builtin_class mu_b) {
-    if (n == 1) return NPlus2Window_1_Equal(r, mu_a, mu_b);
+    if (n == 1 || n == 5) return NPlus2Window_15_Equal(n, r, mu_a, mu_b);
     builtin_class a = 0.5 * r;
     
     coeff_class gammaPart = std::pow(mu_b, 1.5) * std::tgamma((n+1.0)/4.0) 
                           / std::tgamma((n+5.0)/4.0 + a);
+    gammaPart -= std::pow(mu_a, 1.5) * std::tgamma((n-5.0)/4.0) 
+               / std::tgamma((n-1.0)/4.0 + a);
     gammaPart *= 2.0 * std::tgamma(a+1.0) / 3.0;
 
     coeff_class hyperPart = 
         -Hypergeometric2F1(-a, (n+1.0)/4.0, (n+5.0)/4.0, mu_a/mu_b) / (n + 1.0);
-    if (n != 1 && n != 5) {
-        // FIXME: there's a weird divergence here that seems to actually
-        // be infinite?? I can't actually get the limit of it
-        gammaPart -= std::pow(mu_a, 1.5) * std::tgamma((n-5.0)/4.0) 
-                   / std::tgamma((n-1.0)/4.0 + a);
-        hyperPart += Hypergeometric2F1(-a, (n-5.0)/4.0, (n-1.0)/4.0, mu_a/mu_b) 
-                   / (n - 5.0);
-    }
+    hyperPart += Hypergeometric2F1(-a, (n-5.0)/4.0, (n-1.0)/4.0, mu_a/mu_b) 
+               / (n - 5.0);
     hyperPart *= (8.0 * std::pow(mu_a, (n+1.0)/4.0))
                / (3.0 * std::pow(mu_b, (n-5.0)/4.0));
 
     return gammaPart + hyperPart;
 }
 
-coeff_class NPlus2Window_1_Equal(const char r, const builtin_class mu_a, 
-                               const builtin_class mu_b) {
-    coeff_class output = 0;
+coeff_class NPlus2Window_15_Equal(const char n, const char r, 
+                                  const builtin_class mu_a, 
+                                  const builtin_class mu_b) {
+    // analytic answer isn't working, so trapezoid this instead
+    // integrand is 0 all along the diagonal -> can't avg corners -> centroid
+    builtin_class a = 0.5*r;
+    builtin_class mu1 = (2.0*mu_a + mu_b)/3.0;
+    builtin_class mu2 = (2.0*mu_b + mu_a)/3.0;
+    coeff_class output;
+    if (n == 1) {
+        output = std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1);
+    } else if (n == 5) {
+        output = std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/mu2;
+    } else {
+        throw std::logic_error("NPlus2Window_15_Equal called with invalid n");
+    }
+    output *= (mu_b - mu_a)*(mu_b - mu_a)/2.0;
+    return output;
 
-    for (char a = 0; a <= r; a += 1) {
+    // analytic answer -- forget it for now
+    /*for (char a = 0; a <= r; a += 1) {
         output += (a%2 == 0 ? 1.0 : -1.0) * Multinomial::Choose(r, a) 
                   * NPlus2Window_1_Equal_Term(a, mu_a, mu_b);
     }
@@ -476,11 +507,11 @@ coeff_class NPlus2Window_1_Equal(const char r, const builtin_class mu_a,
             << ", " << mu_b << ") not finite.\n";
     }
 
-    return output;
+    return output;*/
 }
 
 // a single term of the above function
-coeff_class NPlus2Window_1_Equal_Term(const builtin_class a,
+/*coeff_class NPlus2Window_1_Equal_Term(const builtin_class a,
                                       const builtin_class mu_a,
                                       const builtin_class mu_b) {
     if (a == 0) {
@@ -512,5 +543,5 @@ coeff_class NPlus2Window_1_Equal_Term(const builtin_class a,
                     + 4.0*(a - 1.0)*std::pow(mu_a, a+1.5)*std::pow(mu_b, a)
                     - 2.0*(2.0*a + 1.0)*std::pow(mu_a, a)*std::pow(mu_b, a+1.5);
     return (6.0 * num) / den;
-}
+}*/
 
