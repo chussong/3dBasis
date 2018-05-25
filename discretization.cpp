@@ -375,6 +375,11 @@ coeff_class NPlus2Window_Less(const char n, const char r,
                              / std::pow(mu2, (n-5.0)/4.0);
             hypergeos += term * 
                 Hypergeometric2F1(-a, (n+1.0)/4.0, (n+5.0)/4.0, x) / (n + 1.0);
+            if (n == 1 || n == 5) {
+                // FIXME: there's a weird divergence here that seems to actually
+                // be infinite?? I can't actually get the limit of it
+                continue;
+            }
             hypergeos -= term * 
                 Hypergeometric2F1(-a, (n-5.0)/4.0, (n-1.0)/4.0, x) / (n - 5.0);
         }
@@ -439,14 +444,18 @@ coeff_class NPlus2Window_Equal(const char n, const char r,
     
     coeff_class gammaPart = std::pow(mu_b, 1.5) * std::tgamma((n+1.0)/4.0) 
                           / std::tgamma((n+5.0)/4.0 + a);
-    gammaPart -= std::pow(mu_a, 1.5) * std::tgamma((n-5.0)/4.0) 
-               / std::tgamma((n-1.0)/4.0 + a);
     gammaPart *= 2.0 * std::tgamma(a+1.0) / 3.0;
 
     coeff_class hyperPart = 
-        Hypergeometric2F1(-a, (n-5.0)/4.0, (n-1.0)/4.0, mu_a/mu_b) / (n - 5.0);
-    hyperPart -= 
-        Hypergeometric2F1(-a, (n+1.0)/4.0, (n+5.0)/4.0, mu_a/mu_b) / (n + 1.0);
+        -Hypergeometric2F1(-a, (n+1.0)/4.0, (n+5.0)/4.0, mu_a/mu_b) / (n + 1.0);
+    if (n != 1 && n != 5) {
+        // FIXME: there's a weird divergence here that seems to actually
+        // be infinite?? I can't actually get the limit of it
+        gammaPart -= std::pow(mu_a, 1.5) * std::tgamma((n-5.0)/4.0) 
+                   / std::tgamma((n-1.0)/4.0 + a);
+        hyperPart += Hypergeometric2F1(-a, (n-5.0)/4.0, (n-1.0)/4.0, mu_a/mu_b) 
+                   / (n - 5.0);
+    }
     hyperPart *= (8.0 * std::pow(mu_a, (n+1.0)/4.0))
                / (3.0 * std::pow(mu_b, (n-5.0)/4.0));
 

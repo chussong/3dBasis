@@ -161,6 +161,21 @@ inline std::string MathematicaOutput(const DMatrix& out) {
     return stream.str();
 }
 
+inline std::string MathematicaOutput(const SMatrix& out) {
+    std::stringstream stream;
+    stream << "SparseArray[{";
+    for (Eigen::Index i = 0; i < out.outerSize(); ++i) {
+        for (SMatrix::InnerIterator it(out, i); it; ++it) {
+            stream << '{' << it.row() << ',' << it.col() << "} -> " 
+                << it.value() << ", ";
+        }
+    }
+    stream.flush();
+    std::string output = stream.str();
+    output.replace(output.size()-2, 2, "}]");
+    return output;
+}
+
 #ifndef NO_GUI
 template<typename T>
 inline QTextStream& operator<<(QTextStream& os, T out) {

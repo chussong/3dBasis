@@ -225,6 +225,7 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         for (const auto& term : addedTerms) {
             std::cout << term.second << " * (" << (int)n << ", " << 
                 (int)term.first << ")" << std::endl;
+            if (term.second == 0) continue;
             output += term.second
                     * MuPart_NPlus2(std::array<char,2>{{n, term.first}}, 
                                     partitions);

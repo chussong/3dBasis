@@ -181,14 +181,10 @@ Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
                 << "polysOnMinBasis[" << suffix << "] = " 
                 << MathematicaOutput(polysOnMinBasis.transpose()) << endl;
             outStream << "(*And discretized:*)\ndiscretePolys[" << suffix 
-                << "] = " << MathematicaOutput(discPolys[n-minN].transpose()) 
+                << "] = " << MathematicaOutput(DMatrix(discPolys[n-minN].transpose())) 
                 << endl;
         } else {
             outStream << "Minimal basis (" << n << "):" << minBases[n-minN] << endl;
-        }
-
-        if (minBases[n-minN].size() == 0) {
-            continue;
         }
 
         output.diagonal.push_back(DiagonalBlock(minBases[n-minN], 
@@ -211,6 +207,8 @@ DMatrix DiagonalBlock(const Basis<Mono>& minimalBasis,
                       const Arguments& args, const bool odd) {
     *args.console << "DiagonalBlock(" << args.numP << ", " << args.degree << ")" 
         << endl;
+    if (minimalBasis.size() == 0) return DMatrix(0, 0);
+
     Timer timer;
     const bool interacting = (args.options & OPT_INTERACTING) != 0;
     std::string suffix = std::to_string(args.numP) + (odd ? ", odd" : ", even");
@@ -258,6 +256,8 @@ DMatrix NPlus2Block(const Basis<Mono>& basisA, const SMatrix& discPolysA,
                     const Arguments& args, const bool odd) {
     *args.console << "NPlus2Block(" << args.numP-2 << " -> " << args.numP << ")" 
         << endl;
+    if (basisA.size() == 0 || basisB.size() == 0) return DMatrix(0, 0);
+
     Timer timer;
     std::string suffix = std::to_string(args.numP-2) 
                        + (odd ? ", odd" : ", even");
@@ -321,6 +321,7 @@ void AnalyzeHamiltonian_Sparse(const Hamiltonian& hamiltonian,
             for (Eigen::Index j = 0; j < block.cols(); ++j) {
                 if (block(i,j) == 0) continue;
                 triplets.emplace_back(offset+i, offset+j, block(i,j));
+                // std::cout << "Diagonal triplet: " << triplets.back() << '\n';
             }
         }
 
@@ -332,24 +333,29 @@ void AnalyzeHamiltonian_Sparse(const Hamiltonian& hamiltonian,
                     if (nPlus2Block(i,j) == 0) continue;
                     triplets.emplace_back(trailingOffset+i, offset+j, 
                                           nPlus2Block(i,j));
+                    // std::cout << "n+2 triplet: " << triplets.back() << '\n';
                     triplets.emplace_back(offset+j, trailingOffset+i, 
                                           nPlus2Block(i,j));
+                    // std::cout << "n+2 triplet: " << triplets.back() << '\n';
                 }
             }
             trailingOffset += hamiltonian.diagonal[n-3].rows();
+            // std::cout << "trailingOffset += " 
+                // << hamiltonian.diagonal[n-3].rows() << '\n';
         }
         offset += block.rows();
+        // std::cout << "offset += " << block.rows() << '\n';
     }
 
     SMatrix matrixForm(offset, offset);
-    // std::cout << "Matrix size: " << offset << "x" << offset << '\n';
+    // std::cout << "Matrix size: " << offset << "x" << offset << std::endl;
     // for (const auto& trip : triplets) std::cout << trip << std::endl;
     matrixForm.setFromTriplets(triplets.begin(), triplets.end());
 
     OStream& outStream = *args.outStream;
     if ((args.options & OPT_MATHEMATICA) != 0) {
         outStream << "hamiltonian[" << (odd ? "odd" : "even") << "] = "
-            << MathematicaOutput(DMatrix(matrixForm)) << '\n';
+            << MathematicaOutput(matrixForm) << '\n';
     } else {
         if (matrixForm.rows() <= 20) {
             outStream << (odd ? "Odd" : "Even") << " Hamiltonian:\n" 
