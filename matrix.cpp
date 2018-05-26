@@ -211,24 +211,24 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         const char n = A.NParticles();
         auto terms = MatrixTerm_NPlus2(A, B);
         // algebraically add terms by r exponent before doing the discretization
-        std::unordered_map<char, coeff_class> addedTerms;
+        std::unordered_map<std::array<char,2>, coeff_class, 
+                           boost::hash<std::array<char,2>> > addedTerms;
         for (const auto& term : terms) {
-            if (addedTerms.count(term.r) == 0) {
-                addedTerms.emplace(term.r, term.coeff);
+            std::array<char,2> key = {{static_cast<char>(n + 2*term.alpha), 
+                                                         term.r}};
+            if (addedTerms.count(key) == 0) {
+                addedTerms.emplace(key, term.coeff);
             } else {
-                addedTerms[term.r] += term.coeff;
+                addedTerms[key] += term.coeff;
             }
         }
 
         DMatrix output = DMatrix::Zero(partitions, partitions);
         std::cout << "N+2 terms for " << A << " x " << B << ":\n";
         for (const auto& term : addedTerms) {
-            std::cout << term.second << " * (" << (int)n << ", " << 
-                (int)term.first << ")" << std::endl;
+            std::cout << term.second << " * " << term.first << '\n';
             if (term.second == 0) continue;
-            output += term.second
-                    * MuPart_NPlus2(std::array<char,2>{{n, term.first}}, 
-                                    partitions);
+            output += term.second * MuPart_NPlus2(term.first, partitions);
         }
         return output;
     } else {
@@ -664,7 +664,7 @@ InteractionTerm_Step2 CombineInteractionFs_OneTerm(
     output.coeff = f1.coeff * f2.coeff;
 
     if (f1.uPlus.size() == 0) {
-        output.r = {0, 0, 0};
+        output.r = {{0, 0, 0}};
         output.alpha = 0;
         return output;
     }
@@ -715,7 +715,7 @@ std::vector<NPlus2Term_Step2> CombineNPlus2Fs(
             output.push_back(CombineNPlus2Fs_OneTerm(f1, f2));
         }
     }
-    // terms with odd powers of r will eventually integrate to 0 so ditch them
+    // FIXME: add this to remove odd powers of r which will cancel
     // output.erase(std::remove_if(output.begin(), output.end(),
                 // [](const NPlus2Term_Step2& term){return term.r%2 == 1;}),
             // output.end());
@@ -727,6 +727,8 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
     // std::cout << f1 << " |U| " << f2 << std::endl;
 
     NPlus2Term_Step2 output;
+    // FIXME: move r up here and add this to skip odd powers of r
+    // if (output.r%2 == 1) return output;
     output.coeff = f1.coeff * f2.coeff;
 
     output.u.resize(f1.uPlus.size() + f1.uMinus.size() + 4);
@@ -752,9 +754,13 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
         output.theta[output.theta.size()-1] = f2.yTilde[f2.yTilde.size()-2];
     }
 
+    output.alpha = 0;
+    for (std::size_t i = 0; i+2 < f2.yTilde.size(); ++i) {
+        output.alpha += f2.yTilde[i];
+    }
+
     output.r = f2.yTilde[f2.yTilde.size()-2] + f2.yTilde[f2.yTilde.size()-1];
 
-    // if (f1.uPlus.size() == 0) std::cout << "Term constructed\n";
     return output;
 }
 
@@ -879,7 +885,7 @@ std::vector<NPlus2Term_Output> NPlus2Output(
     std::vector<NPlus2Term_Output> output;
     for (auto& combinedF : combinedFs) {
         output.emplace_back(prefactor*DoAllIntegrals_NPlus2(combinedF), 
-                            combinedF.r );
+                            combinedF.r, combinedF.alpha );
     }
     return output;
 }
@@ -1027,7 +1033,6 @@ coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
         output *= UPlusIntegral(term.u[2*i] + 3, 5*(n - i) - 3 + term.u[2*i + 1]);
     }
 
-    // next the two primed u integrals (TODO: check additions!!)
     output *= UPlusIntegral(term.u[2*(n-1)] + 1, term.u[2*(n-1) + 1] + 1);
     output *= UPlusIntegral(term.u[2*n] + 1, term.u[2*n + 1] + 4);
 
@@ -1039,13 +1044,18 @@ coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
     if (n >= 3) {
         for (auto i = 0u; i < n-3; ++i) {
             output *= ThetaIntegral_Short(n - (i+1) - 2 + term.theta[2*i],
-                            term.theta[2*i + 1] );
+                                          term.theta[2*i + 1] );
         }
         output *= ThetaIntegral_Long(term.theta[2*(n-3)],
-                term.theta[2*(n-3) + 1]);
+                                     term.theta[2*(n-3) + 1]);
+    // } else {
+    // FIXME?? not sure if this is necessary but it appears in the direct matrix
+        // output *= 2;
     }
     if (n >= 2) {
-        output *= ThetaIntegral_Long(term.theta[2*(n-2)], term.theta[2*(n-2) + 1]);
+        // this is the theta prime integral
+        output *= ThetaIntegral_Long(term.theta[2*(n-2)], 
+                                     term.theta[2*(n-2) + 1]);
     }
 
     // std::cout << "DOALLINTEGRALS_OUTPUT:" << output << '\n';

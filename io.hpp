@@ -166,7 +166,7 @@ inline std::string MathematicaOutput(const SMatrix& out) {
     stream << "SparseArray[{";
     for (Eigen::Index i = 0; i < out.outerSize(); ++i) {
         for (SMatrix::InnerIterator it(out, i); it; ++it) {
-            stream << '{' << it.row() << ',' << it.col() << "} -> " 
+            stream << '{' << it.row()+1 << ',' << it.col()+1 << "} -> " 
                 << it.value() << ", ";
         }
     }

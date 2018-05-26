@@ -1,5 +1,7 @@
 #include "discretization.hpp"
 
+constexpr std::size_t TRAPEZOID_SAMPLES = 100;
+
 // Take a non-discretized polysOnMinBasis matrix and return one that expresses
 // the k'th slice of each polynomial in terms of the k'th slices of its 
 // constituent monomials
@@ -401,14 +403,22 @@ coeff_class NPlus2Window_15_Less(const char n, const char r,
                 builtin_class mu1 = mu1_ab[1]/2.0;
                 output += std::pow(1.0 - mu1/mu2, a)/(2.0*std::sqrt(mu1));
             } else {
-                for (auto mu1 : mu1_ab) {
-                    output += std::pow(1.0 - mu1/mu2, a)/(4.0*std::sqrt(mu1));
-                }
+                return Trapezoid_Rectangular(
+                        [=](builtin_class mu1, builtin_class mu2)
+                        { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); },
+                        mu1_ab, mu2_ab, TRAPEZOID_SAMPLES);
+                // for (auto mu1 : mu1_ab) {
+                    // output += std::pow(1.0 - mu1/mu2, a)/(4.0*std::sqrt(mu1));
+                // }
             }
         } else if (n == 5) {
-            for (auto mu1 : mu1_ab) {
-                output += std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/(4.0*mu2);
-            }
+            return Trapezoid_Rectangular(
+                    [=](builtin_class mu1, builtin_class mu2)
+                    { return std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/mu2; },
+                    mu1_ab, mu2_ab, TRAPEZOID_SAMPLES);
+            // for (auto mu1 : mu1_ab) {
+                // output += std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/(4.0*mu2);
+            // }
         } else {
             throw std::logic_error("NPlus2Window_15_Less called with invalid n");
         }
@@ -481,8 +491,27 @@ coeff_class NPlus2Window_15_Equal(const char n, const char r,
                                   const builtin_class mu_a, 
                                   const builtin_class mu_b) {
     // analytic answer isn't working, so trapezoid this instead
-    // integrand is 0 all along the diagonal -> can't avg corners -> centroid
     builtin_class a = 0.5*r;
+    std::function<coeff_class(builtin_class,builtin_class)> integrand;
+    if (n == 1) {
+        integrand = [=](builtin_class mu1, builtin_class mu2)
+                    { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); };
+        if (mu_a == 0) {
+            // (integrable) divergence in trapezoid, just use the centroid
+            builtin_class mu1 = (2.0*mu_a + mu_b)/3.0;
+            builtin_class mu2 = (2.0*mu_b + mu_a)/3.0;
+            return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1)
+                 * (mu_b - mu_a)*(mu_b - mu_a)/2.0;
+        }
+    } else if (n == 5) {
+        integrand = [=](builtin_class mu1, builtin_class mu2)
+                    { return std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/mu2; };
+    } else {
+        throw std::logic_error("NPlus2Window_15_Equal called with invalid n");
+    }
+    return Trapezoid_Triangular(integrand, mu_a, mu_b, TRAPEZOID_SAMPLES);
+    // integrand is 0 all along the diagonal -> can't avg corners -> centroid
+    /*builtin_class a = 0.5*r;
     builtin_class mu1 = (2.0*mu_a + mu_b)/3.0;
     builtin_class mu2 = (2.0*mu_b + mu_a)/3.0;
     coeff_class output;
@@ -494,7 +523,7 @@ coeff_class NPlus2Window_15_Equal(const char n, const char r,
         throw std::logic_error("NPlus2Window_15_Equal called with invalid n");
     }
     output *= (mu_b - mu_a)*(mu_b - mu_a)/2.0;
-    return output;
+    return output;*/
 
     // analytic answer -- forget it for now
     /*for (char a = 0; a <= r; a += 1) {
@@ -545,3 +574,81 @@ coeff_class NPlus2Window_15_Equal(const char n, const char r,
     return (6.0 * num) / den;
 }*/
 
+// generic trapezoid rule approximation to an integral over a rectangular area
+coeff_class Trapezoid_Rectangular(
+        const std::function<coeff_class(builtin_class,builtin_class)> integrand,
+        const std::array<builtin_class,2>& mu1_ab, 
+        const std::array<builtin_class,2>& mu2_ab,
+        const std::size_t samples) {
+    coeff_class value = 0;
+    for (std::size_t i = 1; i < samples; ++i) {
+        builtin_class mu1 = mu1_ab[0] + i*((mu1_ab[1] - mu1_ab[0])/samples);
+        for (std::size_t j = 1; j < samples; ++j) {
+            builtin_class mu2 = mu2_ab[0] + j*((mu2_ab[1] - mu2_ab[0])/samples);
+            // interior
+            value += 4.0*integrand(mu1, mu2);
+        }
+        // left and right edges
+        value += 2.0*(integrand(mu1, mu2_ab[0]) + integrand(mu1, mu2_ab[1]));
+    }
+    for (std::size_t j = 1; j < samples; ++j) {
+        // top and bottom edges
+        builtin_class mu2 = mu2_ab[0] + j*((mu2_ab[1] - mu2_ab[0])/samples);
+        value += 2.0*(integrand(mu1_ab[0], mu2) + integrand(mu1_ab[1], mu2));
+    }
+    // corners
+    value += integrand(mu1_ab[0], mu2_ab[0]) + integrand(mu1_ab[0], mu2_ab[1])
+            + integrand(mu1_ab[1], mu2_ab[0]) + integrand(mu1_ab[1], mu2_ab[1]);
+
+    return (value*(mu1_ab[1]-mu1_ab[0])*(mu2_ab[1]-mu2_ab[0])) 
+           / (4.0*samples*samples);
+}
+
+// generic trapezoid rule approximation to an integral over a triangular area
+coeff_class Trapezoid_Triangular(
+        const std::function<coeff_class(builtin_class,builtin_class)> integrand,
+        const builtin_class mu_a, const builtin_class mu_b,
+        const std::size_t samples) {
+    builtin_class width = (mu_b - mu_a)/samples;
+    coeff_class triValue = 0;
+    coeff_class rectValue = 0;
+
+    // corners
+    triValue += integrand(mu_a, mu_a) + integrand(mu_b, mu_b);
+    rectValue += integrand(mu_a, mu_b);
+
+    // diagonal
+    for (std::size_t i = 1; i < samples; ++i) {
+        builtin_class mu_i = mu_a + i*width;
+        triValue += 2.0*integrand(mu_i, mu_i);
+        rectValue += integrand(mu_i, mu_i);
+    }
+
+    // subdiagonal
+    triValue += integrand(mu_a, mu_a + width);
+    rectValue += integrand(mu_a, mu_a + width);
+    triValue += integrand(mu_b - width, mu_b);
+    rectValue += integrand(mu_b - width, mu_b);
+    for (std::size_t i = 1; i < samples-1; ++i) {
+        builtin_class mu_i = mu_a + i*width;
+        triValue += integrand(mu_i, mu_i + width);
+        rectValue += 3.0*integrand(mu_i, mu_i + width);
+    }
+
+    // top and right edges
+    for (std::size_t i = 2; i < samples; ++i) {
+        rectValue += 2.0*integrand(mu_a, mu_a + i*width);
+        rectValue += 2.0*integrand(mu_b - i*width, mu_b);
+    }
+
+    // interior
+    for (std::size_t i = 1; i < samples; ++i) {
+        builtin_class mu_i = mu_a + i*width;
+        for (std::size_t j = i+2; j < samples; ++j) {
+            builtin_class mu_j = mu_a + j*width;
+            rectValue += 4.0*integrand(mu_i, mu_j);
+        }
+    }
+
+    return rectValue*(width*width)/4.0 + triValue*(width*width/2.0)/3.0;
+}

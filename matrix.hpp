@@ -129,6 +129,7 @@ struct NPlus2Term_Step2 {
     std::vector<char> theta;
     // r, sqrt(1 - r^2), sqrt(1 - alpha^2 r^2)
     char r;
+    char alpha;
 };
 
 inline OStream& operator<<(OStream& os, const NPlus2Term_Step2& out) {
@@ -141,9 +142,11 @@ struct NPlus2Term_Output {
     coeff_class coeff;
     // exponent of r
     char r;
+    // exponent of alpha
+    char alpha;
 
-    NPlus2Term_Output(const coeff_class coeff, const char r):
-        coeff(coeff), r(r) {}
+    NPlus2Term_Output(const coeff_class coeff, const char r, const char alpha):
+        coeff(coeff), r(r), alpha(alpha) {}
 };
 
 // the two functions for actually computing the two types of MatrixTerms:
