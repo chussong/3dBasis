@@ -455,11 +455,8 @@ coeff_class NPlus2Window_15_Equal(const char n, const char r,
         integrand = [a](builtin_class mu1, builtin_class mu2)
                     { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); };
         if (mu_a == 0) {
-            // (integrable) divergence in trapezoid, just use the centroid
-            builtin_class mu1 = (2.0*mu_a + mu_b)/3.0;
-            builtin_class mu2 = (2.0*mu_b + mu_a)/3.0;
-            return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1)
-                 * (mu_b - mu_a)*(mu_b - mu_a)/2.0;
+            // (integrable) divergence in trapezoid, just use midpoint
+            return Midpoint_Triangular(integrand, mu_a, mu_b,TRAPEZOID_SAMPLES);
         }
     } else if (n == 5) {
         integrand = [a](builtin_class mu1, builtin_class mu2)
@@ -478,6 +475,10 @@ coeff_class Trapezoid_Rectangular(
         const std::array<builtin_class,2>& mu1_ab, 
         const std::array<builtin_class,2>& mu2_ab,
         const std::size_t samples) {
+    if (mu1_ab[1] == mu1_ab[0] || mu2_ab[1] == mu2_ab[0] || samples == 0) {
+        return 0;
+    }
+
     coeff_class value = 0;
     for (std::size_t i = 1; i < samples; ++i) {
         builtin_class mu1 = mu1_ab[0] + i*((mu1_ab[1] - mu1_ab[0])/samples);
@@ -507,6 +508,8 @@ coeff_class Trapezoid_Triangular(
         const std::function<coeff_class(builtin_class,builtin_class)> integrand,
         const builtin_class mu_a, const builtin_class mu_b,
         const std::size_t samples) {
+    if (mu_a == mu_b || samples == 0) return 0;
+
     builtin_class width = (mu_b - mu_a)/samples;
     coeff_class triValue = 0;
     coeff_class rectValue = 0;
@@ -557,6 +560,10 @@ coeff_class Midpoint_Rectangular(
         const std::array<builtin_class,2>& mu1_ab, 
         const std::array<builtin_class,2>& mu2_ab,
         const std::size_t samples) {
+    if (mu1_ab[1] == mu1_ab[0] || mu2_ab[1] == mu2_ab[0] || samples == 0) {
+        return 0;
+    }
+
     coeff_class value = 0;
     builtin_class width1 = (mu1_ab[1] - mu1_ab[0])/samples;
     builtin_class width2 = (mu2_ab[1] - mu2_ab[0])/samples;
@@ -568,4 +575,30 @@ coeff_class Midpoint_Rectangular(
         }
     }
     return value*width1*width2;
+}
+
+// generic midpoint rule approximation to an integral over a rectangular area
+coeff_class Midpoint_Triangular(
+        const std::function<coeff_class(builtin_class,builtin_class)> integrand,
+        const builtin_class mu_a, const builtin_class mu_b,
+        const std::size_t samples) {
+    if (mu_a == mu_b || samples == 0) return 0;
+
+    builtin_class width = (mu_b - mu_a)/samples;
+    coeff_class value = 0;
+    
+    for (std::size_t row = 0; row < samples; ++row) {
+        builtin_class mu0 = mu_a + row*width;
+
+        // use centroids for triangular sections along diagonal
+        builtin_class mu1 = (3.0*mu0 + width)/3.0;
+        builtin_class mu2 = (3.0*mu0 + 2.0*width)/3.0;
+        value += integrand(mu1, mu2)*(width*width/2.0);
+
+        // just use the rectangular one for the rest
+        value += Midpoint_Rectangular(integrand, {{mu0, mu0+width}}, 
+                                      {{mu0+width, mu_b}}, samples-row-1);
+    }
+
+    return value;
 }

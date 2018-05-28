@@ -86,4 +86,8 @@ coeff_class Midpoint_Rectangular(
         const std::array<builtin_class,2>& mu1_ab, 
         const std::array<builtin_class,2>& mu2_ab,
         const std::size_t samples);
+coeff_class Midpoint_Triangular(
+        const std::function<coeff_class(builtin_class,builtin_class)> integrand,
+        const builtin_class mu_a, const builtin_class mu_b,
+        const std::size_t samples);
 #endif

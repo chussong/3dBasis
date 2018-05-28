@@ -38,6 +38,8 @@ bool RunAllTests(const Arguments& args) {
     // result &= Test::InteractionMatrix(minBasis, args);
 
     result &= MuPart_NtoN(args);
+    result &= Midpoint_Rectangular(console);
+    result &= Midpoint_Triangular(console);
 
     return result;
 }
@@ -273,6 +275,93 @@ bool MuPart_NtoN(const Arguments& args) {
         console << muPart << "\n^muPart not equal to reference_\n" << reference
             << "\nratio:\n" << quotient << '\n';
         console << "----- FAILED -----" << endl;
+        return false;
+    }
+}
+
+bool Midpoint_Rectangular(OStream& console) {
+    console << "----- ::Midpoint_Rectangular -----" << endl;
+    bool pass = true;
+    pass &= Midpoint_Rectangular_Case([](builtin_class mu1, builtin_class mu2)
+                            { return mu1/mu2; },
+                            {{0.2, 0.8}}, {{0.2, 0.8}}, 0.415888, console);
+    pass &= Midpoint_Rectangular_Case([](builtin_class mu1, builtin_class mu2)
+                            { return std::pow(mu1, mu2); },
+                            {{0.2, 0.8}}, {{0.1, 0.5}}, 0.193083, console);
+    pass &= Midpoint_Rectangular_Case([](builtin_class mu1, builtin_class mu2)
+                            { return std::pow(mu1, mu2); },
+                            {{0.2, 0.8}}, {{0.3, 8}}, 0.839284, console);
+    pass &= Midpoint_Rectangular_Case([](builtin_class mu1, builtin_class mu2)
+                            { return std::exp(mu1 - mu2); },
+                            {{0.2, 20}}, {{6, 12}}, 1.19962e6, console);
+    if (pass) {
+        console << "----- PASSED -----" << endl;
+        return true;
+    } else {
+        console << "----- FAILED -----" << endl;
+        return false;
+    }
+}
+
+bool Midpoint_Rectangular_Case(
+        std::function<coeff_class(builtin_class,builtin_class)> integrand,
+        const std::array<builtin_class,2> mu_a, 
+        const std::array<builtin_class,2> mu_b,
+        const builtin_class expected, OStream& console) {
+    constexpr builtin_class tolerance = 1e-2;
+    constexpr std::size_t samples = 100;
+
+    builtin_class answer = ::Midpoint_Rectangular(integrand, mu_a, mu_b, samples);
+    console << "Midpoint_Rectangular(" << mu_a << ", " << mu_b << ") == " 
+        << answer;
+    if (std::abs(answer - expected) <= tolerance*answer) {
+        console << " == " << expected << " (PASS)" << endl;
+        return true;
+    } else {
+        console << " != " << expected << " (FAIL)" << endl;
+        return false;
+    }
+}
+
+bool Midpoint_Triangular(OStream& console) {
+    console << "----- ::Midpoint_Triangular -----" << endl;
+    bool pass = true;
+    pass &= Midpoint_Triangular_Case([](builtin_class mu1, builtin_class mu2)
+                            { return mu1/mu2; },
+                            0.2, 0.8, 0.122274, console);
+    pass &= Midpoint_Triangular_Case([](builtin_class mu1, builtin_class mu2)
+                            { return std::pow(mu1, mu2); },
+                            0.2, 0.8, 0.10475, console);
+    pass &= Midpoint_Triangular_Case([](builtin_class mu1, builtin_class mu2)
+                            { return std::pow(mu1, mu2); },
+                            0.3, 8.0, 4.88785e6, console);
+    pass &= Midpoint_Triangular_Case([](builtin_class mu1, builtin_class mu2)
+                            { return std::exp(mu1 - mu2); },
+                            0.2, 20.0, 18.8, console);
+    if (pass) {
+        console << "----- PASSED -----" << endl;
+        return true;
+    } else {
+        console << "----- FAILED -----" << endl;
+        return false;
+    }
+}
+
+bool Midpoint_Triangular_Case(
+        std::function<coeff_class(builtin_class,builtin_class)> integrand,
+        const builtin_class mu_a, const builtin_class mu_b,
+        const builtin_class expected, OStream& console) {
+    constexpr builtin_class tolerance = 1e-2;
+    constexpr std::size_t samples = 100;
+
+    builtin_class answer = ::Midpoint_Triangular(integrand, mu_a, mu_b, samples);
+    console << "Midpoint_Triangular(" << mu_a << ", " << mu_b << ") == " 
+        << answer;
+    if (std::abs(answer - expected) <= tolerance*answer) {
+        console << " == " << expected << " (PASS)" << endl;
+        return true;
+    } else {
+        console << " != " << expected << " (FAIL)" << endl;
         return false;
     }
 }
