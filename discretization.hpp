@@ -71,7 +71,7 @@ coeff_class NPlus2Window_15_Equal(const char n, const char r,
                                       // const builtin_class mu_a,
                                       // const builtin_class mu_b);
 
-// trapezoid rule approximations for cases that aren't analytically solvable --
+// numerical integral functions for cases that aren't analytically solvable ---
 coeff_class Trapezoid_Rectangular(
         const std::function<coeff_class(builtin_class,builtin_class)> integrand,
         const std::array<builtin_class,2>& mu1_ab, 
@@ -80,5 +80,10 @@ coeff_class Trapezoid_Rectangular(
 coeff_class Trapezoid_Triangular(
         const std::function<coeff_class(builtin_class,builtin_class)> integrand,
         const builtin_class mu_a, const builtin_class mu_b,
+        const std::size_t samples);
+coeff_class Midpoint_Rectangular(
+        const std::function<coeff_class(builtin_class,builtin_class)> integrand,
+        const std::array<builtin_class,2>& mu1_ab, 
+        const std::array<builtin_class,2>& mu2_ab,
         const std::size_t samples);
 #endif

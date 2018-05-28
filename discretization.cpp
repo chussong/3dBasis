@@ -59,7 +59,7 @@ DMatrix MuPart_Kinetic(const std::size_t partitions) {
     return output;
 }
 
-// interaction (same n) matrix computations -----------------------------------
+// n->n interaction -----------------------------------------------------------
 
 namespace {
     std::unordered_map<std::array<char,2>, DMatrix, 
@@ -117,15 +117,17 @@ const DMatrix& MuPart_2to2(const std::size_t partitions) {
     static std::unique_ptr<DMatrix> output;
 
     if (output == nullptr) {
+        builtin_class partWidth = builtin_class(1) / partitions;
+        coeff_class constant = 16.0 * std::sqrt(partWidth) / (9.0 * 2.0 * M_PI);
         output = std::make_unique<DMatrix>(DMatrix::Constant(partitions, 
                                                              partitions,
-                                                             1/M_PI));
+                                                             constant));
 
         for (std::size_t i = 0; i < partitions; ++i) {
-            output->row(i) *= (std::sqrt((i+1)) - std::sqrt(i));
+            output->row(i) *= (std::pow(i+1, 0.75) - std::pow(i, 0.75));
         }
         for (std::size_t j = 0; j < partitions; ++j) {
-            output->col(j) *= (std::sqrt((j+1)) - std::sqrt(j));
+            output->col(j) *= (std::pow(j+1, 0.75) - std::pow(j, 0.75));
         }
     }
 
@@ -186,15 +188,14 @@ coeff_class NtoNWindow_Less_Special(const builtin_class r,
     // to use the trapezoid rule, but that's indeterminate along the boundary as
     // well, so we're reduced to using the value in the middle
     if (mu1sq_ab[1] == mu2sq_ab[0]) {
-        builtin_class mu1sq = (mu1sq_ab[1]+mu1sq_ab[0])/2.0;
-        builtin_class mu2sq = (mu2sq_ab[1]+mu2sq_ab[0])/2.0;
-
-        coeff_class midValue = std::sqrt(M_PI) * std::sqrt(mu1sq) / (2*mu2sq)
-                             * std::tgamma((1.0+r)/2.0)
-                             * Hypergeometric2F1_Reg(0.5, 0.5+r/2.0, 
-                                                     1.0+r/2.0, mu1sq/mu2sq);
-
-        return midValue * (mu1sq_ab[1]-mu1sq_ab[0]) * (mu2sq_ab[1]-mu2sq_ab[0]);
+        builtin_class pref = std::sqrt(M_PI) * std::tgamma((1.0+r)/2.0) / 2.0;
+        auto val = Midpoint_Rectangular([r](builtin_class mu1,builtin_class mu2)
+                { return std::sqrt(mu1)/mu2 * Hypergeometric2F1_Reg(0.5, 
+                                                                    0.5+r/2.0,
+                                                                    1.0+r/2.0, 
+                                                                    mu1/mu2);},
+                mu1sq_ab, mu2sq_ab, TRAPEZOID_SAMPLES);
+        return pref * val;
     }
 
     coeff_class overall = std::sqrt(M_PI) * std::tgamma((r + 3.0)/2.0)
@@ -323,6 +324,8 @@ builtin_class NtoNWindow_Equal_Hypergeometric(const builtin_class arg,
                                  (r+2.0)/2.0, arg + 1, x);
 }
 
+// n->n+2 interaction ---------------------------------------------------------
+
 const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr, 
                              const std::size_t partitions) {
     // if (nr[1]%2 == 1) {
@@ -396,72 +399,27 @@ coeff_class NPlus2Window_15_Less(const char n, const char r,
                                  const std::array<builtin_class,2>& mu2_ab) {
     // the analytic answer to this is up to some crazy shit => trapezoid time
     builtin_class a = 0.5*r;
-    coeff_class output = 0;
-    for (auto mu2 : mu2_ab) {
-        if (n == 1) {
-            if (mu1_ab[0] == 0) {
-                builtin_class mu1 = mu1_ab[1]/2.0;
-                output += std::pow(1.0 - mu1/mu2, a)/(2.0*std::sqrt(mu1));
-            } else {
-                return Trapezoid_Rectangular(
-                        [=](builtin_class mu1, builtin_class mu2)
-                        { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); },
-                        mu1_ab, mu2_ab, TRAPEZOID_SAMPLES);
-                // for (auto mu1 : mu1_ab) {
-                    // output += std::pow(1.0 - mu1/mu2, a)/(4.0*std::sqrt(mu1));
-                // }
-            }
-        } else if (n == 5) {
-            return Trapezoid_Rectangular(
-                    [=](builtin_class mu1, builtin_class mu2)
-                    { return std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/mu2; },
+    if (n == 1) {
+        if (mu1_ab[0] == 0) {
+            return Midpoint_Rectangular(
+                    [a](builtin_class mu1, builtin_class mu2)
+                    { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); },
                     mu1_ab, mu2_ab, TRAPEZOID_SAMPLES);
-            // for (auto mu1 : mu1_ab) {
-                // output += std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/(4.0*mu2);
-            // }
         } else {
-            throw std::logic_error("NPlus2Window_15_Less called with invalid n");
+            return Trapezoid_Rectangular(
+                    [a](builtin_class mu1, builtin_class mu2)
+                    { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); },
+                    mu1_ab, mu2_ab, TRAPEZOID_SAMPLES);
         }
+    } else if (n == 5) {
+        return Trapezoid_Rectangular(
+                [a](builtin_class mu1, builtin_class mu2)
+                { return std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/mu2; },
+                mu1_ab, mu2_ab, TRAPEZOID_SAMPLES);
+    } else {
+        throw std::logic_error("NPlus2Window_15_Less called with invalid n");
     }
-    output *= (mu1_ab[1] - mu1_ab[0])*(mu2_ab[1] - mu2_ab[0]);
-    return output;
-
-    /*coeff_class output = 0;
-
-    for (char a = 0; a <= r; a += 1) {
-        output += (a%2 == 0 ? 1.0 : -1.0) * Multinomial::Choose(r, a) 
-                  * NPlus2Window_1_Less_Term(a, mu1_ab, mu2_ab);
-    }
-
-    if (!std::isfinite(static_cast<builtin_class>(output))) {
-        std::cerr << "Error: NPlus2Window_Less(1, " << (int)r << ", " << mu1_ab 
-            << ", " << mu2_ab << ") not finite.\n";
-    }
-
-    return output;*/
 }
-
-// a single term of the above function
-/*coeff_class NPlus2Window_1_Less_Term(const builtin_class a,
-                                    const std::array<builtin_class,2>& mu1_ab,
-                                    const std::array<builtin_class,2>& mu2_ab) {
-    if (a == 0) {
-        coeff_class output = 2.0*std::sqrt(mu1_ab[1] - mu1_ab[0]);
-        output *= mu2_ab[1] - mu2_ab[0];
-        return output;
-    }
-
-    if (a == 1) {
-        coeff_class output = 2.0*std::log(mu2_ab[1]/mu2_ab[0])/3.0;
-        output *= std::pow(mu2_ab[1], 1.5) - std::pow(mu2_ab[0], 1.5);
-        return output;
-    }
-
-    coeff_class output = std::pow(mu2_ab[0], 1-a) - std::pow(mu2_ab[1], 1-a);
-    output *= 2.0*std::pow(mu1_ab[1], 0.5+a) - std::pow(mu1_ab[0], 0.5+a);
-    output /= (a - 1.0)*(2.0*a + 1.0);
-    return output;
-}*/
 
 // This is different from the generic case because it needs to stop when alpha
 // is 1, i.e. when mu2 >= mu1; luckily it's still pretty simple
@@ -494,7 +452,7 @@ coeff_class NPlus2Window_15_Equal(const char n, const char r,
     builtin_class a = 0.5*r;
     std::function<coeff_class(builtin_class,builtin_class)> integrand;
     if (n == 1) {
-        integrand = [=](builtin_class mu1, builtin_class mu2)
+        integrand = [a](builtin_class mu1, builtin_class mu2)
                     { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); };
         if (mu_a == 0) {
             // (integrable) divergence in trapezoid, just use the centroid
@@ -504,75 +462,15 @@ coeff_class NPlus2Window_15_Equal(const char n, const char r,
                  * (mu_b - mu_a)*(mu_b - mu_a)/2.0;
         }
     } else if (n == 5) {
-        integrand = [=](builtin_class mu1, builtin_class mu2)
+        integrand = [a](builtin_class mu1, builtin_class mu2)
                     { return std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/mu2; };
     } else {
         throw std::logic_error("NPlus2Window_15_Equal called with invalid n");
     }
     return Trapezoid_Triangular(integrand, mu_a, mu_b, TRAPEZOID_SAMPLES);
-    // integrand is 0 all along the diagonal -> can't avg corners -> centroid
-    /*builtin_class a = 0.5*r;
-    builtin_class mu1 = (2.0*mu_a + mu_b)/3.0;
-    builtin_class mu2 = (2.0*mu_b + mu_a)/3.0;
-    coeff_class output;
-    if (n == 1) {
-        output = std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1);
-    } else if (n == 5) {
-        output = std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/mu2;
-    } else {
-        throw std::logic_error("NPlus2Window_15_Equal called with invalid n");
-    }
-    output *= (mu_b - mu_a)*(mu_b - mu_a)/2.0;
-    return output;*/
-
-    // analytic answer -- forget it for now
-    /*for (char a = 0; a <= r; a += 1) {
-        output += (a%2 == 0 ? 1.0 : -1.0) * Multinomial::Choose(r, a) 
-                  * NPlus2Window_1_Equal_Term(a, mu_a, mu_b);
-    }
-
-    if (!std::isfinite(static_cast<builtin_class>(output))) {
-        std::cerr << "Error: NPlus2Window_Equal(1, " << (int)r << ", " << mu_a 
-            << ", " << mu_b << ") not finite.\n";
-    }
-
-    return output;*/
 }
 
-// a single term of the above function
-/*coeff_class NPlus2Window_1_Equal_Term(const builtin_class a,
-                                      const builtin_class mu_a,
-                                      const builtin_class mu_b) {
-    if (a == 0) {
-        coeff_class output = std::pow(mu_b, 1.5) + 2.0*std::pow(mu_a, 1.5)
-                           - 3.0*mu_a*std::sqrt(mu_b);
-        return 2.0*output/3.0;
-    }
-
-    if (a == 1) {
-        coeff_class output = 3.0*std::pow(mu_b, 1.5)*std::log(mu_b)
-                           + 2.0*std::pow(mu_a, 1.5) - 2.0*std::pow(mu_b, 1.5);
-
-        if (std::abs(mu_a) > EPSILON) {
-            output -= 3.0*std::pow(mu_b, 1.5)*std::log(mu_a);
-        }
-
-        return 2.0*output/9.0;
-    }
-
-    // FIXME: seems to not actually converge here...
-    if (std::abs(mu_a) < EPSILON) {
-        return (2.0*std::pow(mu_b, 1.5)) / (3.0 * (1.0 - a));
-    }
-
-    coeff_class num = std::pow(mu_b, a) * mu_a - std::pow(mu_a, a) * mu_b;
-    num *= std::pow(mu_b, a+0.5) - std::pow(mu_a, a+0.5);
-
-    coeff_class den = 6.0*std::pow(mu_a, 1.0)*std::pow(mu_b, 2*a+0.5)
-                    + 4.0*(a - 1.0)*std::pow(mu_a, a+1.5)*std::pow(mu_b, a)
-                    - 2.0*(2.0*a + 1.0)*std::pow(mu_a, a)*std::pow(mu_b, a+1.5);
-    return (6.0 * num) / den;
-}*/
+// numerical integrals --------------------------------------------------------
 
 // generic trapezoid rule approximation to an integral over a rectangular area
 coeff_class Trapezoid_Rectangular(
@@ -651,4 +549,23 @@ coeff_class Trapezoid_Triangular(
     }
 
     return rectValue*(width*width)/4.0 + triValue*(width*width/2.0)/3.0;
+}
+
+// generic midpoint rule approximation to an integral over a rectangular area
+coeff_class Midpoint_Rectangular(
+        const std::function<coeff_class(builtin_class,builtin_class)> integrand,
+        const std::array<builtin_class,2>& mu1_ab, 
+        const std::array<builtin_class,2>& mu2_ab,
+        const std::size_t samples) {
+    coeff_class value = 0;
+    builtin_class width1 = (mu1_ab[1] - mu1_ab[0])/samples;
+    builtin_class width2 = (mu2_ab[1] - mu2_ab[0])/samples;
+    for (std::size_t i = 0; i < samples; ++i) {
+        builtin_class mu1 = mu1_ab[0] + (i+0.5)*width1;
+        for (std::size_t j = 0; j < samples; ++j) {
+            builtin_class mu2 = mu2_ab[0] + (j+0.5)*width2;
+            value += integrand(mu1, mu2);
+        }
+    }
+    return value*width1*width2;
 }

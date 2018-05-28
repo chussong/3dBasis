@@ -74,7 +74,7 @@ struct MatrixTerm_Intermediate {
 };
 MatrixTerm_Intermediate operator*(const MatrixTerm_Intermediate& A,
 			MatrixTerm_Intermediate B);
-OStream& operator<<(OStream& os, const MatrixTerm_Intermediate& out);
+std::ostream& operator<<(std::ostream& os, const MatrixTerm_Intermediate& out);
 
 struct MatrixTerm_Final {
     coeff_class coeff = 1;
@@ -131,11 +131,7 @@ struct NPlus2Term_Step2 {
     char r;
     char alpha;
 };
-
-inline OStream& operator<<(OStream& os, const NPlus2Term_Step2& out) {
-    return os << out.coeff << " * [" << out.u << ", " << out.theta << ", " 
-        << int(out.r) << "]";
-}
+std::ostream& operator<<(std::ostream& os, const NPlus2Term_Step2& out);
 
 struct NPlus2Term_Output {
     // entire constant part of term, including prefactors, degeneracies, etc.

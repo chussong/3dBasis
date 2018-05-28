@@ -111,7 +111,7 @@ MatrixTerm_Intermediate operator*(
 	return B;
 }
 
-OStream& operator<<(OStream& os, const MatrixTerm_Intermediate& out) {
+std::ostream& operator<<(std::ostream& os, const MatrixTerm_Intermediate& out) {
 	return os << out.coeff << " * {" << out.uPlus << ", "
 		<< out.uMinus << ", " << out.yTilde << "}";
 }
@@ -141,6 +141,11 @@ void MatrixTerm_Final::Resize(const size_t n) {
 OStream& operator<<(OStream& os, const InteractionTerm_Step2& out) {
     return os << out.coeff << " * {" << out.u << ", "
         << out.theta << ", " << out.r << "}";
+}
+
+std::ostream& operator<<(std::ostream& os, const NPlus2Term_Step2& out) {
+    return os << out.coeff << " * [" << out.u << ", " << out.theta << ", " 
+        << int(out.r) << ", " << int(out.alpha) << "]";
 }
 
 // generically return direct or interaction matrix of the specified type
@@ -715,7 +720,7 @@ std::vector<NPlus2Term_Step2> CombineNPlus2Fs(
             output.push_back(CombineNPlus2Fs_OneTerm(f1, f2));
         }
     }
-    // FIXME: add this to remove odd powers of r which will cancel
+    // FIXME?? add this to remove odd powers of r which will cancel
     // output.erase(std::remove_if(output.begin(), output.end(),
                 // [](const NPlus2Term_Step2& term){return term.r%2 == 1;}),
             // output.end());
@@ -727,7 +732,7 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
     // std::cout << f1 << " |U| " << f2 << std::endl;
 
     NPlus2Term_Step2 output;
-    // FIXME: move r up here and add this to skip odd powers of r
+    // FIXME?? move r up here and add this to skip odd powers of r?
     // if (output.r%2 == 1) return output;
     output.coeff = f1.coeff * f2.coeff;
 
@@ -736,10 +741,12 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
         output.u[2*i] = f1.uPlus[i] + f2.uPlus[i];
         output.u[2*i + 1] = f1.uMinus[i] + f2.uMinus[i];
     }
-    output.u[output.u.size() - 4] = f2.uPlus [f2.uPlus .size()-2];
-    output.u[output.u.size() - 3] = f2.uMinus[f2.uMinus.size()-2];
-    output.u[output.u.size() - 2] = f2.uPlus [f2.uPlus .size()-1];
-    output.u[output.u.size() - 1] = f2.uMinus[f2.uMinus.size()-1];
+    
+    // reverse the order of these so that our primed u agree w/ Matrix Formulas
+    output.u[output.u.size() - 4] = f2.uPlus [f2.uPlus .size()-1];
+    output.u[output.u.size() - 3] = f2.uMinus[f2.uMinus.size()-1];
+    output.u[output.u.size() - 2] = f2.uPlus [f2.uPlus .size()-2];
+    output.u[output.u.size() - 1] = f2.uMinus[f2.uMinus.size()-2];
 
     output.theta.resize(f1.yTilde.size() + f2.yTilde.size() - 2, 0);
     // sine[i] appears in all yTilde[j] with j > i (strictly greater)
@@ -761,6 +768,7 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
 
     output.r = f2.yTilde[f2.yTilde.size()-2] + f2.yTilde[f2.yTilde.size()-1];
 
+    // std::cout << f1 << " x " << f2 << " = " << output << '\n';
     return output;
 }
 
@@ -884,8 +892,10 @@ std::vector<NPlus2Term_Output> NPlus2Output(
         std::vector<NPlus2Term_Step2>& combinedFs, const coeff_class prefactor){
     std::vector<NPlus2Term_Output> output;
     for (auto& combinedF : combinedFs) {
-        output.emplace_back(prefactor*DoAllIntegrals_NPlus2(combinedF), 
-                            combinedF.r, combinedF.alpha );
+        coeff_class value = DoAllIntegrals_NPlus2(combinedF);
+        // FIXME: this deletion should be easy to do at the combination stage
+        if (value == 0) continue;
+        output.emplace_back(prefactor*value, combinedF.r, combinedF.alpha);
     }
     return output;
 }
@@ -1026,11 +1036,16 @@ coeff_class DoAllIntegrals(InteractionTerm_Step2& term) {
 // do all the integrals for an n+2 interaction computation
 coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
     std::size_t n = term.u.size()/2 - 1;
+    if (n == 2 && term.alpha%2 == 1) {
+        // if n=2, there's a sum (yTilde -> 1 + yTilde -> -1)/2 which does this
+        return 0;
+    }
     coeff_class output = term.coeff;
 
     // do the non-primed u integrals first
     for (std::size_t i = 0; i < n-1; ++i) {
-        output *= UPlusIntegral(term.u[2*i] + 3, 5*(n - i) - 3 + term.u[2*i + 1]);
+        output *= UPlusIntegral(term.u[2*i] + 3, 
+                                term.u[2*i + 1] + 5*(n - i) - 3);
     }
 
     output *= UPlusIntegral(term.u[2*(n-1)] + 1, term.u[2*(n-1) + 1] + 1);
@@ -1046,11 +1061,9 @@ coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
             output *= ThetaIntegral_Short(n - (i+1) - 2 + term.theta[2*i],
                                           term.theta[2*i + 1] );
         }
+        // first regular (non-prime) theta
         output *= ThetaIntegral_Long(term.theta[2*(n-3)],
                                      term.theta[2*(n-3) + 1]);
-    // } else {
-    // FIXME?? not sure if this is necessary but it appears in the direct matrix
-        // output *= 2;
     }
     if (n >= 2) {
         // this is the theta prime integral
@@ -1058,7 +1071,8 @@ coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
                                      term.theta[2*(n-2) + 1]);
     }
 
-    // std::cout << "DOALLINTEGRALS_OUTPUT:" << output << '\n';
+    // std::cout << "DoAllIntegrals_NPlus2(" << term.coeff << ", " << term.u 
+        // << ", " << term.theta << ") = " << output << '\n';
     return output;
 }
 
@@ -1080,7 +1094,7 @@ builtin_class UPlusIntegral(const builtin_class a, const builtin_class b) {
 // results are cached by (a,b); since a and b are symmetric, we only store the
 // results with a <= b, swapping the two parameters if they're the other order
 builtin_class ThetaIntegral_Short(const builtin_class a, const builtin_class b) {
-    if (static_cast<int>(b) % 2 == 1) return 0;
+    if (std::abs(b - std::round(b)) < EPSILON && int(b)%2 == 1) return 0;
     std::array<builtin_class,2> abArray{{a,b}};
     if (b < a) std::swap(abArray[0], abArray[1]);
     if (thetaCache.count(abArray) == 1) return thetaCache.at(abArray);
@@ -1096,7 +1110,7 @@ builtin_class ThetaIntegral_Short(const builtin_class a, const builtin_class b) 
 // Zuhair's 5.36, where a is the exponent of sin(theta) and b is the exponent of
 // cos(theta).
 builtin_class ThetaIntegral_Long(const builtin_class a, const builtin_class b) {
-    if (static_cast<int>(a+b) % 2 == 1) return 0;
+    if (std::abs(a+b - std::round(a+b)) < EPSILON && int(a+b)%2 == 1) return 0;
     return 2*ThetaIntegral_Short(a, b);
 }
 
