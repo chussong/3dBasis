@@ -117,8 +117,9 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
                                                       (winB+1)*partWidth}};
                 block(winA, winB) = NtoNWindow_Less(exponents, mu1sq_ab,
                                                     mu2sq_ab);
-                block(winB, winA) = NtoNWindow_Greater(exponents, mu2sq_ab,
-                                                       mu1sq_ab);
+                block(winB, winA) = block(winA, winB);
+                // block(winB, winA) = NtoNWindow_Greater(exponents, mu2sq_ab,
+                                                       // mu1sq_ab);
             }
         }
         // this is from the normalization of the g_k

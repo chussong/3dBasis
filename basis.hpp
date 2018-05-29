@@ -188,10 +188,8 @@ inline Basis<Mono>::Basis(const int numP, int degree, const Arguments& args) {
         particleCfgs.push_back(cfg);
     }
 
-    //console << "Tick." << endl;
     for (auto& cfg : particleCfgs) {
         basisVectors.emplace_back(cfg);
-        //console << cfg << endl;
     }
 }
 

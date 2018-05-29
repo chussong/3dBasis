@@ -1,36 +1,18 @@
 #include "calculation.hpp"
 
 int Calculate(const Arguments& args) {
-    // OStream& console = *args.console;
     gsl_set_error_handler(&GSLErrorHandler);
 
     if (args.options & OPT_TEST) {
         return Test::RunAllTests(args);
     }
 
-    // initialize all multinomials which might come up
-    //
-    // this is obviously something of a blunt instrument and could easily be
-    // made more efficient
-
-    // for (int n = 1; n <= args.numP; ++n) {
-        // console << "Initialize(" << n << ", " << 2*args.degree << ")" 
-            // << endl;
-        // Multinomial::Initialize(n, 2*args.degree);
-    // }
-
     if (args.options & OPT_STATESONLY) {
         ComputeBasisStates(args);
-        // if (args.outStream->rdbuf() != std::cout.rdbuf()) {
-            // delete args.outStream;
-        // }
         return EXIT_SUCCESS;
     }
 
     DMatrix hamiltonian = ComputeHamiltonian(args);
-    // if (args.outStream->rdbuf() != std::cout.rdbuf()) {
-        // delete args.outStream;
-    // }
     return EXIT_SUCCESS;
 }
 
@@ -136,7 +118,7 @@ Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
     int minN, maxN;
     if (args.delta != 0.0) {
         minN = 1;
-        maxN = std::ceil(args.delta / 1.5);
+        maxN = std::floor(args.delta / 1.5);
     } else {
         minN = args.numP;
         maxN = args.numP;
@@ -150,15 +132,15 @@ Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
     std::vector<Basis<Mono>> minBases;
     std::vector<SMatrix> discPolys;
     for (int n = minN; n <= maxN; ++n) {
-        // FIXME: remove adjustment so degree's consistently "L above dirichlet"
-        if (args.delta != 0.0) {
-            args.numP = n;
-            args.degree = std::ceil(args.delta - 0.5*n);
-        } else {
+        // TODO: remove adjustment so degree's consistently "L above dirichlet"
+        if (args.delta == 0.0) {
             args.degree = args.degree + n;
+        } else {
+            args.numP = n;
+            args.degree = std::floor(args.delta - 0.5*n);
         }
 
-        // FIXME: directly generate only the monomials with the correct parity
+        // TODO: directly generate only the monomials with the correct parity
         std::vector<Basis<Mono>> allEvenBases;
         std::vector<Basis<Mono>> allOddBases;
         for(int deg = n; deg <= args.degree; ++deg){
@@ -384,12 +366,17 @@ void OutputMatrix(const DMatrix& monoMatrix, const DMatrix& polyMatrix,
         name[0] = std::toupper(name[0]);
         if (full) {
             outStream << "minBasis" << mathematicaName << "[" << suffix <<"] = "
-                << MathematicaOutput(monoMatrix) << endl;
+                << MathematicaOutput(monoMatrix) << '\n';
         }
-        outStream << "basisState" << mathematicaName << "[" << suffix <<"] = "
-            << MathematicaOutput(polyMatrix) << endl;
-        console << name << " computed in " << timer.TimeElapsedInWords()
-            << "." << endl;
+        outStream << "basisState" << mathematicaName << "[" << suffix << "] = "
+            << MathematicaOutput(polyMatrix) << '\n';
+        // console << name << " computed in " << timer.TimeElapsedInWords()
+            // << ".\n";
+        if (polyMatrix.rows() == polyMatrix.cols()) {
+            DEigenSolver solver(polyMatrix.cast<builtin_class>());
+            console << name << " computed in " << timer.TimeElapsedInWords()
+                << "; its eigenvalues are:\n" << solver.eigenvalues() << '\n';
+        }
     } else if (polyMatrix.rows() <= 10 && polyMatrix.cols() <= 10) {
         outStream << "Computed a " << name << " for the basis in " 
             << timer.TimeElapsedInWords() << "; ";
@@ -399,11 +386,11 @@ void OutputMatrix(const DMatrix& monoMatrix, const DMatrix& polyMatrix,
         DEigenSolver solver(polyMatrix.cast<builtin_class>());
         outStream << "Computed a " << name << " for the basis in " 
             << timer.TimeElapsedInWords() << "; its eigenvalues are:\n"
-            << solver.eigenvalues() << endl;
+            << solver.eigenvalues() << '\n';
     } else {
         outStream << "Computed a " << name << " for the basis in " 
             << timer.TimeElapsedInWords() << ", but it's not square and is "
-            << "too large to show." << endl;
+            << "too large to show." << '\n';
     }
 }
 
