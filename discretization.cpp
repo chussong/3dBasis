@@ -1,6 +1,6 @@
 #include "discretization.hpp"
 
-constexpr std::size_t TRAPEZOID_SAMPLES = 100;
+constexpr std::size_t INTEGRAL_SAMPLES = 100;
 
 // Take a non-discretized polysOnMinBasis matrix and return one that expresses
 // the k'th slice of each polynomial in terms of the k'th slices of its 
@@ -198,7 +198,7 @@ coeff_class NtoNWindow_Less_Special(const builtin_class r,
     // if the intervals are adjacent, there's a term that becomes indeterminate,
     // so we'll just use an approximation instead of the real answer; we'd like
     // to use the trapezoid rule, but that's indeterminate along the boundary as
-    // well, so we're reduced to using the value in the middle
+    // well, so we use midpoint instead
     if (mu1sq_ab[1] == mu2sq_ab[0]) {
         builtin_class pref = std::sqrt(M_PI) * std::tgamma((1.0+r)/2.0) / 2.0;
         auto val = Midpoint_Rectangular([r](builtin_class mu1,builtin_class mu2)
@@ -206,7 +206,7 @@ coeff_class NtoNWindow_Less_Special(const builtin_class r,
                                                                     0.5+r/2.0,
                                                                     1.0+r/2.0, 
                                                                     mu1/mu2);},
-                mu1sq_ab, mu2sq_ab, TRAPEZOID_SAMPLES);
+                mu1sq_ab, mu2sq_ab, INTEGRAL_SAMPLES);
         return pref * val;
     }
 
@@ -409,18 +409,18 @@ coeff_class NPlus2Window_15_Less(const char n, const char r,
             return Midpoint_Rectangular(
                     [a](builtin_class mu1, builtin_class mu2)
                     { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); },
-                    mu1_ab, mu2_ab, TRAPEZOID_SAMPLES);
+                    mu1_ab, mu2_ab, INTEGRAL_SAMPLES);
         } else {
             return Trapezoid_Rectangular(
                     [a](builtin_class mu1, builtin_class mu2)
                     { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); },
-                    mu1_ab, mu2_ab, TRAPEZOID_SAMPLES);
+                    mu1_ab, mu2_ab, INTEGRAL_SAMPLES);
         }
     } else if (n == 5) {
         return Trapezoid_Rectangular(
                 [a](builtin_class mu1, builtin_class mu2)
                 { return std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/mu2; },
-                mu1_ab, mu2_ab, TRAPEZOID_SAMPLES);
+                mu1_ab, mu2_ab, INTEGRAL_SAMPLES);
     } else {
         throw std::logic_error("NPlus2Window_15_Less called with invalid n");
     }
@@ -459,17 +459,19 @@ coeff_class NPlus2Window_15_Equal(const char n, const char r,
     if (n == 1) {
         integrand = [a](builtin_class mu1, builtin_class mu2)
                     { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); };
-        if (mu_a == 0) {
-            // (integrable) divergence in trapezoid, just use midpoint
-            return Midpoint_Triangular(integrand, mu_a, mu_b,TRAPEZOID_SAMPLES);
-        }
     } else if (n == 5) {
         integrand = [a](builtin_class mu1, builtin_class mu2)
                     { return std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/mu2; };
     } else {
         throw std::logic_error("NPlus2Window_15_Equal called with invalid n");
     }
-    return Trapezoid_Triangular(integrand, mu_a, mu_b, TRAPEZOID_SAMPLES);
+
+    if (mu_a == 0) {
+        // (integrable) divergence in trapezoid, use midpoint instead
+        return Midpoint_Triangular(integrand, mu_a, mu_b, INTEGRAL_SAMPLES);
+    } else {
+        return Trapezoid_Triangular(integrand, mu_a, mu_b, INTEGRAL_SAMPLES);
+    }
 }
 
 // numerical integrals --------------------------------------------------------
