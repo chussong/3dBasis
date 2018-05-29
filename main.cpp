@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
 #endif
     }
 
-    /* FIXME: move all of this to test.cpp
+    /* TODO: move all of this to test.cpp
     if (args.options & OPT_MULTINOMTEST) {
         for (char n = 0; n <= args.degree; ++n) {
             *args.outputStream << "n = " << std::to_string(n) << ": ";
@@ -82,22 +82,6 @@ Arguments ParseArguments(int argc, char* argv[]) {
                 }
             } else {
                 parameters.push_back(ReadArg<double>(arg));
-                /*switch(j){
-                    case 0:
-                            ret.numP = ReadArg<int>(arg);
-                            break;
-                    case 1:
-                            ret.degree = ReadArg<int>(arg);
-                            break;
-                    case 2:
-                            ret.partitions = ReadArg<int>(arg);
-                            break;
-                    default:
-                            std::cerr << "Error: at most three non-option arguments"
-                                    << " may be given." << std::endl;
-                            return ret;
-                }
-                ++j;*/
             }
         }
     }
@@ -107,7 +91,6 @@ Arguments ParseArguments(int argc, char* argv[]) {
     ret.console = new QTextStream(stdout);
 #endif
     if (ret.outStream == nullptr) ret.outStream = ret.console;
-    // if(j < 2) ret.numP = 0; // invalidate the input since it was insufficient
     switch (parameters.size()) {
         case 0:
             ret.options |= OPT_GUI;
@@ -141,6 +124,10 @@ int ParseOptions(std::vector<std::string> options) {
         if(opt.compare(0, 2, "-d") == 0){
             ret |= OPT_DEBUG;
             ret |= OPT_OUTPUT;
+            continue;
+        }
+        if (opt.compare(0, 2, "-f") == 0) {
+            ret |= OPT_FULLOUTPUT;
             continue;
         }
         if(opt.compare(0, 2, "-i") == 0){

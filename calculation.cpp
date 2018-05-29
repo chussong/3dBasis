@@ -114,13 +114,15 @@ DMatrix ComputeHamiltonian(const Arguments& args) {
 
     Timer overallTimer;
     
+    const bool full = (args.options & OPT_FULLOUTPUT) != 0;
+
     *args.outStream << "(*EVEN STATES*)" << endl;
     Hamiltonian evenHam = FullHamiltonian(args, false);
-    AnalyzeHamiltonian(evenHam, args, false);
+    if (full) AnalyzeHamiltonian(evenHam, args, false);
 
     *args.outStream << "(*ODD STATES*)" << endl;
     Hamiltonian oddHam  = FullHamiltonian(args, true);
-    AnalyzeHamiltonian(oddHam, args, true);
+    if (full) AnalyzeHamiltonian(oddHam, args, true);
 
     *args.console << "\nEntire computation took " 
         << overallTimer.TimeElapsedInWords() << "." << endl;
@@ -375,20 +377,24 @@ void OutputMatrix(const DMatrix& monoMatrix, const DMatrix& polyMatrix,
     OStream& outStream = *args.outStream;
     OStream& console = *args.console;
     const bool mathematica = (args.options & OPT_MATHEMATICA) != 0;
+    const bool full = (args.options & OPT_FULLOUTPUT) != 0;
 
     if (mathematica) {
         std::string mathematicaName = MathematicaName(name);
         name[0] = std::toupper(name[0]);
-        outStream << "minBasis" << mathematicaName << "[" << suffix <<"] = "
-            << MathematicaOutput(monoMatrix) << endl;
+        if (full) {
+            outStream << "minBasis" << mathematicaName << "[" << suffix <<"] = "
+                << MathematicaOutput(monoMatrix) << endl;
+        }
         outStream << "basisState" << mathematicaName << "[" << suffix <<"] = "
             << MathematicaOutput(polyMatrix) << endl;
         console << name << " computed in " << timer.TimeElapsedInWords()
             << "." << endl;
     } else if (polyMatrix.rows() <= 10 && polyMatrix.cols() <= 10) {
         outStream << "Computed a " << name << " for the basis in " 
-            << timer.TimeElapsedInWords() << "; mono:\n" << monoMatrix 
-            << "\npoly:\n" << polyMatrix << endl;
+            << timer.TimeElapsedInWords() << "; ";
+        if (full) outStream << "mono:\n" << monoMatrix << '\n';
+        outStream << "poly:\n" << polyMatrix << '\n';
     } else if (polyMatrix.rows() == polyMatrix.cols()) {
         DEigenSolver solver(polyMatrix.cast<builtin_class>());
         outStream << "Computed a " << name << " for the basis in " 

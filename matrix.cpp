@@ -523,13 +523,14 @@ std::vector<MatrixTerm_Intermediate> YTildeFromY(const std::string& y) {
     return ret;
 }
 
+// set y_n -> -y_1 - y_2 - ... - y_{n-1}, which requires a multinomial expansion
 std::vector<YTerm> EliminateYn(const std::string& y) {
     std::vector<YTerm> output;
     for (auto nAndm : Multinomial::GetMVectors(y.size()-1, y.back())) {
         coeff_class coeff = Multinomial::Lookup(y.size()-1, nAndm);
         if (y.back() % 2 == 1) coeff = -coeff;
         do {
-                output.emplace_back(coeff, y, nAndm);
+            output.emplace_back(coeff, y, nAndm);
         } while (std::prev_permutation(nAndm.begin()+1, nAndm.end()));
     }
     return output;
@@ -717,13 +718,10 @@ std::vector<NPlus2Term_Step2> CombineNPlus2Fs(
     std::vector<NPlus2Term_Step2> output;
     for (const auto& f1 : F1) {
         for (const auto& f2 : F2) {
-            output.push_back(CombineNPlus2Fs_OneTerm(f1, f2));
+            auto newTerm = CombineNPlus2Fs_OneTerm(f1, f2);
+            if (newTerm.coeff != 0) output.push_back(std::move(newTerm));
         }
     }
-    // FIXME?? add this to remove odd powers of r which will cancel
-    // output.erase(std::remove_if(output.begin(), output.end(),
-                // [](const NPlus2Term_Step2& term){return term.r%2 == 1;}),
-            // output.end());
     return output;
 }
 
@@ -732,8 +730,13 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
     // std::cout << f1 << " |U| " << f2 << std::endl;
 
     NPlus2Term_Step2 output;
-    // FIXME?? move r up here and add this to skip odd powers of r?
-    // if (output.r%2 == 1) return output;
+
+    // for n=2, yTilde will be integrated over the 0 sphere but doesn't produce
+    // a real angle -- if the total yTilde is odd, it'll cancel out
+    if (f1.yTilde.size() == 1 && (f1.yTilde[0] + f2.yTilde[0])%2 == 1) {
+        output.coeff = 0;
+        return output;
+    }
     output.coeff = f1.coeff * f2.coeff;
 
     output.u.resize(f1.uPlus.size() + f1.uMinus.size() + 4);
@@ -893,7 +896,6 @@ std::vector<NPlus2Term_Output> NPlus2Output(
     std::vector<NPlus2Term_Output> output;
     for (auto& combinedF : combinedFs) {
         coeff_class value = DoAllIntegrals_NPlus2(combinedF);
-        // FIXME: this deletion should be easy to do at the combination stage
         if (value == 0) continue;
         output.emplace_back(prefactor*value, combinedF.r, combinedF.alpha);
     }
@@ -1041,11 +1043,6 @@ coeff_class DoAllIntegrals(InteractionTerm_Step2& term) {
 // do all the integrals for an n+2 interaction computation
 coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
     std::size_t n = term.u.size()/2 - 1;
-    if (n == 2 && term.alpha%2 == 1) {
-        // for n=2, there's a sum (yTilde -> 1 + yTilde -> -1)/2 which does this
-        // corresponding to an integral over the 0-sphere
-        return 0;
-    }
     coeff_class output = term.coeff;
 
     // do the non-primed u integrals first

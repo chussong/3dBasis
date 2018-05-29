@@ -111,7 +111,8 @@ There are several options available:
 
 | Option | Description |
 | ------ | ----------- |
-| -d | debug mode, producing some extra output (currently always on) |
+| -d | debug mode, producing some output for debugging (currently always on) |
+| -f | full output mode, which outputs minimal basis matrices and the Hamiltonian |
 | -i | include interaction terms in the Hamiltonian (the default is a free theory) |
 | -m | perform a test of the multinomial module, then exit |
 | -M | use only all-minus states with no transverse momentum |
