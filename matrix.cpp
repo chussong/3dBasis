@@ -749,6 +749,8 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
     output.u[output.u.size() - 1] = f2.uMinus[f2.uMinus.size()-2];
 
     output.theta.resize(f1.yTilde.size() + f2.yTilde.size() - 2, 0);
+    if (output.theta.size() == 0) output.theta.resize(2, 0);
+
     // sine[i] appears in all yTilde[j] with j > i (strictly greater)
     for (std::size_t i = 0; i+2 < f1.yTilde.size(); ++i) {
         for (auto j = i+1; j+1 < f1.yTilde.size(); ++j) {
@@ -756,10 +758,8 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
         }
         output.theta[2*i + 1] = f1.yTilde[i] + f2.yTilde[i];
     }
-    if (output.theta.size() >= 2) {
-        output.theta[output.theta.size()-2] = f2.yTilde[f2.yTilde.size()-1];
-        output.theta[output.theta.size()-1] = f2.yTilde[f2.yTilde.size()-2];
-    }
+    output.theta[output.theta.size()-2] = f2.yTilde[f2.yTilde.size()-1];
+    output.theta[output.theta.size()-1] = f2.yTilde[f2.yTilde.size()-2];
 
     output.alpha = 0;
     for (std::size_t i = 0; i+2 < f2.yTilde.size(); ++i) {
@@ -1027,8 +1027,13 @@ coeff_class DoAllIntegrals(InteractionTerm_Step2& term) {
     for (std::size_t i = 0; i < n; ++i) {
         product *= UPlusIntegral(term.u[2*i], term.u[2*i + 1]);
     }
-    for (std::size_t k = 0; k+3 < n; ++k) {
-        product *= ThetaIntegral_Short(term.theta[2*k], term.theta[2*k + 1]);
+    if (n >= 4) {
+        product *= ThetaIntegral_Long(term.theta[2*(n-4)], 
+                                      term.theta[2*(n-4) + 1]);
+        for (std::size_t k = 0; k+4 < n; ++k) {
+            product *= ThetaIntegral_Short(term.theta[2*k], 
+                                           term.theta[2*k + 1]);
+        }
     }
     return product;
 }
@@ -1037,7 +1042,8 @@ coeff_class DoAllIntegrals(InteractionTerm_Step2& term) {
 coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
     std::size_t n = term.u.size()/2 - 1;
     if (n == 2 && term.alpha%2 == 1) {
-        // if n=2, there's a sum (yTilde -> 1 + yTilde -> -1)/2 which does this
+        // for n=2, there's a sum (yTilde -> 1 + yTilde -> -1)/2 which does this
+        // corresponding to an integral over the 0-sphere
         return 0;
     }
     coeff_class output = term.coeff;
@@ -1065,11 +1071,10 @@ coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
         output *= ThetaIntegral_Long(term.theta[2*(n-3)],
                                      term.theta[2*(n-3) + 1]);
     }
-    if (n >= 2) {
-        // this is the theta prime integral
-        output *= ThetaIntegral_Long(term.theta[2*(n-2)], 
-                                     term.theta[2*(n-2) + 1]);
-    }
+
+    // this is the theta prime integral
+    output *= ThetaIntegral_Long(term.theta[term.theta.size()-2], 
+                                 term.theta[term.theta.size()-1]);
 
     // std::cout << "DoAllIntegrals_NPlus2(" << term.coeff << ", " << term.u 
         // << ", " << term.theta << ") = " << output << '\n';

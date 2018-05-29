@@ -29,6 +29,13 @@ SMatrix DiscretizePolys(const DMatrix& polysOnMinBasis,
     return output;
 }
 
+// normalization factor for all MuPart matrices -------------------------------
+
+// this is the g_k norm combined with the overall 1/(2 pi) under the lambdas
+coeff_class GKNorm(const std::size_t partitions) {
+    return coeff_class(partitions) / (2*M_PI);
+}
+
 // direct matrix computations -------------------------------------------------
 
 // given monomials A and B, give the PxP tensor representing block A,B of the
@@ -82,7 +89,16 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
     static std::unordered_map<std::array<char,2>, DMatrix, 
                               boost::hash<std::array<char,2>> > intCache;
 
-    if (n == 2) return MuPart_2to2(partitions);
+    if (n == 2) {
+        static std::unique_ptr<DMatrix> matrix22;
+
+        if (matrix22 == nullptr) {
+            matrix22 = MuPart_2to2(partitions);
+            *matrix22 *= GKNorm(partitions);
+        }
+
+        return *matrix22;
+    }
 
     exponents[0] = 2*exponents[0] + n - 3;
     exponents[1] = exponents[1] + n - 3;
@@ -106,32 +122,28 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
             }
         }
         // this is from the normalization of the g_k
-        block /= 2*M_PI*partWidth;
+        block *= GKNorm(partitions);
         intCache.emplace(exponents, std::move(block));
     }
 
     return intCache[exponents];
 }
 
-const DMatrix& MuPart_2to2(const std::size_t partitions) {
-    static std::unique_ptr<DMatrix> output;
+std::unique_ptr<DMatrix> MuPart_2to2(const std::size_t partitions) {
+    builtin_class partWidth = builtin_class(1) / partitions;
+    coeff_class constant = 16.0 * std::pow(partWidth, 1.5) / (9.0);
+    auto output = std::make_unique<DMatrix>(DMatrix::Constant(partitions, 
+                                                              partitions,
+                                                              constant));
 
-    if (output == nullptr) {
-        builtin_class partWidth = builtin_class(1) / partitions;
-        coeff_class constant = 16.0 * std::sqrt(partWidth) / (9.0 * 2.0 * M_PI);
-        output = std::make_unique<DMatrix>(DMatrix::Constant(partitions, 
-                                                             partitions,
-                                                             constant));
-
-        for (std::size_t i = 0; i < partitions; ++i) {
-            output->row(i) *= (std::pow(i+1, 0.75) - std::pow(i, 0.75));
-        }
-        for (std::size_t j = 0; j < partitions; ++j) {
-            output->col(j) *= (std::pow(j+1, 0.75) - std::pow(j, 0.75));
-        }
+    for (std::size_t i = 0; i < partitions; ++i) {
+        output->row(i) *= (std::pow(i+1, 0.75) - std::pow(i, 0.75));
+    }
+    for (std::size_t j = 0; j < partitions; ++j) {
+        output->col(j) *= (std::pow(j+1, 0.75) - std::pow(j, 0.75));
     }
 
-    return *output;
+    return output;
 }
 
 coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
@@ -328,13 +340,6 @@ builtin_class NtoNWindow_Equal_Hypergeometric(const builtin_class arg,
 
 const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr, 
                              const std::size_t partitions) {
-    // if (nr[1]%2 == 1) {
-        // if (zeroMatrix.count(partitions) == 0) {
-            // zeroMatrix.emplace(partitions, DMatrix::Zero(partitions, partitions));
-        // }
-        // return zeroMatrix[partitions];
-    // }
-
     coeff_class partWidth = coeff_class(1) / partitions;
     if (nPlus2Cache.count(nr) == 0) {
         DMatrix block = DMatrix::Zero(partitions, partitions);
@@ -352,8 +357,8 @@ const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr,
                         static_cast<builtin_class>((winB+1)*partWidth)}} );
             }
         }
-        // this is from the normalization of the g_k
-        block /= 2*M_PI*partWidth;
+
+        block *= GKNorm(partitions);
         nPlus2Cache.emplace(nr, std::move(block));
     }
 

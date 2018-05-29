@@ -6,6 +6,7 @@
 #include <cmath>
 #include <unordered_map>
 #include <iostream>
+#include <memory>
 
 #include <boost/functional/hash.hpp>
 #include <gsl/gsl_sf_gamma.h> // for beta function
@@ -17,6 +18,10 @@
 SMatrix DiscretizePolys(const DMatrix& polysOnMinBasis, 
                         std::size_t partitions);
 
+// g_k normalization ----------------------------------------------------------
+
+coeff_class GKNorm(const std::size_t partitions);
+
 // direct matrices ------------------------------------------------------------
 
 DMatrix MuPart(const std::size_t partitions, const MATRIX_TYPE type);
@@ -27,7 +32,7 @@ DMatrix MuPart_Kinetic(const std::size_t partitions);
 const DMatrix& MuPart_NtoN(const unsigned int n, 
                            std::array<char,2> exponents, 
                            const std::size_t partitions);
-const DMatrix& MuPart_2to2(const std::size_t partitions);
+std::unique_ptr<DMatrix> MuPart_2to2(const std::size_t partitions);
 
 coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
                        const std::array<builtin_class,2>& mu1sq_ab,
