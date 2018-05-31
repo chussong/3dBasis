@@ -88,7 +88,7 @@ YTerm::YTerm(const coeff_class coeff, const std::string& y,
 	}
 }
 
-OStream& operator<<(OStream& os, const YTerm& out) {
+std::ostream& operator<<(std::ostream& os, const YTerm& out) {
 	return os << out.coeff << " * " << out.y;
 }
 
@@ -138,9 +138,9 @@ void MatrixTerm_Final::Resize(const size_t n) {
     cosTheta.resize(n-1);
 }
 
-OStream& operator<<(OStream& os, const InteractionTerm_Step2& out) {
+std::ostream& operator<<(std::ostream& os, const InteractionTerm_Step2& out) {
     return os << out.coeff << " * {" << out.u << ", "
-        << out.theta << ", " << out.r << "}";
+        << out.theta << ", " << out.r << ", " << int(out.alpha) << "}";
 }
 
 std::ostream& operator<<(std::ostream& os, const NPlus2Term_Step2& out) {
@@ -688,11 +688,12 @@ InteractionTerm_Step2 CombineInteractionFs_OneTerm(
     // if n >= 3, do this; for n == 2, theta is empty and r doesn't matter
     if (f1.yTilde.size() >= 2) {
         output.theta.resize(f1.yTilde.size()-2 + f2.yTilde.size()-2, 0);
-        // sine[i] appears in all yTilde[j] with j > i (strictly greater)
-        for (auto i = 0u; i < f1.yTilde.size()-2; ++i) {
-            for (auto j = i+1; j < f1.yTilde.size()-1; ++j) {
+        for (std::size_t i = 0; i < f1.yTilde.size()-2; ++i) {
+            // sin[i] appears in all yTilde[j] with j > i (strictly greater)
+            for (std::size_t j = i+1; j < f1.yTilde.size()-1; ++j) {
                 output.theta[2*i] += f1.yTilde[j] + f2.yTilde[j];
             }
+            // cos[i] is just from yTilde[i]
             output.theta[2*i + 1] = f1.yTilde[i] + f2.yTilde[i];
         }
 
@@ -709,6 +710,8 @@ InteractionTerm_Step2 CombineInteractionFs_OneTerm(
         output.alpha = 0;
         output.r = {{0, 0, 0}};
     }
+
+    // std::cout << f1 << " x " << f2 << " = " << output << '\n';
     return output;
 }
 
@@ -814,34 +817,24 @@ coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
 
 // do all of the integrals which are possible before mu discretization, and
 // return an object mapping {alpha and r exponents} -> value
-//
-// WARNING: this changes combinedFs so that it can't be reused
-NtoN_Final InteractionOutput(std::vector<InteractionTerm_Step2>& combinedFs, 
+NtoN_Final InteractionOutput(const std::vector<InteractionTerm_Step2>& combinedFs, 
                              const coeff_class prefactor) {
     NtoN_Final output;
-    for (auto& combinedF : combinedFs) {
+    for (const auto& combinedF : combinedFs) {
         coeff_class integralPart = prefactor*DoAllIntegrals(combinedF);
 
-        // if (!std::isfinite(static_cast<builtin_class>(integralPart))) {
-            // std::cerr << "Error: integralPart(" << combinedF.u << ", " 
-                // << combinedF.theta << ", " << prefactor << ") is not finite." 
-                // << std::endl;
-        // }
-
         const NtoN_Final& expansion = Expand(combinedF.r, combinedF.alpha);
+        std::cout << combinedF << " -> ";
         for (const auto& pair : expansion) {
-            // if (!std::isfinite(static_cast<builtin_class>(pair.second))) {
-                // std::cerr << "Error: Expand(" << combinedF.r 
-                    // << ") returns a non-finite coefficient of " << pair.first
-                    // << "." << std::endl;
-            // }
-
+            std::cout << '(' << pair.first << ", " << pair.second*integralPart 
+                << ") + ";
             if (output.count(pair.first) == 0) {
                 output.emplace(pair.first, pair.second*integralPart);
             } else {
                 output[pair.first] += pair.second*integralPart;
             }
         }
+        std::cout << "\b\b \n";
     }
     return output;
 }
@@ -851,9 +844,10 @@ NtoN_Final InteractionOutput(std::vector<InteractionTerm_Step2>& combinedFs,
 // {alpha^2, r} to their coefficients (both represent a single monomial which is
 // the product of its constituent powers)
 const NtoN_Final& Expand(const std::array<char,3>& r, const char alpha) {
-    static std::unordered_map<std::array<char,3>, NtoN_Final,
-                              boost::hash<std::array<char,3>> > expansionCache;
-    if (expansionCache.count(r) == 0) {
+    static std::unordered_map<std::array<char,4>, NtoN_Final,
+                              boost::hash<std::array<char,4>> > expansionCache;
+    std::array<char,4> ra = {{r[0], r[1], r[2], alpha}};
+    if (expansionCache.count(ra) == 0) {
         NtoN_Final expansion;
 
         for (char mb = 0; mb <= r[1]/2; ++mb) {
@@ -862,12 +856,6 @@ const NtoN_Final& Expand(const std::array<char,3>& r, const char alpha) {
                                   * Multinomial::Choose(r[2]/2, mc);
                 if ((mb + mc)%2 == 1) value = -value;
 
-                // if (std::isnan(static_cast<builtin_class>(value))) {
-                    // std::cerr << "Error: Expand(" << r << ", "
-                        // << std::array<char,2>{{mb, mc}} << ") has a NaN value." 
-                        // << std::endl;
-                // }
-
 
                 std::array<char,2> key{{static_cast<char>(alpha + 2*mc), 
                                         static_cast<char>(r[0] + 2*mb + 2*mc)}};
@@ -875,16 +863,16 @@ const NtoN_Final& Expand(const std::array<char,3>& r, const char alpha) {
             }
         }
 
-        // std::cout << "Expand(" << r << ") =\n";
+        // std::cout << "Expand(" << r << ", " << int(alpha) << ") =\n";
         // for (const auto& entry : expansion) {
             // std::cout << "(" << entry.first << ", " << entry.second << ")"
                 // << std::endl;
         // }
 
-        expansionCache.emplace(r, std::move(expansion));
+        expansionCache.emplace(ra, std::move(expansion));
     }
 
-    return expansionCache[r];
+    return expansionCache[ra];
 }
 
 // do all of the integrals which are possible before mu discretization, and
@@ -1002,41 +990,31 @@ coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
 }
 
 // do all the integrals for an interaction matrix computation
-//
-// WARNING: this changes the exponents in term, rendering it non-reusable
-coeff_class DoAllIntegrals(InteractionTerm_Step2& term) {
+coeff_class DoAllIntegrals(const InteractionTerm_Step2& term) {
     if (term.u.size() == 0) return 1;
-    // std::cout << "DoAllIntegrals(" << term.u << ", " << term.theta << ")"
-        // << std::endl;
     auto n = term.u.size()/2;
+    coeff_class product = term.coeff;
 
-    // adjust exponents before doing integrals
     for (std::size_t i = 0; i+2 < n; ++i) {
-        term.u[2*i] += 3;
-        term.u[2*i + 1] += 5*(n-i) - 8;
+        product *= UPlusIntegral(term.u[2*i] + 3, 
+                                 term.u[2*i + 1] + 5*(n-i) - 8);
     }
-    term.u[term.u.size()-1] += 1;
-    term.u[term.u.size()-2] += 1;
-    term.u[term.u.size()-3] += 1;
-    term.u[term.u.size()-4] += 1;
+    product *= UPlusIntegral(term.u[term.u.size()-4] + 1,
+                             term.u[term.u.size()-3] + 1);
+    product *= UPlusIntegral(term.u[term.u.size()-2] + 1,
+                             term.u[term.u.size()-1] + 1);
 
-    for (std::size_t k = 0; k+4 < n; ++k) {
-        term.theta[2*k] += n-k-4;
-    }
-
-    // this part actually does the integrals
-    coeff_class product = 1;
-    for (std::size_t i = 0; i < n; ++i) {
-        product *= UPlusIntegral(term.u[2*i], term.u[2*i + 1]);
-    }
     if (n >= 4) {
         product *= ThetaIntegral_Long(term.theta[2*(n-4)], 
                                       term.theta[2*(n-4) + 1]);
-        for (std::size_t k = 0; k+4 < n; ++k) {
-            product *= ThetaIntegral_Short(term.theta[2*k], 
+        for (std::size_t k = 0; k < n-4; ++k) {
+            product *= ThetaIntegral_Short(term.theta[2*k] + n-4-k, 
                                            term.theta[2*k + 1]);
         }
     }
+
+    // std::cout << "DoAllIntegrals(" << term.u << ", " << term.theta << ") = "
+        // << product << '\n';
     return product;
 }
 

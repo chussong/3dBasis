@@ -22,8 +22,8 @@
 
 // parameters -----------------------------------------------------------------
 
-constexpr int ITERATION_LIMIT = 3e6;
-constexpr coeff_class PRECISION_LIMIT = 1e-10;
+constexpr int ITERATION_LIMIT = 1e8;
+constexpr coeff_class PRECISION_LIMIT = 1e-15;
 
 // memoized functions for specific cases --------------------------------------
 

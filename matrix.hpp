@@ -60,7 +60,7 @@ struct YTerm {
     char operator[](std::size_t i) const { return y[i]; }
     std::size_t size() const { return y.size(); }
 };
-OStream& operator<<(OStream& os, const YTerm& out);
+std::ostream& operator<<(std::ostream& os, const YTerm& out);
 
 struct MatrixTerm_Intermediate {
     coeff_class coeff = 1;
@@ -104,7 +104,7 @@ struct InteractionTerm_Step2 {
     // the overall power of alpha derived from all yTilde' except the last one
     char alpha;
 };
-OStream& operator<<(OStream& os, const InteractionTerm_Step2& out);
+std::ostream& operator<<(std::ostream& os, const InteractionTerm_Step2& out);
 
 struct InteractionTerm_Output {
     // entire constant part of term, including prefactors, degeneracies, etc.
@@ -194,7 +194,7 @@ std::vector<InteractionTerm_Step2> CombineInteractionFs(
         const std::vector<MatrixTerm_Intermediate>& F2 );
 InteractionTerm_Step2 CombineInteractionFs_OneTerm(
         const MatrixTerm_Intermediate& F1, const MatrixTerm_Intermediate& F2 );
-NtoN_Final InteractionOutput(std::vector<InteractionTerm_Step2>& combinedFs, 
+NtoN_Final InteractionOutput(const std::vector<InteractionTerm_Step2>& combinedFs, 
                              const coeff_class prefactor);
 const NtoN_Final& Expand(const std::array<char,3>& r, const char alpha);
 
@@ -215,7 +215,7 @@ coeff_class NPlus2MatrixPrefactor(const char n);
 
 // integrals used in FinalResult
 coeff_class DoAllIntegrals(const MatrixTerm_Final& term);
-coeff_class DoAllIntegrals(InteractionTerm_Step2& term);
+coeff_class DoAllIntegrals(const InteractionTerm_Step2& term);
 coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term);
 builtin_class UPlusIntegral(const builtin_class a, const builtin_class b);
 builtin_class ThetaIntegral_Short(const builtin_class a, const builtin_class b);

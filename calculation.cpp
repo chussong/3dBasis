@@ -218,6 +218,14 @@ DMatrix DiagonalBlock(const Basis<Mono>& minimalBasis,
         OutputMatrix(monoNtoN, polyNtoN, "NtoN matrix", suffix, timer, 
                      args);
         hamiltonian += (args.lambda*args.cutoff)*polyNtoN;
+
+        // if NtoN has nonpositive eigenvalues, it can't be right
+        DEigenSolver solver(polyNtoN.cast<builtin_class>());
+        if (solver.eigenvalues().rows() != 0 && solver.eigenvalues()(0) < 0
+                && std::abs(solver.eigenvalues()(0)) > EPSILON) {
+            *args.console << "Error: " << args.numP << "->" << args.numP 
+                << " matrix not positive definite.\n";
+        }
     }
 
     /*
@@ -370,13 +378,13 @@ void OutputMatrix(const DMatrix& monoMatrix, const DMatrix& polyMatrix,
         }
         outStream << "basisState" << mathematicaName << "[" << suffix << "] = "
             << MathematicaOutput(polyMatrix) << '\n';
-        // console << name << " computed in " << timer.TimeElapsedInWords()
-            // << ".\n";
-        if (polyMatrix.rows() == polyMatrix.cols()) {
-            DEigenSolver solver(polyMatrix.cast<builtin_class>());
-            console << name << " computed in " << timer.TimeElapsedInWords()
-                << "; its eigenvalues are:\n" << solver.eigenvalues() << '\n';
-        }
+        console << name << " computed in " << timer.TimeElapsedInWords()
+            << ".\n";
+        // if (polyMatrix.rows() == polyMatrix.cols()) {
+            // DEigenSolver solver(polyMatrix.cast<builtin_class>());
+            // console << name << " computed in " << timer.TimeElapsedInWords()
+                // << "; its eigenvalues are:\n" << solver.eigenvalues() << '\n';
+        // }
     } else if (polyMatrix.rows() <= 10 && polyMatrix.cols() <= 10) {
         outStream << "Computed a " << name << " for the basis in " 
             << timer.TimeElapsedInWords() << "; ";
