@@ -166,17 +166,17 @@ DMatrix Matrix(const Basis<Mono>& basis, const std::size_t kMax,
     } else {
         DMatrix output(basis.size()*kMax, basis.size()*kMax);
         for (std::size_t i = 0; i < basis.size(); ++i) {
-            output.block(i*kMax, i*kMax, kMax, kMax)
-                = MatrixBlock(basis[i], basis[i], type, kMax);
-            for (std::size_t j = i+1; j < basis.size(); ++j) {
+            // output.block(i*kMax, i*kMax, kMax, kMax)
+                // = MatrixBlock(basis[i], basis[i], type, kMax);
+            for (std::size_t j = 0; j < basis.size(); ++j) {
                 output.block(i*kMax, j*kMax, kMax, kMax)
                     = MatrixBlock(basis[i], basis[j], type, kMax);
-                output.block(j*kMax, i*kMax, kMax, kMax)
-                    = output.block(i*kMax, j*kMax, kMax, kMax).transpose();
+                // output.block(j*kMax, i*kMax, kMax, kMax)
+                    // = output.block(i*kMax, j*kMax, kMax, kMax).transpose();
                 // FIXME?? make sure above assignment is correct
             }
         }
-        return output;
+        return output + output.transpose();
     }
 }
 
@@ -824,17 +824,17 @@ NtoN_Final InteractionOutput(const std::vector<InteractionTerm_Step2>& combinedF
         coeff_class integralPart = prefactor*DoAllIntegrals(combinedF);
 
         const NtoN_Final& expansion = Expand(combinedF.r, combinedF.alpha);
-        std::cout << combinedF << " -> ";
+        // std::cout << combinedF << " -> ";
         for (const auto& pair : expansion) {
-            std::cout << '(' << pair.first << ", " << pair.second*integralPart 
-                << ") + ";
+            // std::cout << '(' << pair.first << ", " << pair.second*integralPart 
+                // << ") + ";
             if (output.count(pair.first) == 0) {
                 output.emplace(pair.first, pair.second*integralPart);
             } else {
                 output[pair.first] += pair.second*integralPart;
             }
         }
-        std::cout << "\b\b \n";
+        // std::cout << "\b\b \n";
     }
     return output;
 }

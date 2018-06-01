@@ -105,7 +105,7 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
 
     builtin_class partWidth = builtin_class(1) / partitions;
     if (intCache.count(exponents) == 0) {
-        DMatrix block(partitions, partitions);
+        DMatrix block = DMatrix::Zero(partitions, partitions);
         for (std::size_t winA = 0; winA < partitions; ++winA) {
             block(winA, winA) = NtoNWindow_Equal(exponents,
                                                  {{winA*partWidth, 
@@ -117,9 +117,7 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
                                                       (winB+1)*partWidth}};
                 block(winA, winB) = NtoNWindow_Less(exponents, mu1sq_ab,
                                                     mu2sq_ab);
-                block(winB, winA) = block(winA, winB);
-                // block(winB, winA) = NtoNWindow_Greater(exponents, mu2sq_ab,
-                                                       // mu1sq_ab);
+                // block(winB, winA) = block(winA, winB);
             }
         }
         // this is from the normalization of the g_k
@@ -152,6 +150,7 @@ coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
                             const std::array<builtin_class,2>& mu2sq_ab) {
     // if exponents[0] == 2, there's a 0/0 limit that must be done separately
     if (exponents[0] == 2) {
+        // I wonder if there's a way to do this as an NtoNWindow_Greater instead
         return NtoNWindow_Less_Special(exponents[1], mu1sq_ab, mu2sq_ab);
     }
 
@@ -271,13 +270,43 @@ coeff_class NtoNWindow_Equal(const std::array<char,2>& exponents,
                              const std::array<builtin_class,2>& musq_ab) {
     const builtin_class a = exponents[0]/2.0; // exponent of alpha (was sqrt(a))
     const builtin_class r = exponents[1];     // exponent of r
+
+    // if (musq_ab[0] == 0) {
+        // there's a divergence in the answer, just integrate it numerically...?
+        /*
+        coeff_class constant = std::sqrt(M_PI) * std::tgamma((1.0+r)/2) / 2.0;
+        // express the integrand in rectangularized coordinates
+        constant *= (musq_ab[1] - musq_ab[0]) * (musq_ab[1] - musq_ab[0]);
+        std::function<coeff_class(builtin_class,builtin_class)> integrand;
+        integrand = [a, r, musq_ab](builtin_class u, builtin_class v)
+                    { builtin_class x = XofUV(u, v, musq_ab);
+                      return (1.0-u)*std::pow(x, a/2.0)
+                           * Hypergeometric2F1_Reg(0.5, 0.5+r/2.0, 1.0+r/2.0, x)
+                           / SqrtM2ofUV(u, v, musq_ab); };
+        return Simpson_Rectangular(integrand, {{0, 1}}, {{0, 1}}, 
+                                   INTEGRAL_SAMPLES);
+       */
+
+        /*
+        coeff_class constant = std::sqrt(M_PI) * std::tgamma((1.0+r)/2);
+        std::function<coeff_class(builtin_class,builtin_class)> integrand;
+        integrand = [a, r](builtin_class mu1sq, builtin_class mu2sq)
+                    { builtin_class x = mu1sq/mu2sq;
+                      return std::pow(x, a/2.0)
+                           * Hypergeometric2F1_Reg(0.5, 0.5+r/2.0, 1.0+r/2.0, x)
+                           / std::sqrt(mu2sq); };
+        return constant*Midpoint_Triangular(integrand, musq_ab[0], musq_ab[1], 
+                                            INTEGRAL_SAMPLES);
+        */
+    // }
+
     const coeff_class overall = std::sqrt(M_PI)*std::tgamma(0.5 + r/2.0) / 3.0;
 
     coeff_class hypergeos = 0;
     hypergeos += NtoNWindow_Equal_Term(musq_ab, (a+2.0)/2.0,     r, true );
     hypergeos -= NtoNWindow_Equal_Term(musq_ab, (a-1.0)/2.0,     r, false);
-    hypergeos += NtoNWindow_Equal_Term(musq_ab, ((r-a)+2.0)/2.0, r, true );
-    hypergeos -= NtoNWindow_Equal_Term(musq_ab, ((r-a)-1.0)/2.0, r, false);
+    // hypergeos += NtoNWindow_Equal_Term(musq_ab, ((r-a)+2.0)/2.0, r, true );
+    // hypergeos -= NtoNWindow_Equal_Term(musq_ab, ((r-a)-1.0)/2.0, r, false);
 
     if (!std::isfinite(static_cast<builtin_class>(hypergeos))) {
         std::cerr << "Error: NtoNWindow_Equal(" << exponents << ", " 
@@ -305,6 +334,7 @@ coeff_class NtoNWindow_Equal_Term(const std::array<builtin_class,2>& musq_ab,
                                         2.0, 2.0, 2.0 + r/2.0, 1)
                 - msA/msB*Hypergeometric4F3_Reg(1.0, 1.0, 1.5, 1.5 + r/2.0,
                                                 2.0, 2.0, 2.0 + r/2.0, msA/msB);
+        // FIXME?? is this actually legal?
         if (msA != 0.0) output -= std::log(msA/msB) / std::tgamma(1.0 + r/2.0);
         output *= (useMuB ? std::pow(msB, 1.5) : std::pow(msA, 1.5));
         return output;
@@ -412,13 +442,13 @@ coeff_class NPlus2Window_15_Less(const char n, const char r,
                     { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); },
                     mu1_ab, mu2_ab, INTEGRAL_SAMPLES);
         } else {
-            return Trapezoid_Rectangular(
+            return Simpson_Rectangular(
                     [a](builtin_class mu1, builtin_class mu2)
                     { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); },
                     mu1_ab, mu2_ab, INTEGRAL_SAMPLES);
         }
     } else if (n == 5) {
-        return Trapezoid_Rectangular(
+        return Simpson_Rectangular(
                 [a](builtin_class mu1, builtin_class mu2)
                 { return std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/mu2; },
                 mu1_ab, mu2_ab, INTEGRAL_SAMPLES);
@@ -609,4 +639,106 @@ coeff_class Midpoint_Triangular(
     }
 
     return value;
+}
+
+// generic Simpson's rule approximation to an integral over a rectangular area
+coeff_class Simpson_Rectangular(
+        const std::function<coeff_class(builtin_class,builtin_class)> integrand,
+        const std::array<builtin_class,2>& mu1_ab, 
+        const std::array<builtin_class,2>& mu2_ab,
+        const std::size_t samples) {
+    if (mu1_ab[1] == mu1_ab[0] || mu2_ab[1] == mu2_ab[0] || samples == 0) {
+        return 0;
+    }
+
+    builtin_class width1 = (mu1_ab[1] - mu1_ab[0])/samples;
+    builtin_class width2 = (mu2_ab[1] - mu2_ab[0])/samples;
+
+    coeff_class value = 0;
+    for (std::size_t i = 1; i < samples; ++i) {
+        builtin_class mu1 = mu1_ab[0] + i*width1;
+        for (std::size_t j = 1; j < samples; ++j) {
+            builtin_class mu2 = mu2_ab[0] + j*width2;
+            // interior
+            value += 4.0*(i%2 + 1)*(j%2 + 1)*integrand(mu1, mu2);
+        }
+        // left and right edges
+        value += 2.0*(i%2 + 1)*(integrand(mu1, mu2_ab[0]) 
+                                + integrand(mu1, mu2_ab[1]));
+    }
+    for (std::size_t j = 1; j < samples; ++j) {
+        // top and bottom edges
+        builtin_class mu2 = mu2_ab[0] + j*width2;
+        value += 2.0*(j%2 + 1)*(integrand(mu1_ab[0], mu2) 
+                                + integrand(mu1_ab[1], mu2));
+    }
+    // corners
+    value += integrand(mu1_ab[0], mu2_ab[0]) + integrand(mu1_ab[0], mu2_ab[1])
+            + integrand(mu1_ab[1], mu2_ab[0]) + integrand(mu1_ab[1], mu2_ab[1]);
+
+    return (value*width1*width2) / 9.0;
+}
+
+// generic Simpson's rule approximation to an integral over a triangular area
+coeff_class Simpson_Triangular(
+        const std::function<coeff_class(builtin_class,builtin_class)> integrand,
+        const builtin_class mu_a, const builtin_class mu_b,
+        const std::size_t samples) {
+    if (mu_a == mu_b || samples == 0) return 0;
+
+    builtin_class width = (mu_b - mu_a)/samples;
+    coeff_class triValue = 0;
+    coeff_class rectValue = 0;
+
+    // corners
+    triValue += integrand(mu_a, mu_a) + integrand(mu_b, mu_b);
+    rectValue += integrand(mu_a, mu_b);
+
+    // diagonal
+    for (std::size_t i = 1; i < samples; ++i) {
+        builtin_class mu_i = mu_a + i*width;
+        triValue += 2.0*integrand(mu_i, mu_i);
+        rectValue += integrand(mu_i, mu_i);
+    }
+
+    // subdiagonal
+    triValue += integrand(mu_a, mu_a + width);
+    rectValue += integrand(mu_a, mu_a + width);
+    triValue += integrand(mu_b - width, mu_b);
+    rectValue += integrand(mu_b - width, mu_b);
+    for (std::size_t i = 1; i < samples-1; ++i) {
+        builtin_class mu_i = mu_a + i*width;
+        triValue += integrand(mu_i, mu_i + width);
+        rectValue += 3.0*integrand(mu_i, mu_i + width);
+    }
+
+    // top and right edges
+    for (std::size_t i = 2; i < samples; ++i) {
+        rectValue += 2.0*integrand(mu_a, mu_a + i*width);
+        rectValue += 2.0*integrand(mu_b - i*width, mu_b);
+    }
+
+    // interior
+    for (std::size_t i = 1; i < samples; ++i) {
+        builtin_class mu_i = mu_a + i*width;
+        for (std::size_t j = i+2; j < samples; ++j) {
+            builtin_class mu_j = mu_a + j*width;
+            rectValue += 4.0*integrand(mu_i, mu_j);
+        }
+    }
+
+    return rectValue*(width*width)/4.0 + triValue*(width*width/2.0)/3.0;
+}
+
+// used for the coordinate transformation that rectangularizes the Equal cells
+builtin_class XofUV(const builtin_class u, const builtin_class v, 
+                    const std::array<builtin_class,2>& musq_ab) {
+    return (musq_ab[0] + u*(musq_ab[1] - musq_ab[0]))
+         / (musq_ab[0] + (u + v - u*v)*(musq_ab[1] - musq_ab[0]));
+}
+
+// used for the coordinate transformation that rectangularizes the Equal cells
+builtin_class SqrtM2ofUV(const builtin_class u, const builtin_class v, 
+                         const std::array<builtin_class,2>& musq_ab) {
+    return std::sqrt(musq_ab[0] + (u + v - u*v)*(musq_ab[1] - musq_ab[0]));
 }

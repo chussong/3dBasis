@@ -95,4 +95,15 @@ coeff_class Midpoint_Triangular(
         const std::function<coeff_class(builtin_class,builtin_class)> integrand,
         const builtin_class mu_a, const builtin_class mu_b,
         const std::size_t samples);
+coeff_class Simpson_Rectangular(
+        const std::function<coeff_class(builtin_class,builtin_class)> integrand,
+        const std::array<builtin_class,2>& mu1_ab, 
+        const std::array<builtin_class,2>& mu2_ab,
+        const std::size_t samples);
+
+// used for the coordinate transformation that rectangularizes the Equal cells
+builtin_class XofUV(const builtin_class u, const builtin_class v, 
+                    const std::array<builtin_class,2>& musq_ab);
+builtin_class SqrtM2ofUV(const builtin_class u, const builtin_class v, 
+                         const std::array<builtin_class,2>& musq_ab);
 #endif

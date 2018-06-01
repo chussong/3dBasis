@@ -49,6 +49,12 @@ bool Midpoint_Triangular_Case(
         std::function<coeff_class(builtin_class,builtin_class)> integrand,
         const builtin_class mu_a, const builtin_class mu_b,
         const builtin_class expected, OStream& console);
+bool Simpson_Rectangular(OStream& console);
+bool Simpson_Rectangular_Case(
+        std::function<coeff_class(builtin_class,builtin_class)> integrand,
+        const std::array<builtin_class,2> mu_a, 
+        const std::array<builtin_class,2> mu_b,
+        const builtin_class expected, OStream& console);
 
 // templates for testing templates --------------------------------------------
 
