@@ -758,10 +758,11 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
     if (output.theta.size() == 0) output.theta.resize(2, 0);
 
     // sine[i] appears in all yTilde[j] with j > i (strictly greater)
-    for (std::size_t i = 0; i+2 < f1.yTilde.size(); ++i) {
-        for (auto j = i+1; j+1 < f1.yTilde.size(); ++j) {
+    for (std::size_t i = 0; i+1 < f1.yTilde.size(); ++i) {
+        for (auto j = i+1; j < f1.yTilde.size(); ++j) {
             output.theta[2*i] += f1.yTilde[j] + f2.yTilde[j];
         }
+        // cosine[i] is just yTilde[i]
         output.theta[2*i + 1] = f1.yTilde[i] + f2.yTilde[i];
     }
     output.theta[output.theta.size()-2] = f2.yTilde[f2.yTilde.size()-1];
@@ -1039,7 +1040,7 @@ coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
     // starts at 1 instead of 0, so I use (i+1) instead
     if (n >= 3) {
         for (auto i = 0u; i < n-3; ++i) {
-            output *= ThetaIntegral_Short(n - (i+1) - 2 + term.theta[2*i],
+            output *= ThetaIntegral_Short(term.theta[2*i] + n - (i+1) - 2,
                                           term.theta[2*i + 1] );
         }
         // first regular (non-prime) theta
