@@ -142,6 +142,16 @@ std::unique_ptr<DMatrix> MuPart_2to2(const std::size_t partitions) {
         output->col(j) *= (std::pow(j+1, 0.75) - std::pow(j, 0.75));
     }
 
+    // the matrix will be added to its transpose to ensure symmetry, so we need
+    // to put it in the same form as the others
+
+    for (Eigen::Index i = 0; i < output->rows(); ++i) {
+        for (Eigen::Index j = 0; j < i; ++j) {
+            (*output)(i, j) = 0;
+        }
+        (*output)(i, i) /= 2.0;
+    }
+
     return output;
 }
 
