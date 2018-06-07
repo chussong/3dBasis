@@ -51,7 +51,7 @@ QFrame* CalcWidget::SetupOneLevelFrame(const Arguments& args) {
     QLabel* nLabel = new QLabel("n");
     nLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
     nLabel->setBuddy(nBox);
-    nBox->setRange(2, 9);
+    nBox->setRange(2, 127);
     nBox->setValue(args.numP);
     nBox->setStatusTip(tr("Number of particles"));
     layout->addWidget(nLabel);
@@ -60,7 +60,7 @@ QFrame* CalcWidget::SetupOneLevelFrame(const Arguments& args) {
     QLabel* lLabel = new QLabel("l");
     lLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
     lLabel->setBuddy(lBox);
-    lBox->setRange(2, 10);
+    lBox->setRange(2, 127);
     lBox->setValue(args.degree);
     lBox->setSingleStep(2);
     lBox->setStatusTip(tr("Max number of derivatives above Dirichlet"));
@@ -81,7 +81,7 @@ QFrame* CalcWidget::SetupAllLevelsFrame(const Arguments&) {
     dLabel->setBuddy(dBox);
     layout->addWidget(dLabel);
     layout->addWidget(dBox);
-    dBox->setRange(3.0, 20.0);
+    dBox->setRange(3.0, 100.0);
     dBox->setValue(8.0);
     dBox->setSingleStep(0.5);
     dBox->setStatusTip(tr("Maximum total dimension"));
@@ -98,9 +98,9 @@ void CalcWidget::SetupParameterBoxes(QLayout* layout, const Arguments& args) {
     QLabel* msqLabel = new QLabel("m<sup>2</sup>");
     msqLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
     msqLabel->setBuddy(msqBox);
-    msqBox->setRange(0.0, 10.0);
+    msqBox->setRange(0.0, 1000.0);
     msqBox->setValue(args.msq);
-    msqBox->setSingleStep(0.10);
+    msqBox->setSingleStep(0.25);
     msqBox->setStatusTip(tr("Coefficient of mass term in Hamiltonian"));
 
     paramBoxGrid->addWidget(msqLabel);
@@ -109,9 +109,9 @@ void CalcWidget::SetupParameterBoxes(QLayout* layout, const Arguments& args) {
     QLabel* lambdaLabel = new QLabel(QString(0x03bb));
     lambdaLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
     lambdaLabel->setBuddy(lambdaBox);
-    lambdaBox->setRange(0.0, 10.0);
+    lambdaBox->setRange(0.0, 1000.0);
     lambdaBox->setValue(args.lambda);
-    lambdaBox->setSingleStep(0.10);
+    lambdaBox->setSingleStep(0.25);
     lambdaBox->setStatusTip(tr("Coefficient of interaction term in Hamiltonian"));
 
     paramBoxGrid->addWidget(lambdaLabel);
@@ -120,9 +120,9 @@ void CalcWidget::SetupParameterBoxes(QLayout* layout, const Arguments& args) {
     QLabel* cutoffLabel = new QLabel(QString(0x039b));
     cutoffLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
     cutoffLabel->setBuddy(cutoffBox);
-    cutoffBox->setRange(0.0, 10.0);
+    cutoffBox->setRange(0.0, 1000.0);
     cutoffBox->setValue(args.cutoff);
-    cutoffBox->setSingleStep(0.10);
+    cutoffBox->setSingleStep(0.25);
     cutoffBox->setStatusTip(tr("Energy cutoff"));
 
     paramBoxGrid->addWidget(cutoffLabel);
@@ -131,7 +131,7 @@ void CalcWidget::SetupParameterBoxes(QLayout* layout, const Arguments& args) {
     QLabel* kMaxLabel = new QLabel("k<sub>max</sub>");
     kMaxLabel->setAlignment(Qt::AlignVCenter | Qt::AlignRight);
     kMaxLabel->setBuddy(kMaxBox);
-    kMaxBox->setRange(1, 100);
+    kMaxBox->setRange(1, 1000);
     kMaxBox->setValue(args.partitions);
     kMaxBox->setStatusTip(tr("Number of mu^2 partitions per operator"));
 

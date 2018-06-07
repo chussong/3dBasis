@@ -157,7 +157,17 @@ Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
         minBases.push_back(MinimalBasis(orthogonalized));
         DMatrix polysOnMinBasis = PolysOnMinBasis(minBases[n-minN],
                                                orthogonalized, outStream);
-        discPolys.push_back(DiscretizePolys(polysOnMinBasis, args.partitions));
+        if (n == 1) {
+            SMatrix disc(polysOnMinBasis.rows(), polysOnMinBasis.cols());
+            for (Eigen::Index row = 0; row < disc.rows(); ++row) {
+                for (Eigen::Index col = 0; col < disc.cols(); ++col) {
+                    disc.insert(row, col) = polysOnMinBasis(row, col);
+                }
+            }
+            discPolys.push_back(std::move(disc));
+        } else {
+            discPolys.push_back(DiscretizePolys(polysOnMinBasis, args.partitions));
+        }
         if (mathematica) {
             outStream << "minimalBasis[" << suffix << "] = "
                 << MathematicaOutput(minBases[n-minN]) << endl;
@@ -196,15 +206,16 @@ DMatrix DiagonalBlock(const Basis<Mono>& minimalBasis,
     Timer timer;
     const bool interacting = (args.options & OPT_INTERACTING) != 0;
     std::string suffix = std::to_string(args.numP) + (odd ? ", odd" : ", even");
+    std::size_t kMax = (args.numP == 1 ? 1 : args.partitions);
 
     timer.Start();
-    DMatrix monoMassMatrix(MassMatrix(minimalBasis, args.partitions));
+    DMatrix monoMassMatrix(MassMatrix(minimalBasis, kMax));
     DMatrix polyMassMatrix = discPolys.transpose()*monoMassMatrix*discPolys;
     OutputMatrix(monoMassMatrix, polyMassMatrix, "mass matrix", suffix, timer,
                  args);
 
     timer.Start();
-    DMatrix monoKineticMatrix(KineticMatrix(minimalBasis, args.partitions));
+    DMatrix monoKineticMatrix(KineticMatrix(minimalBasis, kMax));
     DMatrix polyKineticMatrix = discPolys.transpose()*monoKineticMatrix*discPolys;
     OutputMatrix(monoKineticMatrix, polyKineticMatrix, "kinetic matrix", suffix,
                  timer, args);
@@ -213,7 +224,7 @@ DMatrix DiagonalBlock(const Basis<Mono>& minimalBasis,
                         + (args.cutoff*args.cutoff)*polyKineticMatrix;
     if (interacting) {
         timer.Start();
-        DMatrix monoNtoN(InteractionMatrix(minimalBasis, args.partitions));
+        DMatrix monoNtoN(InteractionMatrix(minimalBasis, kMax));
         DMatrix polyNtoN = discPolys.transpose()*monoNtoN*discPolys;
         OutputMatrix(monoNtoN, polyNtoN, "NtoN matrix", suffix, timer, 
                      args);

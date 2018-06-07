@@ -46,10 +46,13 @@ DMatrix InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions
 
 DMatrix NPlus2Matrix(const Basis<Mono>& basisA, const Basis<Mono>& basisB,
                      const std::size_t partitions) {
-    DMatrix output(basisA.size()*partitions, basisB.size()*partitions);
+    if (basisA.size() == 0 || basisB.size() == 0) return DMatrix(0, 0);
+    std::size_t partitionsA = (basisA[0].NParticles() == 1 ? 1 : partitions);
+    std::size_t partitionsB = partitions;
+    DMatrix output(basisA.size()*partitionsA, basisB.size()*partitionsB);
     for (std::size_t i = 0; i < basisA.size(); ++i) {
         for (std::size_t j = 0; j < basisB.size(); ++j) {
-            output.block(i*partitions, j*partitions, partitions, partitions)
+            output.block(i*partitionsA, j*partitionsB, partitionsA, partitionsB)
                 = MatrixInternal::MatrixBlock(basisA[i], basisB[j], 
                                               MAT_INTER_N_PLUS_2, partitions);
         }
@@ -166,14 +169,9 @@ DMatrix Matrix(const Basis<Mono>& basis, const std::size_t kMax,
     } else {
         DMatrix output(basis.size()*kMax, basis.size()*kMax);
         for (std::size_t i = 0; i < basis.size(); ++i) {
-            // output.block(i*kMax, i*kMax, kMax, kMax)
-                // = MatrixBlock(basis[i], basis[i], type, kMax);
             for (std::size_t j = 0; j < basis.size(); ++j) {
                 output.block(i*kMax, j*kMax, kMax, kMax)
                     = MatrixBlock(basis[i], basis[j], type, kMax);
-                // output.block(j*kMax, i*kMax, kMax, kMax)
-                    // = output.block(i*kMax, j*kMax, kMax, kMax).transpose();
-                // FIXME?? make sure above assignment is correct
             }
         }
         return output + output.transpose();
@@ -228,7 +226,9 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
             }
         }
 
-        DMatrix output = DMatrix::Zero(partitions, partitions);
+        std::size_t partitionsA = (A.NParticles() == 1 ? 1 : partitions);
+        std::size_t partitionsB = partitions;
+        DMatrix output = DMatrix::Zero(partitionsA, partitionsB);
         std::cout << "N+2 terms for " << A << " x " << B << ":\n";
         for (const auto& term : addedTerms) {
             std::cout << term.second << " * " << term.first << '\n';
@@ -237,7 +237,11 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         }
         return output;
     } else {
-        return MatrixTerm(A, B, type)*MuPart(partitions, type);
+        if (A.NParticles() == 1) {
+            return MatrixTerm(A, B, type)*MuPart_1(type);
+        } else {
+            return MatrixTerm(A, B, type)*MuPart(partitions, type);
+        }
     }
 }
 

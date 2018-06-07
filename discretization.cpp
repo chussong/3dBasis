@@ -44,10 +44,11 @@ coeff_class GKNorm(const std::size_t partitions) {
 // this works for every matrix computation except the interactions, because 
 // they pass different arguments
 DMatrix MuPart(const std::size_t partitions, const MATRIX_TYPE type) {
+    // divide by 2.0 because we'll be added to our transpose later
     if (type == MAT_INNER || type == MAT_MASS) {
-        return DMatrix::Identity(partitions, partitions);
+        return DMatrix::Identity(partitions, partitions)/2.0;
     } else if (type == MAT_KINETIC) {
-        return MuPart_Kinetic(partitions);
+        return MuPart_Kinetic(partitions)/2.0;
     } else {
         std::cerr << "Error: the requested MuPart type has not yet been "
             << "implemented." << std::endl;
@@ -66,19 +67,20 @@ DMatrix MuPart_Kinetic(const std::size_t partitions) {
     return output;
 }
 
+// special case for n=1, which always has a single mu state
+DMatrix MuPart_1(const MATRIX_TYPE type) {
+    if (type == MAT_INNER || type == MAT_MASS) {
+        return DMatrix::Identity(1, 1)/2.0;
+    } else if (type == MAT_KINETIC) {
+        return DMatrix::Zero(1, 1);
+    } else {
+        std::cerr << "Error: the requested MuPart type has not yet been "
+            << "implemented." << std::endl;
+        throw std::logic_error("MuPart: type not implemented");
+    }
+}
+
 // n->n interaction -----------------------------------------------------------
-
-namespace {
-    std::unordered_map<std::array<char,2>, DMatrix, 
-        boost::hash<std::array<char,2>> > nPlus2Cache;
-
-    std::unordered_map<std::size_t,DMatrix> zeroMatrix;
-    std::unordered_map<std::size_t,DMatrix> nEquals2Matrix;
-
-    // caches for expensive functions
-    std::unordered_map<std::array<builtin_class,3>,coeff_class,
-        boost::hash<std::array<builtin_class,3>> > betaCache;
-} // anonymous namespace
 
 // before transformation, first exponent is that of alpha, and the second is 
 // that of r; afterward, the first is the exponent of sqrt(alpha), and the
@@ -87,7 +89,17 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
                            std::array<char,2> exponents, 
                            const std::size_t partitions) {
     static std::unordered_map<std::array<char,2>, DMatrix, 
-                              boost::hash<std::array<char,2>> > intCache;
+                              boost::hash<std::array<char,2>> > cache;
+
+    if (n == 1) {
+        static std::unique_ptr<DMatrix> matrix11;
+
+        if (matrix11 == nullptr) {
+            matrix11 = std::make_unique<DMatrix>(DMatrix::Zero(1, 1));
+        }
+
+        return *matrix11;
+    }
 
     if (n == 2) {
         static std::unique_ptr<DMatrix> matrix22;
@@ -104,7 +116,7 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
     exponents[1] = exponents[1] + n - 3;
 
     builtin_class partWidth = builtin_class(1) / partitions;
-    if (intCache.count(exponents) == 0) {
+    if (cache.count(exponents) == 0) {
         DMatrix block = DMatrix::Zero(partitions, partitions);
         for (std::size_t winA = 0; winA < partitions; ++winA) {
             block(winA, winA) = NtoNWindow_Equal(exponents,
@@ -122,10 +134,10 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
         }
         // this is from the normalization of the g_k
         block *= GKNorm(partitions);
-        intCache.emplace(exponents, std::move(block));
+        cache.emplace(exponents, std::move(block));
     }
 
-    return intCache[exponents];
+    return cache[exponents];
 }
 
 std::unique_ptr<DMatrix> MuPart_2to2(const std::size_t partitions) {
@@ -381,35 +393,48 @@ builtin_class NtoNWindow_Equal_Hypergeometric(const builtin_class arg,
 
 const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr, 
                              const std::size_t partitions) {
+    static std::unordered_map<std::array<char,2>, DMatrix, 
+                              boost::hash<std::array<char,2>> > cache;
     coeff_class partWidth = coeff_class(1) / partitions;
-    if (nPlus2Cache.count(nr) == 0) {
-        DMatrix block = DMatrix::Zero(partitions, partitions);
-        for (std::size_t winA = 0; winA < partitions; ++winA) {
-            // entry is 0 when alpha > 1, so winB >= winA; when winB == winA, we
-            // need to use a special answer as well
-            block(winA, winA) = NPlus2Window_Equal(nr[0], nr[1], 
-                                                   winA*partWidth, 
-                                                   (winA+1)*partWidth);
-            for (std::size_t winB = winA+1; winB < partitions; ++winB) {
-                block(winA, winB) = NPlus2Window_Less(nr[0], nr[1], 
-                        {{static_cast<builtin_class>(winA*partWidth),
-                        static_cast<builtin_class>((winA+1)*partWidth)}},
-                        {{static_cast<builtin_class>(winB*partWidth), 
-                        static_cast<builtin_class>((winB+1)*partWidth)}} );
+    if (cache.count(nr) == 0) {
+        if (nr[0] == 1) {
+            // n=1 only has one state and no g_k norm (n=3 half still has one)
+            DMatrix block(1, partitions);
+            for (std::size_t win = 0; win < partitions; ++win) {
+                block(0, win) = (std::sqrt(win+1) - std::sqrt(win)) / M_PI;
             }
-        }
 
-        block *= GKNorm(partitions);
-        nPlus2Cache.emplace(nr, std::move(block));
+            cache.emplace(nr, std::move(block));
+        } else {
+            DMatrix block = DMatrix::Zero(partitions, partitions);
+            for (std::size_t winA = 0; winA < partitions; ++winA) {
+                // entry is 0 when alpha > 1, so winB >= winA; 
+                // when winB == winA, we need to use a special answer as well
+                // because only half of the triangle is included
+                block(winA, winA) = NPlus2Window_Equal(nr[0], nr[1], 
+                                                       winA*partWidth, 
+                                                       (winA+1)*partWidth);
+                for (std::size_t winB = winA+1; winB < partitions; ++winB) {
+                    block(winA, winB) = NPlus2Window_Less(nr[0], nr[1], 
+                            {{static_cast<builtin_class>(winA*partWidth),
+                            static_cast<builtin_class>((winA+1)*partWidth)}},
+                            {{static_cast<builtin_class>(winB*partWidth), 
+                            static_cast<builtin_class>((winB+1)*partWidth)}} );
+                }
+            }
+
+            block *= GKNorm(partitions);
+            cache.emplace(nr, std::move(block));
+        }
     }
 
-    return nPlus2Cache[nr];
+    return cache[nr];
 }
 
 coeff_class NPlus2Window_Less(const char n, const char r, 
         const std::array<builtin_class,2>& mu1_ab,
         const std::array<builtin_class,2>& mu2_ab) {
-    if (n == 1 || n == 5) return NPlus2Window_15_Less(n, r, mu1_ab, mu2_ab);
+    if (n == 5) return NPlus2Window_15_Less(n, r, mu1_ab, mu2_ab);
     builtin_class a = 0.5 * r;
     coeff_class overall = 8.0 / 3.0;
 
@@ -445,19 +470,7 @@ coeff_class NPlus2Window_15_Less(const char n, const char r,
                                  const std::array<builtin_class,2>& mu2_ab) {
     // the analytic answer to this is up to some crazy shit => trapezoid time
     builtin_class a = 0.5*r;
-    if (n == 1) {
-        if (mu1_ab[0] == 0) {
-            return Midpoint_Rectangular(
-                    [a](builtin_class mu1, builtin_class mu2)
-                    { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); },
-                    mu1_ab, mu2_ab, INTEGRAL_SAMPLES);
-        } else {
-            return Simpson_Rectangular(
-                    [a](builtin_class mu1, builtin_class mu2)
-                    { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); },
-                    mu1_ab, mu2_ab, INTEGRAL_SAMPLES);
-        }
-    } else if (n == 5) {
+    if (n == 5) {
         return Simpson_Rectangular(
                 [a](builtin_class mu1, builtin_class mu2)
                 { return std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/mu2; },
@@ -472,7 +485,7 @@ coeff_class NPlus2Window_15_Less(const char n, const char r,
 coeff_class NPlus2Window_Equal(const char n, const char r, 
                                const builtin_class mu_a, 
                                const builtin_class mu_b) {
-    if (n == 1 || n == 5) return NPlus2Window_15_Equal(n, r, mu_a, mu_b);
+    if (n == 5) return NPlus2Window_15_Equal(n, r, mu_a, mu_b);
     builtin_class a = 0.5 * r;
     
     coeff_class gammaPart = std::pow(mu_b, 1.5) * std::tgamma((n+1.0)/4.0) 
@@ -497,10 +510,7 @@ coeff_class NPlus2Window_15_Equal(const char n, const char r,
     // analytic answer isn't working, so trapezoid this instead
     builtin_class a = 0.5*r;
     std::function<coeff_class(builtin_class,builtin_class)> integrand;
-    if (n == 1) {
-        integrand = [a](builtin_class mu1, builtin_class mu2)
-                    { return std::pow(1.0 - mu1/mu2, a)/std::sqrt(mu1); };
-    } else if (n == 5) {
+    if (n == 5) {
         integrand = [a](builtin_class mu1, builtin_class mu2)
                     { return std::pow(1.0 - mu1/mu2, a)*std::sqrt(mu1)/mu2; };
     } else {

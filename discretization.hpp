@@ -26,6 +26,7 @@ coeff_class GKNorm(const std::size_t partitions);
 
 DMatrix MuPart(const std::size_t partitions, const MATRIX_TYPE type);
 DMatrix MuPart_Kinetic(const std::size_t partitions);
+DMatrix MuPart_1(const MATRIX_TYPE type);
 
 // same-n interactions --------------------------------------------------------
 
