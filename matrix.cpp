@@ -1,30 +1,26 @@
 #include "matrix.hpp"
 
 // Fock space part (ONLY) of the inner product between two monomials
-coeff_class InnerFock(const Mono& A, const Mono& B) {
-    //B.ChangePm(0, B.Pm(0)+1); // this will be reverted in MatrixTerm below
+hp_class InnerFock(const Mono& A, const Mono& B) {
     return MatrixInternal::MatrixTerm(A, B, MAT_INNER);
-    //return MatrixInternal::MatrixTerm(A, B, MatrixInter::MAT_INNER)/A.NParticles();
 }
 
 // inner product between two partitions of monomials
-coeff_class InnerProduct(const Mono& A, const Mono& B) {
-    // DVector muIntegrals = MuIntegral(A, B, partitions, MAT_INNER);
+hp_class InnerProduct(const Mono& A, const Mono& B) {
     return MatrixInternal::MatrixTerm(A, B, MAT_INNER);
-        // *muIntegrals(part);
 }
 
 // creates a gram matrix for the given basis using the Fock space inner product
 //
 // this returns the rank 2 matrix containing only the Fock part of the product
-DMatrix GramFock(const Basis<Mono>& basis) {
+HPMatrix GramFock(const Basis<Mono>& basis) {
     return MatrixInternal::Matrix(basis, 0, MAT_INNER);
 }
 
 // creates a gram matrix for the given basis using the Fock space inner product
 // 
 // this returns the rank 4 tensor relating states with different partitions
-DMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
+HPMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
     return MatrixInternal::Matrix(basis, partitions, MAT_INNER);
 }
 
@@ -74,14 +70,6 @@ namespace {
         interactionCache;
     // interaction n+2 matrices: map from {x,y}->{u,theta}
     std::unordered_map<std::string, std::vector<MatrixTerm_Final>> nPlus2Cache;
-
-    // integrals: map from (a,b)->#
-    std::unordered_map<std::array<builtin_class,2>, builtin_class,
-            boost::hash<std::array<builtin_class,2>> > uCache; // FIXME: dep'd
-    std::unordered_map<std::array<builtin_class,2>, builtin_class,
-            boost::hash<std::array<builtin_class,2>> > uPlusCache;
-    std::unordered_map<std::array<builtin_class,2>, builtin_class,
-            boost::hash<std::array<builtin_class,2>> > thetaCache;
 } // anonymous namespace
 
 YTerm::YTerm(const coeff_class coeff, const std::string& y, 
@@ -125,7 +113,7 @@ MatrixTerm_Final::MatrixTerm_Final(const size_t n): coeff(1), uPlus(n),
 }
 
 // maybe should be rvalue references instead? hopefully it's the same
-MatrixTerm_Final::MatrixTerm_Final(const coeff_class coeff, 
+MatrixTerm_Final::MatrixTerm_Final(const hp_class coeff, 
 		const std::vector<char>& uPlus, const std::vector<char>& uMinus, 
 		const std::vector<char>& sinTheta, const std::vector<char>& cosTheta): 
 	coeff(coeff), uPlus(uPlus), uMinus(uMinus), sinTheta(sinTheta), 
@@ -245,24 +233,24 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
     }
 }
 
-coeff_class MatrixTerm_Direct(const Mono& A, const Mono& B, const MATRIX_TYPE type) {
+hp_class MatrixTerm_Direct(const Mono& A, const Mono& B, const MATRIX_TYPE type) {
     //std::cout << "TERM: " << A.HumanReadable() << " x " << B.HumanReadable() 
             //<< std::endl;
 
     // degeneracy factors result from turning the ordered monomials into 
     // symmetric polynomials
-    coeff_class degeneracy = 1;
+    hp_class degeneracy = 1;
     degeneracy *= Factorial(A.NParticles());
     // for (auto& count : A.CountIdentical()) degeneracy *= Factorial(count);
     for (auto& count : B.CountIdentical()) degeneracy *= Factorial(count);
 
-    coeff_class prefactor = degeneracy*A.Coeff()*B.Coeff()*Prefactor(A, B, type);
+    hp_class prefactor = degeneracy*A.Coeff()*B.Coeff()*Prefactor(A, B, type);
 
     std::string xAndy_A = ExtractXY(A);
     std::string xAndy_B = ExtractXY(B);
     std::vector<MatrixTerm_Final> fFromA, fFromB, combinedFs;
 
-    coeff_class total = 0;
+    hp_class total = 0;
     // do {
     fFromA = DirectTermsFromXY(xAndy_A);
     do {
@@ -785,14 +773,14 @@ NPlus2Term_Step2 CombineNPlus2Fs_OneTerm(
 
 // WARNING: if type == MAT_MASS this changes the MatrixTerm_Final vector by
 // by changing each term's uMinus entries by -2
-coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
-		const MATRIX_TYPE type) {
+hp_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
+                     const MATRIX_TYPE type) {
     if (exponents.size() == 0) {
         // std::cerr << "No exponents detected; returning 1." << std::endl;
         return 1;
     }
     // auto n = exponents.front().uPlus.size() + 1;
-    coeff_class totalFromIntegrals = 0;
+    hp_class totalFromIntegrals = 0;
     for (auto& term : exponents) {
         if (term.uPlus.size() == 0) {
             totalFromIntegrals += 1;
@@ -964,9 +952,9 @@ coeff_class NPlus2MatrixPrefactor(const char n) {
 // integrals ------------------------------------------------------------------
 
 // do all the integrals for a direct matrix computation
-coeff_class DoAllIntegrals(const MatrixTerm_Final& term) {
+hp_class DoAllIntegrals(const MatrixTerm_Final& term) {
     std::size_t n = term.uPlus.size() + 1;
-    coeff_class output = term.coeff;
+    hp_class output = term.coeff;
 
     // do the u integrals first
     for (auto i = 0u; i < n-1; ++i) {
@@ -1062,14 +1050,20 @@ coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
 }
 
 // this is the integral of uplus^a uminus^b dz instead of du
-builtin_class UPlusIntegral(const builtin_class a, const builtin_class b) {
+hp_class UPlusIntegral(const builtin_class a, const builtin_class b) {
+    static std::unordered_map<std::array<builtin_class,2>, hp_class,
+                              boost::hash<std::array<builtin_class,2>> > cache;
+
     std::array<builtin_class,2> abArray{{a,b}};
     if (b < a) std::swap(abArray[0], abArray[1]);
-    if (uPlusCache.count(abArray) == 0) {
-        uPlusCache.emplace(abArray, gsl_sf_beta(a/2.0 + 1.0, b/2.0 + 1.0));
+    if (cache.count(abArray) == 0) {
+        // cache.emplace(abArray, gsl_sf_beta(a/2.0 + 1.0, b/2.0 + 1.0));
+        cache.emplace(abArray, MPFR::gamma((a+2.0)/2.0) 
+                               * MPFR::gamma((b+2.0)/2.0)
+                               / MPFR::gamma(a + b + 2.0));
     }
 
-    return uPlusCache[abArray];
+    return cache.at(abArray);
 }
 
 // this is the integral over the "theta" veriables from 0 to pi; it implements 
@@ -1078,23 +1072,29 @@ builtin_class UPlusIntegral(const builtin_class a, const builtin_class b) {
 //
 // results are cached by (a,b); since a and b are symmetric, we only store the
 // results with a <= b, swapping the two parameters if they're the other order
-builtin_class ThetaIntegral_Short(const builtin_class a, const builtin_class b) {
+hp_class ThetaIntegral_Short(const builtin_class a, const builtin_class b) {
+    static std::unordered_map<std::array<builtin_class,2>, hp_class,
+                              boost::hash<std::array<builtin_class,2>> > cache;
+
     if (std::abs(b - std::round(b)) < EPSILON && int(b)%2 == 1) return 0;
     std::array<builtin_class,2> abArray{{a,b}};
     if (b < a) std::swap(abArray[0], abArray[1]);
-    if (thetaCache.count(abArray) == 1) return thetaCache.at(abArray);
+    if (cache.count(abArray) == 0) {
+        cache.emplace(abArray, MPFR::gamma((a+1.0)/2.0) 
+                               * MPFR::gamma((b+1.0)/2.0)
+                               / MPFR::gamma(a + b + 1.0));
+    }
 
     // builtin_class ret = std::exp(std::lgamma((1+a)/2) + std::lgamma((1+b)/2) 
                     // - std::lgamma((2 + a + b)/2) );
-    builtin_class ret = gsl_sf_beta((a+1.0)/2.0, (b+1.0)/2.0);
-    thetaCache.emplace(abArray, ret);
-    return ret;
+    // builtin_class ret = gsl_sf_beta((a+1.0)/2.0, (b+1.0)/2.0);
+    return cache.at(abArray);
 }
 
 // this is the integral over the "theta" veriables from 0 to 2pi; it implements 
 // Zuhair's 5.36, where a is the exponent of sin(theta) and b is the exponent of
 // cos(theta).
-builtin_class ThetaIntegral_Long(const builtin_class a, const builtin_class b) {
+hp_class ThetaIntegral_Long(const builtin_class a, const builtin_class b) {
     if (std::abs(a+b - std::round(a+b)) < EPSILON && int(a+b)%2 == 1) return 0;
     return 2*ThetaIntegral_Short(a, b);
 }

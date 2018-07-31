@@ -14,6 +14,8 @@
 #include "Eigen/QR"
 #include "Eigen/Eigenvalues"
 
+#include "mpreal.h"
+
 /******************************************************************************/
 /***** Define the type used to store the coefficients of the monomials    *****/
 /***** and thus also the entries of the matrix whose kernel we want.      *****/
@@ -35,6 +37,9 @@ typedef long double coeff_class;
 // new specializations for these functions.
 typedef double builtin_class;
 
+// this is a high precision class used for gram-schmidt only
+typedef mpfr::mpreal hp_class;
+
 // these are the matrix types we use; DMatrix and DVector are dense, while 
 // SMatrix and SVector are sparse
 typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, Eigen::Dynamic> DMatrix;
@@ -42,6 +47,9 @@ typedef Eigen::Matrix<coeff_class, Eigen::Dynamic, 1> DVector;
 typedef Eigen::SparseMatrix<coeff_class> SMatrix;
 typedef Eigen::SparseVector<coeff_class> SVector;
 typedef Eigen::Triplet<coeff_class> Triplet;
+
+typedef Eigen::Matrix<hp_class, Eigen::Dynamic, Eigen::Dynamic> HPMatrix;
+typedef Eigen::Matrix<hp_class, Eigen::Dynamic, 1> HPMatrix;
 
 #ifdef NO_GUI
 typedef std::ostream OStream;

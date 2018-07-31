@@ -218,18 +218,10 @@ coeff_class NtoNWindow_Less_Special(const builtin_class r,
                                 const std::array<builtin_class,2>& mu1sq_ab, 
                                 const std::array<builtin_class,2>& mu2sq_ab) {
     // if the intervals are adjacent, there's a term that becomes indeterminate,
-    // so we'll just use an approximation instead of the real answer; we'd like
-    // to use the trapezoid rule, but that's indeterminate along the boundary as
-    // well, so we use midpoint instead
+    // so we'll just use an approximation instead of the real answer; luckily,
+    // there's a sum that we can use intead of a numerical integral
     if (mu1sq_ab[1] == mu2sq_ab[0]) {
-        builtin_class pref = std::sqrt(M_PI) * std::tgamma((1.0+r)/2.0) / 2.0;
-        auto val = Midpoint_Rectangular([r](builtin_class mu1,builtin_class mu2)
-                { return std::sqrt(mu1)/mu2 * Hypergeometric2F1_Reg(0.5, 
-                                                                    0.5+r/2.0,
-                                                                    1.0+r/2.0, 
-                                                                    mu1/mu2);},
-                mu1sq_ab, mu2sq_ab, INTEGRAL_SAMPLES);
-        return pref * val;
+        return NtoNWindow_Subdiagonal_Special(r, mu1sq_ab, mu2sq_ab);
     }
 
     coeff_class overall = std::sqrt(M_PI) * std::tgamma((r + 3.0)/2.0)
@@ -280,6 +272,85 @@ coeff_class NtoNWindow_Less_Special(const builtin_class r,
     return output;
 }
 
+coeff_class NtoNWindow_Subdiagonal_Special(const builtin_class r, 
+                                const std::array<builtin_class,2>& mu1sq_ab, 
+                                const std::array<builtin_class,2>& mu2sq_ab) {
+    coeff_class constant = std::sqrt(M_PI)/3.0
+                         * std::log(mu2sq_ab[1] / mu2sq_ab[0]);
+    if (r == 0) {
+        constant *= (std::pow(mu1sq_ab[1], 1.5) - std::pow(mu1sq_ab[0], 1.5))
+                  * std::sqrt(M_PI);
+    } else {
+        constant *= (std::pow(mu1sq_ab[1], 1.5)*std::tgamma(r/2.0)
+                     - std::pow(mu1sq_ab[0], 1.5)*std::tgamma(r/2.0 + 0.5))
+                  / std::tgamma(1 + r/2.0);
+    }
+
+    constexpr int ITERATION_LIMIT = 1e7;
+    constexpr coeff_class CONVERGENCE_LIMIT = 1e-12;
+    coeff_class sum = 0;
+    coeff_class prevSummand;
+    coeff_class ratio;
+    if (r == 0) {
+        ratio = 1;
+    } else {
+        ratio = 1;
+        // ratio = std::tgamma(r/2.0) / std::tgamma(0.5 + r/2.0);
+    }
+    bool converged = false;
+    for (int n = 1; n <= ITERATION_LIMIT; ++n) {
+        builtin_class logSummand = std::lgamma(0.5 + n) 
+                                 + std::lgamma(0.5 + r/2.0 + n)
+                                 - std::lgamma(1.0 + n)
+                                 - std::lgamma(1.0 + r/2.0 + n);
+
+        coeff_class expSummand = std::exp(logSummand) / (n * (3 + 2*n));
+        coeff_class summand = 0;
+        int nanCount = 0;
+        for (std::size_t i = 0; i <= 1; ++i) {
+            builtin_class mu1 = mu1sq_ab[i];
+            for (std::size_t j = 0; j <= 1; ++j) {
+                builtin_class mu2 = mu2sq_ab[j];
+                builtin_class prefactor = (i+j)%2 == 0 ? 1.0 : -1.0;
+                if (i == 1) prefactor *= ratio;
+                prefactor *= std::pow(mu1, 1.5);
+
+                coeff_class term = prefactor * expSummand * std::pow(mu1/mu2,n);
+                if (!std::isfinite(builtin_class(term))) {
+                    nanCount += 1;
+                } else {
+                    summand += term;
+                }
+            }
+        }
+
+        if (nanCount == 4) {
+            // std::cout << "*****NAN'D OUT AFTER " << n << " ITERATIONS*****\n";
+            // std::cout << "SUM: " << sum << "; PREV. SUMMAND: " << prevSummand
+                // << '\n';
+            break;
+        }
+
+        sum += summand;
+        prevSummand = summand;
+        if (std::abs(builtin_class(summand / sum)) < CONVERGENCE_LIMIT) {
+            // std::cout << "*****CONVERGENCE_LIMIT REACHED AFTER " << n 
+                // << " ITERATIONS*****\n";
+            converged = true;
+            break;
+        }
+        // if (n % int(1e6) == 0) {
+            // std::cout << "SUMMAND: " << summand << '\n';
+        // }
+    }
+    // if (!converged) {
+        // std::cout << "*****CONVERGENCE_LIMIT NOT REACHED AFTER " 
+            // << ITERATION_LIMIT << " ITERATIONS*****\n";
+    // }
+
+    return constant + sum;
+}
+
 coeff_class NtoNWindow_Greater(const std::array<char,2>& exponents,
                        const std::array<builtin_class,2>& mu1sq_ab,
                        const std::array<builtin_class,2>& mu2sq_ab) {
@@ -293,34 +364,11 @@ coeff_class NtoNWindow_Equal(const std::array<char,2>& exponents,
     const builtin_class a = exponents[0]/2.0; // exponent of alpha (was sqrt(a))
     const builtin_class r = exponents[1];     // exponent of r
 
-    // if (musq_ab[0] == 0) {
-        // there's a divergence in the answer, just integrate it numerically...?
-        /*
-        coeff_class constant = std::sqrt(M_PI) * std::tgamma((1.0+r)/2) / 2.0;
-        // express the integrand in rectangularized coordinates
-        constant *= (musq_ab[1] - musq_ab[0]) * (musq_ab[1] - musq_ab[0]);
-        std::function<coeff_class(builtin_class,builtin_class)> integrand;
-        integrand = [a, r, musq_ab](builtin_class u, builtin_class v)
-                    { builtin_class x = XofUV(u, v, musq_ab);
-                      return (1.0-u)*std::pow(x, a/2.0)
-                           * Hypergeometric2F1_Reg(0.5, 0.5+r/2.0, 1.0+r/2.0, x)
-                           / SqrtM2ofUV(u, v, musq_ab); };
-        return Simpson_Rectangular(integrand, {{0, 1}}, {{0, 1}}, 
-                                   INTEGRAL_SAMPLES);
-       */
-
-        /*
-        coeff_class constant = std::sqrt(M_PI) * std::tgamma((1.0+r)/2);
-        std::function<coeff_class(builtin_class,builtin_class)> integrand;
-        integrand = [a, r](builtin_class mu1sq, builtin_class mu2sq)
-                    { builtin_class x = mu1sq/mu2sq;
-                      return std::pow(x, a/2.0)
-                           * Hypergeometric2F1_Reg(0.5, 0.5+r/2.0, 1.0+r/2.0, x)
-                           / std::sqrt(mu2sq); };
-        return constant*Midpoint_Triangular(integrand, musq_ab[0], musq_ab[1], 
-                                            INTEGRAL_SAMPLES);
-        */
-    // }
+    if (musq_ab[0] == 0) {
+        // there's a (removable) singularity in the exact answer; write it 
+        // approximately as a series instead
+        return PartialSeries(func, start, prec);
+    }
 
     const coeff_class overall = std::sqrt(M_PI)*std::tgamma(0.5 + r/2.0) / 3.0;
 
@@ -748,6 +796,25 @@ coeff_class Simpson_Triangular(
     }
 
     return rectValue*(width*width)/4.0 + triValue*(width*width/2.0)/3.0;
+}
+
+// sum a convergent series until it calms down
+coeff_class PartialSeries(const std::function<coeff_class(std::size_t)>& func,
+                          const std::size_t start, const coeff_class prec) {
+    constexpr int ITERATION_LIMIT = 1e7;
+
+    coeff_class sum = 0;
+    for (std::size_t n = start; n < start + ITERATION_LIMIT; ++n) {
+        coeff_class summand = func(n);
+        if (summand == 0) break;
+
+        sum += summand;
+        if (std::abs(builtin_class(summand / sum)) < prec) {
+            break;
+        }
+    }
+
+    return sum;
 }
 
 // used for the coordinate transformation that rectangularizes the Equal cells

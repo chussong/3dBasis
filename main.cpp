@@ -1,5 +1,9 @@
 #include "main.hpp"
 
+// bits of precision to use for "high-precision" computations like Gram-Schmidt
+// WARNING: this is BITS, not decimal digits, which will be about 30% as high
+constexpr int default_prec = 200;
+
 int main(int argc, char* argv[]) {
     Arguments args = ParseArguments(argc, argv);
     if ((args.options & OPT_VERSION) != 0) {
@@ -8,6 +12,9 @@ int main(int argc, char* argv[]) {
             << "https://github.com/chussong/3dBasis." << endl;
         return EXIT_SUCCESS;
     }
+
+    // TODO: make this an option readable from argv
+    hp_class::set_default_prec(default_precision);
 
     if ((args.options & OPT_TEST) == 0 && (args.options & OPT_GUI) != 0) {
 #ifdef NO_GUI

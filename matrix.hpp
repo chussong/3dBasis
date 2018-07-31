@@ -22,9 +22,9 @@
 
 // these should be the only functions you have to call from other files -------
 
-coeff_class InnerFock(const Mono& A, const Mono& B);
-DMatrix GramFock(const Basis<Mono>& basis);
-coeff_class InnerProduct(const Mono& A, const Mono& B);
+hp_class InnerFock(const Mono& A, const Mono& B);
+HPMatrix GramFock(const Basis<Mono>& basis);
+hp_class InnerProduct(const Mono& A, const Mono& B);
 DMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions);
 DMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions);
 DMatrix KineticMatrix(const Basis<Mono>& basis, const std::size_t partitions);
@@ -77,7 +77,7 @@ MatrixTerm_Intermediate operator*(const MatrixTerm_Intermediate& A,
 std::ostream& operator<<(std::ostream& os, const MatrixTerm_Intermediate& out);
 
 struct MatrixTerm_Final {
-    coeff_class coeff = 1;
+    hp_class coeff = 1;
     std::vector<char> uPlus;
     std::vector<char> uMinus;
     std::vector<char> sinTheta;
@@ -147,7 +147,7 @@ struct NPlus2Term_Output {
 
 // the two functions for actually computing the two types of MatrixTerms:
 // direct for inner product and mass, inter for interactions
-coeff_class MatrixTerm_Direct(
+hp_class MatrixTerm_Direct(
         const Mono& A, const Mono& B, const MATRIX_TYPE type);
 NtoN_Final MatrixTerm_NtoN(
         const Mono& A, const Mono& B);
@@ -183,7 +183,7 @@ coeff_class YTildeCoefficient(const char a, const char l,
 const std::vector<MatrixTerm_Final>& DirectTermsFromXY(const std::string& xAndy);
 std::vector<MatrixTerm_Final> CombineTwoFs(const std::vector<MatrixTerm_Final>& F1,
 		const std::vector<MatrixTerm_Final>& F2);
-coeff_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
+hp_class FinalResult(std::vector<MatrixTerm_Final>& exponents,
 		const MATRIX_TYPE type);
 
 // functions specific to INTERACTION computations
@@ -207,20 +207,19 @@ std::vector<NPlus2Term_Output> NPlus2Output(
         std::vector<NPlus2Term_Step2>& combinedFs, const coeff_class prefactor);
 
 // numerical prefactors used in the various computations
-coeff_class Prefactor(const Mono& A, const Mono& B, const MATRIX_TYPE type);
-coeff_class InnerProductPrefactor(const char n);
-coeff_class MassMatrixPrefactor(const char n);
-coeff_class InteractionMatrixPrefactor(const char n);
-coeff_class NPlus2MatrixPrefactor(const char n);
+hp_class Prefactor(const Mono& A, const Mono& B, const MATRIX_TYPE type);
+hp_class InnerProductPrefactor(const char n);
+hp_class MassMatrixPrefactor(const char n);
+hp_class InteractionMatrixPrefactor(const char n);
+hp_class NPlus2MatrixPrefactor(const char n);
 
 // integrals used in FinalResult
-coeff_class DoAllIntegrals(const MatrixTerm_Final& term);
-coeff_class DoAllIntegrals(const InteractionTerm_Step2& term);
-coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term);
-builtin_class UPlusIntegral(const builtin_class a, const builtin_class b);
-builtin_class ThetaIntegral_Short(const builtin_class a, const builtin_class b);
-builtin_class ThetaIntegral_Long(const builtin_class a, const builtin_class b);
-builtin_class RIntegral(const builtin_class a, const builtin_class alpha);
+hp_class DoAllIntegrals(const MatrixTerm_Final& term);
+hp_class DoAllIntegrals(const InteractionTerm_Step2& term);
+hp_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term);
+hp_class UPlusIntegral(const builtin_class a, const builtin_class b);
+hp_class ThetaIntegral_Short(const builtin_class a, const builtin_class b);
+hp_class ThetaIntegral_Long(const builtin_class a, const builtin_class b);
 
 } // namespace MassMatrix
 #endif

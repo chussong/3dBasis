@@ -41,6 +41,9 @@ coeff_class NtoNWindow_Less(const std::array<char,2>& exponents,
 coeff_class NtoNWindow_Less_Special(const builtin_class r, 
                                 const std::array<builtin_class,2>& mu1sq_ab, 
                                 const std::array<builtin_class,2>& mu2sq_ab);
+coeff_class NtoNWindow_Subdiagonal_Special(const builtin_class r, 
+                                const std::array<builtin_class,2>& mu1sq_ab, 
+                                const std::array<builtin_class,2>& mu2sq_ab);
 coeff_class NtoNWindow_Greater(const std::array<char,2>& exponents,
                        const std::array<builtin_class,2>& mu1sq_ab,
                        const std::array<builtin_class,2>& mu2sq_ab);
@@ -101,6 +104,10 @@ coeff_class Simpson_Rectangular(
         const std::array<builtin_class,2>& mu1_ab, 
         const std::array<builtin_class,2>& mu2_ab,
         const std::size_t samples);
+
+// approximation for series we can't explicitly resum -------------------------
+coeff_class PartialSeries(const std::function<coeff_class(std::size_t)>& func,
+                          const std::size_t start, const coeff_class prec);
 
 // used for the coordinate transformation that rectangularizes the Equal cells
 builtin_class XofUV(const builtin_class u, const builtin_class v, 

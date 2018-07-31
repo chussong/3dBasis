@@ -18,6 +18,11 @@ The work-in-progress GUI uses [Qt](https://www.qt.io), an LGPL cross-platform
 GUI library; this project will be released under the GPL to comply with their 
 licensing requirements, but I haven't actually done this yet.  
 
+We also use [GNU MPFR](https://www.mpfr.org/) for a few particularly 
+high-precision computations; you will have to separately install 
+[GMP](https://gmplib.org/) and [MPFR](https://www.mpfr.org/) (in that order) 
+to make this work.
+
 ## Installation
 
 To compile, get a terminal in this directory and type "make". If you have Clang
