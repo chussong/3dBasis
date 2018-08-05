@@ -503,8 +503,8 @@ void Normalize(Basis<T>& toNormalize) {
                     //<< "state." << std::endl;
             continue;
         }
-        builtin_class norm = InnerFock(basisVector, basisVector);
-        norm = std::sqrt(norm);
+        hp_class norm = InnerFock(basisVector, basisVector);
+        norm = mpfr::sqrt(norm);
         // coeff_class norm = T::InnerProduct(basisVector, basisVector, cache, 
                         // kCache);
         /*std::cout << "Norm of " << basisVector.HumanReadable() << ": " 
@@ -514,7 +514,7 @@ void Normalize(Basis<T>& toNormalize) {
         // using norm instead of std::abs(norm) because negative norms are zeros
         //basisVector /= std::sqrt(norm);
         newBasisVectors.push_back(basisVector);
-        newBasisVectors.back() /= norm;
+        newBasisVectors.back() /= norm.toLDouble();
     }
     Basis<T> newBasis{newBasisVectors};
     std::swap(toNormalize, newBasis);
@@ -527,7 +527,7 @@ void Normalize(Basis<T>& toNormalize) {
 
 // take vector in monomial or polynomial basis, return it as polynomial
 template<class T>
-Poly VectorToPoly(const DVector& kernelVector, const Basis<T>& startBasis){
+Poly VectorToPoly(const HPVector& kernelVector, const Basis<T>& startBasis){
     Poly ret;
     if(static_cast<size_t>(kernelVector.rows()) != startBasis.size()){
         std::cerr << "Error: the given Q column has " << kernelVector.rows()
@@ -536,8 +536,8 @@ Poly VectorToPoly(const DVector& kernelVector, const Basis<T>& startBasis){
         return ret;
     }
     for(auto row = 0; row < kernelVector.rows(); ++row){
-        if(std::abs<builtin_class>(kernelVector.coeff(row)) < EPSILON) continue;
-        ret += kernelVector.coeff(row)*startBasis[row];
+        if (mpfr::abs(kernelVector.coeff(row)) < EPSILON) continue;
+        ret += kernelVector.coeff(row).toLDouble()*startBasis[row];
     }
 
     // if(ret.size() == 0) return ret;

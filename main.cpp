@@ -2,7 +2,7 @@
 
 // bits of precision to use for "high-precision" computations like Gram-Schmidt
 // WARNING: this is BITS, not decimal digits, which will be about 30% as high
-constexpr int default_prec = 200;
+constexpr int default_precision = 200;
 
 int main(int argc, char* argv[]) {
     Arguments args = ParseArguments(argc, argv);

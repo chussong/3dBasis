@@ -209,13 +209,14 @@ DMatrix DiagonalBlock(const Basis<Mono>& minimalBasis,
     std::size_t kMax = (args.numP == 1 ? 1 : args.partitions);
 
     timer.Start();
-    DMatrix monoMassMatrix(MassMatrix(minimalBasis, kMax));
+    // FIXME: can specialize cast function to get coeff_class directly
+    DMatrix monoMassMatrix(MassMatrix(minimalBasis, kMax).cast<builtin_class>().cast<coeff_class>());
     DMatrix polyMassMatrix = discPolys.transpose()*monoMassMatrix*discPolys;
     OutputMatrix(monoMassMatrix, polyMassMatrix, "mass matrix", suffix, timer,
                  args);
 
     timer.Start();
-    DMatrix monoKineticMatrix(KineticMatrix(minimalBasis, kMax));
+    DMatrix monoKineticMatrix(KineticMatrix(minimalBasis, kMax).cast<builtin_class>().cast<coeff_class>());
     DMatrix polyKineticMatrix = discPolys.transpose()*monoKineticMatrix*discPolys;
     OutputMatrix(monoKineticMatrix, polyKineticMatrix, "kinetic matrix", suffix,
                  timer, args);

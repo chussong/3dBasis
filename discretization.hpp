@@ -20,13 +20,13 @@ SMatrix DiscretizePolys(const DMatrix& polysOnMinBasis,
 
 // g_k normalization ----------------------------------------------------------
 
-coeff_class GKNorm(const std::size_t partitions);
+hp_class GKNorm(const std::size_t partitions);
 
 // direct matrices ------------------------------------------------------------
 
-DMatrix MuPart(const std::size_t partitions, const MATRIX_TYPE type);
-DMatrix MuPart_Kinetic(const std::size_t partitions);
-DMatrix MuPart_1(const MATRIX_TYPE type);
+HPMatrix MuPart(const std::size_t partitions, const MATRIX_TYPE type);
+HPMatrix MuPart_Kinetic(const std::size_t partitions);
+HPMatrix MuPart_1(const MATRIX_TYPE type);
 
 // same-n interactions --------------------------------------------------------
 

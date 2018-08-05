@@ -2,42 +2,42 @@
 
 // Fock space part (ONLY) of the inner product between two monomials
 hp_class InnerFock(const Mono& A, const Mono& B) {
-    return MatrixInternal::MatrixTerm(A, B, MAT_INNER);
+    return MatrixInternal::DirectMatrixTerm(A, B, MAT_INNER);
 }
 
 // inner product between two partitions of monomials
 hp_class InnerProduct(const Mono& A, const Mono& B) {
-    return MatrixInternal::MatrixTerm(A, B, MAT_INNER);
+    return MatrixInternal::DirectMatrixTerm(A, B, MAT_INNER);
 }
 
 // creates a gram matrix for the given basis using the Fock space inner product
 //
 // this returns the rank 2 matrix containing only the Fock part of the product
 HPMatrix GramFock(const Basis<Mono>& basis) {
-    return MatrixInternal::Matrix(basis, 0, MAT_INNER);
+    return MatrixInternal::DirectMatrix(basis, 0, MAT_INNER);
 }
 
 // creates a gram matrix for the given basis using the Fock space inner product
 // 
 // this returns the rank 4 tensor relating states with different partitions
 HPMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
-    return MatrixInternal::Matrix(basis, partitions, MAT_INNER);
+    return MatrixInternal::DirectMatrix(basis, partitions, MAT_INNER);
 }
 
 // creates a mass matrix M for the given monomials. To get the mass matrix of a 
 // basis of primary operators, one must express the primaries as a matrix of 
 // vectors, A, and multiply A^T M A.
-DMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
-    return MatrixInternal::Matrix(basis, partitions, MAT_MASS);
+HPMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
+    return MatrixInternal::DirectMatrix(basis, partitions, MAT_MASS);
 }
 
-DMatrix KineticMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
-    return MatrixInternal::Matrix(basis, partitions, MAT_KINETIC);
+HPMatrix KineticMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
+    return MatrixInternal::DirectMatrix(basis, partitions, MAT_KINETIC);
 }
 
 // creates a matrix of n->n interactions between the given basis's monomials
 DMatrix InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions) {
-    return MatrixInternal::Matrix(basis, partitions, MAT_INTER_SAME_N);
+    return MatrixInternal::InterMatrix(basis, partitions, MAT_INTER_SAME_N);
 }
 
 DMatrix NPlus2Matrix(const Basis<Mono>& basisA, const Basis<Mono>& basisB,
@@ -49,8 +49,9 @@ DMatrix NPlus2Matrix(const Basis<Mono>& basisA, const Basis<Mono>& basisB,
     for (std::size_t i = 0; i < basisA.size(); ++i) {
         for (std::size_t j = 0; j < basisB.size(); ++j) {
             output.block(i*partitionsA, j*partitionsB, partitionsA, partitionsB)
-                = MatrixInternal::MatrixBlock(basisA[i], basisB[j], 
-                                              MAT_INTER_N_PLUS_2, partitions);
+                = MatrixInternal::InterMatrixBlock(basisA[i], basisB[j], 
+                                                   MAT_INTER_N_PLUS_2, 
+                                                   partitions);
         }
     }
     return output;
@@ -139,48 +140,56 @@ std::ostream& operator<<(std::ostream& os, const NPlus2Term_Step2& out) {
         << int(out.r) << ", " << int(out.alpha) << "]";
 }
 
-// generically return direct or interaction matrix of the specified type
-DMatrix Matrix(const Basis<Mono>& basis, const std::size_t kMax, 
-        const MATRIX_TYPE type) {
+// generically return direct (inner product or mass) matrix of the correct type
+HPMatrix DirectMatrix(const Basis<Mono>& basis, const std::size_t kMax,
+                      const MATRIX_TYPE type) {
     // kMax == 0 means that the Fock part has been requested by itself
     if (kMax == 0) {
-        DMatrix fockPart(basis.size(), basis.size());
+        HPMatrix fockPart(basis.size(), basis.size());
         for (std::size_t i = 0; i < basis.size(); ++i) {
-            fockPart(i, i) = MatrixTerm(basis[i], basis[i], type);
+            fockPart(i, i) = DirectMatrixTerm(basis[i], basis[i], type);
             for (std::size_t j = i+1; j < basis.size(); ++j) {
-                fockPart(i, j) = MatrixTerm(basis[i], basis[j], type);
+                fockPart(i, j) = DirectMatrixTerm(basis[i], basis[j], type);
                 fockPart(j, i) = fockPart(i, j);
             }
         }
 
         return fockPart;
     } else {
-        DMatrix output(basis.size()*kMax, basis.size()*kMax);
+        HPMatrix output(basis.size()*kMax, basis.size()*kMax);
         for (std::size_t i = 0; i < basis.size(); ++i) {
             for (std::size_t j = 0; j < basis.size(); ++j) {
                 output.block(i*kMax, j*kMax, kMax, kMax)
-                    = MatrixBlock(basis[i], basis[j], type, kMax);
+                    = DirectMatrixBlock(basis[i], basis[j], type, kMax);
             }
         }
         return output + output.transpose();
     }
 }
 
-coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type) {
-    if (type == MAT_INNER || type == MAT_MASS) {
-        return MatrixTerm_Direct(A, B, type);
-    } else if (type == MAT_KINETIC) {
-        return MatrixTerm_Direct(A, B, MAT_INNER);
-    } else if (type == MAT_INTER_N_PLUS_2) {
-        throw std::logic_error("MatrixTerm: n-n+2 interaction can't be scalar");
-    } else if (type == MAT_INTER_SAME_N) {
-        throw std::logic_error("MatrixTerm: n-n interaction can't give scalar");
+// generically return interaction (N->N or N->N+2) matrix of the correct type
+DMatrix InterMatrix(const Basis<Mono>& basis, const std::size_t kMax, 
+                    const MATRIX_TYPE type) {
+    DMatrix output(basis.size()*kMax, basis.size()*kMax);
+    for (std::size_t i = 0; i < basis.size(); ++i) {
+        for (std::size_t j = 0; j < basis.size(); ++j) {
+            output.block(i*kMax, j*kMax, kMax, kMax)
+                = InterMatrixBlock(basis[i], basis[j], type, kMax);
+        }
+    }
+    return output + output.transpose();
+}
+
+HPMatrix DirectMatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
+                           const std::size_t partitions) {
+    if (A.NParticles() == 1) {
+        return DirectMatrixTerm(A, B, type)*MuPart_1(type);
     } else {
-        throw std::logic_error("MatrixTerm: unrecognized matrix type");
+        return DirectMatrixTerm(A, B, type)*MuPart(partitions, type);
     }
 }
 
-DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
+DMatrix InterMatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         const std::size_t partitions) {
     if (type == MAT_INTER_SAME_N) {
         NtoN_Final terms = MatrixTerm_NtoN(A, B);
@@ -225,15 +234,11 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
         }
         return output;
     } else {
-        if (A.NParticles() == 1) {
-            return MatrixTerm(A, B, type)*MuPart_1(type);
-        } else {
-            return MatrixTerm(A, B, type)*MuPart(partitions, type);
-        }
+        throw std::logic_error("InterMatrixBlock: matrix type not recognized.");
     }
 }
 
-hp_class MatrixTerm_Direct(const Mono& A, const Mono& B, const MATRIX_TYPE type) {
+hp_class DirectMatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type) {
     //std::cout << "TERM: " << A.HumanReadable() << " x " << B.HumanReadable() 
             //<< std::endl;
 
@@ -269,13 +274,13 @@ NtoN_Final MatrixTerm_NtoN(const Mono& A, const Mono& B) {
 
     // degeneracy factors result from turning the ordered monomials into 
     // symmetric polynomials
-    coeff_class degeneracy = 1;
+    hp_class degeneracy = 1;
     // degeneracy *= Factorial(A.NParticles());
     // degeneracy *= Factorial(B.NParticles());
     for (auto& count : A.CountIdentical()) degeneracy *= Factorial(count);
     for (auto& count : B.CountIdentical()) degeneracy *= Factorial(count);
 
-    coeff_class prefactor = degeneracy*A.Coeff()*B.Coeff()
+    hp_class prefactor = degeneracy*A.Coeff()*B.Coeff()
                           * Prefactor(A, B, MAT_INTER_SAME_N);
 
     std::string xAndy_A = ExtractXY(A);
@@ -289,7 +294,7 @@ NtoN_Final MatrixTerm_NtoN(const Mono& A, const Mono& B) {
             fFromB = InteractionTermsFromXY(xAndy_B);
             combinedFs = CombineInteractionFs(fFromA, fFromB);
 
-            auto newTerms = InteractionOutput(combinedFs, prefactor);
+            auto newTerms = InteractionOutput(combinedFs, prefactor.toLDouble());
             for (const auto& newTerm : newTerms) {
                 // if (!std::isfinite(static_cast<builtin_class>(newTerm.second))) {
                     // std::cerr << "Error: term (" << newTerm.first << ", " 
@@ -318,12 +323,12 @@ std::vector<NPlus2Term_Output> MatrixTerm_NPlus2(const Mono& A, const Mono& B) {
 
     // degeneracy factors result from turning the ordered monomials into 
     // symmetric polynomials
-    coeff_class degeneracy = 1;
+    hp_class degeneracy = 1;
     // degeneracy *= Factorial(A.NParticles());
     for (auto& count : A.CountIdentical()) degeneracy *= Factorial(count);
     for (auto& count : B.CountIdentical()) degeneracy *= Factorial(count);
 
-    coeff_class prefactor = degeneracy*A.Coeff()*B.Coeff()
+    hp_class prefactor = degeneracy*A.Coeff()*B.Coeff()
         * Prefactor(A, B, MAT_INTER_N_PLUS_2);
 
     std::string xAndy_A = ExtractXY(A);
@@ -336,7 +341,7 @@ std::vector<NPlus2Term_Output> MatrixTerm_NPlus2(const Mono& A, const Mono& B) {
         do {
             fFromB = InteractionTermsFromXY(xAndy_B);
             combinedFs = CombineNPlus2Fs(fFromA, fFromB);
-            auto newTerms = NPlus2Output(combinedFs, prefactor);
+            auto newTerms = NPlus2Output(combinedFs, prefactor.toLDouble());
             output.insert(output.end(), newTerms.begin(), newTerms.end());
         } while (PermuteXY(xAndy_B));
     } while (PermuteXY(xAndy_A));
@@ -814,7 +819,7 @@ NtoN_Final InteractionOutput(const std::vector<InteractionTerm_Step2>& combinedF
                              const coeff_class prefactor) {
     NtoN_Final output;
     for (const auto& combinedF : combinedFs) {
-        coeff_class integralPart = prefactor*DoAllIntegrals(combinedF);
+        coeff_class integralPart = prefactor*DoAllIntegrals(combinedF).toLDouble();
 
         const NtoN_Final& expansion = Expand(combinedF.r, combinedF.alpha);
         // std::cout << combinedF << " -> ";
@@ -876,7 +881,7 @@ std::vector<NPlus2Term_Output> NPlus2Output(
         std::vector<NPlus2Term_Step2>& combinedFs, const coeff_class prefactor){
     std::vector<NPlus2Term_Output> output;
     for (auto& combinedF : combinedFs) {
-        coeff_class value = DoAllIntegrals_NPlus2(combinedF);
+        coeff_class value = DoAllIntegrals_NPlus2(combinedF).toLDouble();
         if (value == 0) continue;
         output.emplace_back(prefactor*value, combinedF.r, combinedF.alpha);
     }
@@ -885,8 +890,8 @@ std::vector<NPlus2Term_Output> NPlus2Output(
 
 // prefactors -----------------------------------------------------------------
 
-coeff_class Prefactor(const Mono& A, const Mono&, const MATRIX_TYPE type) {
-    if (type == MAT_INNER) {
+hp_class Prefactor(const Mono& A, const Mono&, const MATRIX_TYPE type) {
+    if (type == MAT_INNER || type == MAT_KINETIC) {
         return InnerProductPrefactor(A.NParticles());
     } else if (type == MAT_MASS) {
         return MassMatrixPrefactor(A.NParticles());
@@ -895,15 +900,16 @@ coeff_class Prefactor(const Mono& A, const Mono&, const MATRIX_TYPE type) {
     } else if (type == MAT_INTER_N_PLUS_2) {
         return NPlus2MatrixPrefactor(A.NParticles());
     }
-    std::cerr << "Error: prefactor type not recognized." << std::endl;
+    std::cerr << "MatrixInternal::Prefactor: Error - given MATRIX_TYPE not "
+                 "recognized.\n";
     return 0;
 }
 
 // this follows (2.2) in Matrix Formulas.pdf
-coeff_class InnerProductPrefactor(const char n) {
-    static std::unordered_map<char, coeff_class> cache;
+hp_class InnerProductPrefactor(const char n) {
+    static std::unordered_map<char, hp_class> cache;
     if (cache.count(n) == 0) {
-        coeff_class denominator = std::tgamma(n+1); // tgamma = "true" gamma fcn
+        hp_class denominator = std::tgamma(n+1); // tgamma = "true" gamma fcn
         denominator *= std::pow(8, n-1);
         denominator *= std::pow(M_PI, 2*n-3);
         //std::cout << "PREFACTOR: " << 1/denominator << std::endl;
@@ -914,7 +920,7 @@ coeff_class InnerProductPrefactor(const char n) {
 }
 
 // this follows (2.3) in Matrix Formulas.pdf
-coeff_class MassMatrixPrefactor(const char n) {
+hp_class MassMatrixPrefactor(const char n) {
     // return n*InnerProductPrefactor(n); // if we're permuting M^2, remove n
     return InnerProductPrefactor(n);
 }
@@ -922,12 +928,12 @@ coeff_class MassMatrixPrefactor(const char n) {
 // this is 4 times the prefactor appearing in Matrix Formulas because, rather
 // than generating F+ and F-, we're taking only the even terms, which are the
 // same in both; this gives two factors of 2
-coeff_class InteractionMatrixPrefactor(const char n) {
+hp_class InteractionMatrixPrefactor(const char n) {
     if (n == 1) return 0;
 
-    static std::unordered_map<char, coeff_class> cache;
+    static std::unordered_map<char, hp_class> cache;
     if (cache.count(n) == 0) {
-        coeff_class denominator = std::tgamma(n-1);
+        hp_class denominator = std::tgamma(n-1);
         denominator *= std::pow(M_PI*M_PI, n-1);
         denominator *= std::pow(8, n);
         cache.emplace(n, 1/denominator);
@@ -936,10 +942,10 @@ coeff_class InteractionMatrixPrefactor(const char n) {
     return cache[n];
 }
 
-coeff_class NPlus2MatrixPrefactor(const char n) {
-    static std::unordered_map<char, coeff_class> cache;
+hp_class NPlus2MatrixPrefactor(const char n) {
+    static std::unordered_map<char, hp_class> cache;
     if (cache.count(n) == 0) {
-        coeff_class denominator = std::tgamma(n);
+        hp_class denominator = std::tgamma(n);
         denominator *= 6;
         denominator *= std::pow(M_PI, 2*n);
         denominator *= std::pow(8, n+1);
@@ -983,10 +989,10 @@ hp_class DoAllIntegrals(const MatrixTerm_Final& term) {
 }
 
 // do all the integrals for an interaction matrix computation
-coeff_class DoAllIntegrals(const InteractionTerm_Step2& term) {
+hp_class DoAllIntegrals(const InteractionTerm_Step2& term) {
     if (term.u.size() == 0) return 1;
     auto n = term.u.size()/2;
-    coeff_class product = term.coeff;
+    hp_class product = term.coeff;
 
     for (std::size_t i = 0; i+2 < n; ++i) {
         product *= UPlusIntegral(term.u[2*i] + 3, 
@@ -1012,9 +1018,9 @@ coeff_class DoAllIntegrals(const InteractionTerm_Step2& term) {
 }
 
 // do all the integrals for an n+2 interaction computation
-coeff_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
+hp_class DoAllIntegrals_NPlus2(const NPlus2Term_Step2& term) {
     std::size_t n = term.u.size()/2 - 1;
-    coeff_class output = term.coeff;
+    hp_class output = term.coeff;
 
     // do the non-primed u integrals first
     for (std::size_t i = 0; i < n-1; ++i) {
@@ -1058,9 +1064,9 @@ hp_class UPlusIntegral(const builtin_class a, const builtin_class b) {
     if (b < a) std::swap(abArray[0], abArray[1]);
     if (cache.count(abArray) == 0) {
         // cache.emplace(abArray, gsl_sf_beta(a/2.0 + 1.0, b/2.0 + 1.0));
-        cache.emplace(abArray, MPFR::gamma((a+2.0)/2.0) 
-                               * MPFR::gamma((b+2.0)/2.0)
-                               / MPFR::gamma(a + b + 2.0));
+        cache.emplace(abArray, mpfr::gamma((a+2.0)/2.0) 
+                               * mpfr::gamma((b+2.0)/2.0)
+                               / mpfr::gamma(a + b + 2.0));
     }
 
     return cache.at(abArray);
@@ -1080,9 +1086,9 @@ hp_class ThetaIntegral_Short(const builtin_class a, const builtin_class b) {
     std::array<builtin_class,2> abArray{{a,b}};
     if (b < a) std::swap(abArray[0], abArray[1]);
     if (cache.count(abArray) == 0) {
-        cache.emplace(abArray, MPFR::gamma((a+1.0)/2.0) 
-                               * MPFR::gamma((b+1.0)/2.0)
-                               / MPFR::gamma(a + b + 1.0));
+        cache.emplace(abArray, mpfr::gamma((a+1.0)/2.0) 
+                               * mpfr::gamma((b+1.0)/2.0)
+                               / mpfr::gamma(a + b + 1.0));
     }
 
     // builtin_class ret = std::exp(std::lgamma((1+a)/2) + std::lgamma((1+b)/2) 

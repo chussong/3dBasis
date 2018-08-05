@@ -1,5 +1,6 @@
 #include "discretization.hpp"
 
+// TODO: export this to a config
 constexpr std::size_t INTEGRAL_SAMPLES = 100;
 
 // Take a non-discretized polysOnMinBasis matrix and return one that expresses
@@ -32,8 +33,9 @@ SMatrix DiscretizePolys(const DMatrix& polysOnMinBasis,
 // normalization factor for all MuPart matrices -------------------------------
 
 // this is the g_k norm combined with the overall 1/(2 pi) under the lambdas
-coeff_class GKNorm(const std::size_t partitions) {
-    return coeff_class(partitions) / (2*M_PI);
+// TODO: M_PI should be MPFR::const_pi(prec, rnd_mode)
+hp_class GKNorm(const std::size_t partitions) {
+    return hp_class(partitions) / (2*M_PI);
 }
 
 // direct matrix computations -------------------------------------------------
@@ -43,10 +45,10 @@ coeff_class GKNorm(const std::size_t partitions) {
 //
 // this works for every matrix computation except the interactions, because 
 // they pass different arguments
-DMatrix MuPart(const std::size_t partitions, const MATRIX_TYPE type) {
+HPMatrix MuPart(const std::size_t partitions, const MATRIX_TYPE type) {
     // divide by 2.0 because we'll be added to our transpose later
     if (type == MAT_INNER || type == MAT_MASS) {
-        return DMatrix::Identity(partitions, partitions)/2.0;
+        return HPMatrix::Identity(partitions, partitions)/2.0;
     } else if (type == MAT_KINETIC) {
         return MuPart_Kinetic(partitions)/2.0;
     } else {
@@ -56,9 +58,9 @@ DMatrix MuPart(const std::size_t partitions, const MATRIX_TYPE type) {
     }
 }
 
-DMatrix MuPart_Kinetic(const std::size_t partitions) {
-    coeff_class partWidth = coeff_class(1) / partitions;
-    DMatrix output = DMatrix::Zero(partitions, partitions);
+HPMatrix MuPart_Kinetic(const std::size_t partitions) {
+    hp_class partWidth = coeff_class(1) / partitions;
+    HPMatrix output = HPMatrix::Zero(partitions, partitions);
     for (std::size_t k = 0; k < partitions; ++k) {
         output(k, k) = partWidth/2;
         output(k, k) *= k + (k+1);
@@ -68,11 +70,11 @@ DMatrix MuPart_Kinetic(const std::size_t partitions) {
 }
 
 // special case for n=1, which always has a single mu state
-DMatrix MuPart_1(const MATRIX_TYPE type) {
+HPMatrix MuPart_1(const MATRIX_TYPE type) {
     if (type == MAT_INNER || type == MAT_MASS) {
-        return DMatrix::Identity(1, 1)/2.0;
+        return HPMatrix::Identity(1, 1)/2.0;
     } else if (type == MAT_KINETIC) {
-        return DMatrix::Zero(1, 1);
+        return HPMatrix::Zero(1, 1);
     } else {
         std::cerr << "Error: the requested MuPart type has not yet been "
             << "implemented." << std::endl;
@@ -106,7 +108,7 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
 
         if (matrix22 == nullptr) {
             matrix22 = MuPart_2to2(partitions);
-            *matrix22 *= GKNorm(partitions);
+            *matrix22 *= GKNorm(partitions).toLDouble();
         }
 
         return *matrix22;
@@ -133,7 +135,7 @@ const DMatrix& MuPart_NtoN(const unsigned int n,
             }
         }
         // this is from the normalization of the g_k
-        block *= GKNorm(partitions);
+        block *= GKNorm(partitions).toLDouble();
         cache.emplace(exponents, std::move(block));
     }
 
@@ -367,7 +369,8 @@ coeff_class NtoNWindow_Equal(const std::array<char,2>& exponents,
     if (musq_ab[0] == 0) {
         // there's a (removable) singularity in the exact answer; write it 
         // approximately as a series instead
-        return PartialSeries(func, start, prec);
+        // return PartialSeries(func, start, prec);
+        // FIXME: this is using partial series instead of numeric integral
     }
 
     const coeff_class overall = std::sqrt(M_PI)*std::tgamma(0.5 + r/2.0) / 3.0;
@@ -471,7 +474,7 @@ const DMatrix& MuPart_NPlus2(const std::array<char,2>& nr,
                 }
             }
 
-            block *= GKNorm(partitions);
+            block *= GKNorm(partitions).toLDouble();
             cache.emplace(nr, std::move(block));
         }
     }

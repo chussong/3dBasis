@@ -13,6 +13,7 @@
 // #include "Eigen/SPQRSupport"
 #include "Eigen/QR"
 #include "Eigen/Eigenvalues"
+#include "unsupported/Eigen/MPRealSupport"
 
 #include "mpreal.h"
 
@@ -24,11 +25,11 @@
 // __GLIBCXX__ is defined if we're using the GNU libstdc++, which includes
 // the 128-bit extension __float128; if we don't have it, we just use the 
 // standard long double instead (which is actually also 128-bit in clang/LLVM)
-#ifdef __GLIBCXX__
-typedef __float128 coeff_class;
-#else
+// #ifdef __GLIBCXX__
+// typedef __float128 coeff_class;
+// #else
 typedef long double coeff_class;
-#endif
+// #endif
 
 // also define a built-in class to which coeff_class is implicitly convertible
 // to help with template resolution in stdlib functions. If coeff_class is
@@ -49,7 +50,18 @@ typedef Eigen::SparseVector<coeff_class> SVector;
 typedef Eigen::Triplet<coeff_class> Triplet;
 
 typedef Eigen::Matrix<hp_class, Eigen::Dynamic, Eigen::Dynamic> HPMatrix;
-typedef Eigen::Matrix<hp_class, Eigen::Dynamic, 1> HPMatrix;
+typedef Eigen::Matrix<hp_class, Eigen::Dynamic, 1> HPVector;
+/*
+template<> inline Eigen::internal::CastXpr<coeff_class> HPMatrix::cast<coeff_class>() const {
+    DMatrix output(this->rows(), this->cols());
+    for (Eigen::Index row = 0; row < this->rows(); ++row) {
+        for (Eigen::Index col = 0; col < this->cols(); ++col) {
+            output(row, col) = (*this)(row, col).toLDouble();
+        }
+    }
+    return output;
+}
+*/
 
 #ifdef NO_GUI
 typedef std::ostream OStream;
@@ -61,6 +73,7 @@ typedef QTextStream OStream;
 // if builtin_class and coeff_class are different, this ostream operator also
 // needs to be defined
 
+/*
 #ifdef __GLIBCXX__
 // need stream operators for coeff_class if it's not a builtin type
 inline std::ostream& operator<<(std::ostream& os, const coeff_class& out){
@@ -75,6 +88,7 @@ inline std::ostream& operator<<(std::ostream& os, const DVector& out) {
     return os << out.cast<builtin_class>();
 }
 #endif
+*/
 
 /******************************************************************************/
 /***** Define which solver to use to find the kernel of sparse matrices.  *****/
@@ -159,7 +173,7 @@ enum MATRIX_TYPE { MAT_KINETIC, MAT_INNER, MAT_MASS, MAT_INTER_SAME_N,
 /***** Compile-time constant math functions                               *****/
 /******************************************************************************/
 
-constexpr coeff_class Pochhammer(const coeff_class A, const int n) {
+constexpr builtin_class Pochhammer(const coeff_class A, const int n) {
     coeff_class ret = 1;
     for(int i = 0; i < n; ++i){
         ret *= A + i;
@@ -167,7 +181,7 @@ constexpr coeff_class Pochhammer(const coeff_class A, const int n) {
     return ret;
 }
 
-constexpr coeff_class Factorial(const int n) {
+constexpr builtin_class Factorial(const int n) {
     return Pochhammer(1, n);
 }
 

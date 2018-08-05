@@ -2,12 +2,12 @@
 
 // return the number of independent vectors in the basis
 std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases, 
-                OStream& console, const bool) {
+                                OStream& console, const bool) {
     Timer timer;
     Basis<Mono> unifiedBasis = CombineBases(inputBases);
     Normalize(unifiedBasis);
 
-    DMatrix gram = GramFock(unifiedBasis);
+    HPMatrix gram = GramFock(unifiedBasis);
     if(gram.rows() == 0) return {};
     
     console << "Gram matrix constructed in " << timer.TimeElapsedInWords()
@@ -35,49 +35,38 @@ std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases,
 }
 
 std::vector<Poly> GramSchmidt_WithMatrix(const std::vector<Basis<Mono>> input,
-		const DMatrix& gramMatrix) {
+		const HPMatrix& gramMatrix) {
     return GramSchmidt_WithMatrix(CombineBases(input), gramMatrix);
 }
-
-/*std::vector<Poly> GramSchmidt_WithMatrix(const std::vector<Basis<Mono>> input,
-		const DMatrixHP& gramMatrix) {
-	return GramSchmidt_WithMatrix(CombineBases(input), gramMatrix);
-}*/
 
 // I've included a couple of implementations of the Gram-Schmidt algorithm; 
 // these are equivalent for real numbers, but with floating point numbers 
 // they'll produce different rounding errors. A seems to be better at the moment
 // but neither one is entirely satisfactory.
 std::vector<Poly> GramSchmidt_WithMatrix(const Basis<Mono> inputBasis, 
-		const DMatrix& gramMatrix) {
+		const HPMatrix& gramMatrix) {
     return GramSchmidt_WithMatrix_A(inputBasis, gramMatrix);
     // return GramSchmidt_WithMatrix_B (inputBasis, gramMatrix);
     // return GramSchmidt_WithMatrix_C (inputBasis, gramMatrix.cast<precise_class>());
 }
 
-/*std::vector<Poly> GramSchmidt_WithMatrix(const Basis<Mono> inputBasis, 
-		const DMatrixHP& gramMatrix) {
-	// return GramSchmidt_WithMatrix_A(inputBasis, gramMatrix.cast<coeff_class>());
-	// return GramSchmidt_WithMatrix_B (inputBasis, gramMatrix.cast<coeff_class>());
-	return GramSchmidt_WithMatrix_C (inputBasis, gramMatrix);
-}*/
-
+// see above function for explanation of why there are two of these
 std::vector<Poly> GramSchmidt_WithMatrix_A(const Basis<Mono> inputBasis, 
-		const DMatrix& gramMatrix) {
-    std::vector<DVector> vectorForms;
+		const HPMatrix& gramMatrix) {
+    std::vector<HPVector> vectorForms;
     for (auto i = 0u; i < inputBasis.size(); ++i) {
-        DVector nextVector = DVector::Unit(inputBasis.size(), i);
+        HPVector nextVector = HPVector::Unit(inputBasis.size(), i);
         for (auto j = 0u; j < vectorForms.size(); ++j) {
             nextVector -= GSProjection(nextVector, vectorForms[j], gramMatrix);
         }
 
-        coeff_class norm = GSNorm(nextVector, gramMatrix);
-        if (std::abs<builtin_class>(norm) < EPSILON) continue;
+        hp_class norm = GSNorm(nextVector, gramMatrix);
+        if (mpfr::abs(norm) < EPSILON) continue;
         if (norm < 0) {
             std::cerr << "Warning: negative norm " << norm << "." << std::endl;
             norm = -norm;
         }
-        vectorForms.push_back(nextVector/std::abs(std::sqrt<builtin_class>(norm)));
+        vectorForms.push_back(nextVector/mpfr::abs(mpfr::sqrt(norm)));
     }
 
     std::vector<Poly> ret;
@@ -85,22 +74,24 @@ std::vector<Poly> GramSchmidt_WithMatrix_A(const Basis<Mono> inputBasis,
     return ret;
 }
 
+// see two functions up for explanation of why there are two of these
+/* FIXME: the V^T G V line doesn't compile with mpreal for some reason
 std::vector<Poly> GramSchmidt_WithMatrix_B(const Basis<Mono> inputBasis, 
-		const DMatrix& gramMatrix) {
-    std::vector<DVector> vectorForms;
+		const HPMatrix& gramMatrix) {
+    std::vector<HPVector> vectorForms;
     for (std::size_t i = 0; i < inputBasis.size(); ++i) {
-        vectorForms.push_back(DVector::Unit(inputBasis.size(), i)
-                        / std::abs(std::sqrt<builtin_class>(gramMatrix(i,i))) );
+        vectorForms.push_back(HPVector::Unit(inputBasis.size(), i)
+                        / mpfr::abs(mpfr::sqrt(gramMatrix(i,i))) );
     }
 
-    std::vector<coeff_class> norms(inputBasis.size(), 0);
+    std::vector<hp_class> norms(inputBasis.size(), 0);
     for (std::size_t i = 0; i < inputBasis.size(); ++i) {
         norms[i] = vectorForms[i].transpose() * gramMatrix * vectorForms[i];
         if (norms[i] < 0) norms[i] = -norms[i];
         if (norms[i] < EPSILON) continue;
-        vectorForms[i] /= std::abs(std::sqrt<builtin_class>(norms[i]));
+        vectorForms[i] /= mpfr::abs(mpfr::sqrt(norms[i]));
         for (std::size_t j = i+1; j < inputBasis.size(); ++j) {
-            coeff_class projector =
+            hp_class projector =
                     vectorForms[i].transpose() * gramMatrix * vectorForms[j];
             vectorForms[j] -= projector * vectorForms[i];
         }
@@ -113,14 +104,15 @@ std::vector<Poly> GramSchmidt_WithMatrix_B(const Basis<Mono> inputBasis,
     }
     return ret;
 }
+*/
 
 // projectOnto must be normalized already if you want the right answer from this
 //
 // the commented return line is what we're producing mathematically, but we
 // can reduce rounding errors a bit by doing it by hand
-DVector GSProjection(const DVector& toProject, const DVector& projectOnto,
-		const DMatrix& gramMatrix) {
-    coeff_class scale = 0;
+HPVector GSProjection(const HPVector& toProject, const HPVector& projectOnto,
+		      const HPMatrix& gramMatrix) {
+    hp_class scale = 0;
     for (auto i = 0u; i < toProject.size(); ++i) {
         if (toProject(i) == 0) continue;
         for (auto j = 0u; j < toProject.size(); ++j) {
@@ -133,8 +125,8 @@ DVector GSProjection(const DVector& toProject, const DVector& projectOnto,
 
 // the commented return line is what we're producing mathematically, but we
 // can take advantage of the symmetry of the gramMatrix by doing it manually
-coeff_class GSNorm(const DVector& vector, const DMatrix& gramMatrix) {
-    coeff_class norm = 0;
+hp_class GSNorm(const HPVector& vector, const HPMatrix& gramMatrix) {
+    hp_class norm = 0;
     for(Eigen::Index i = 0; i < vector.size(); ++i) {
         norm += vector(i)*vector(i)*gramMatrix(i,i);
         for (Eigen::Index j = i+1; j < vector.size(); ++j) {

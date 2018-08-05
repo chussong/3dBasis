@@ -17,23 +17,25 @@
 // this should be the only function called from outside of this file ----------
 
 std::vector<Poly> Orthogonalize(const std::vector<Basis<Mono>>& inputBases, 
-                OStream& console, const bool odd);
+                                OStream& console, const bool odd);
 
 // custom gram-schmidt --------------------------------------------------------
 
+// these represent alternative ways to do the computation. Implementation 
+// details are in gram-schmidt.cpp.
 std::vector<Poly> GramSchmidt(const std::vector<Basis<Mono>> input);
 std::vector<Poly> GramSchmidt(const Basis<Mono> input);
 std::vector<Poly> GramSchmidt_WithMatrix(const std::vector<Basis<Mono>> input,
-		const DMatrix& gramMatrix);
+		const HPMatrix& gramMatrix);
 std::vector<Poly> GramSchmidt_WithMatrix(const Basis<Mono> input, 
-		const DMatrix& gramMatrix);
+		const HPMatrix& gramMatrix);
 std::vector<Poly> GramSchmidt_WithMatrix_A(const Basis<Mono> inputBasis, 
-		const DMatrix& gramMatrix);
+		const HPMatrix& gramMatrix);
 std::vector<Poly> GramSchmidt_WithMatrix_B(const Basis<Mono> inputBasis, 
-		const DMatrix& gramMatrix);
-DVector GSProjection(const DVector& toProject, const DVector& projectOnto,
-		const DMatrix& gramMatrix);
-coeff_class GSNorm(const DVector& vector, const DMatrix& gramMatrix);
+		const HPMatrix& gramMatrix);
+HPVector GSProjection(const HPVector& toProject, const HPVector& projectOnto,
+		const HPMatrix& gramMatrix);
+hp_class GSNorm(const HPVector& vector, const HPMatrix& gramMatrix);
 std::vector<Poly> GramSchmidt_MatrixOnly(const DMatrix& input, 
 		const Basis<Mono>& inputBases);
 
@@ -43,8 +45,7 @@ std::vector<Poly> PolysFromQMatrix(const DMatrix& QMatrix,
 		const Basis<Mono>& basis, const DMatrix& gramMatrix, 
 		const Eigen::Index rank);
 
-// miscellaneous -------------------------------------------------------------
-
+// the two solvers need to have their Q matrices extracted in different ways
 DMatrix ExtractQMatrix(const Eigen::FullPivHouseholderQR<DMatrix>& solver, 
 		               const int dimension);
 DMatrix ExtractQMatrix(const Eigen::ColPivHouseholderQR<DMatrix>& solver, 

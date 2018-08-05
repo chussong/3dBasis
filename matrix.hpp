@@ -25,9 +25,9 @@
 hp_class InnerFock(const Mono& A, const Mono& B);
 HPMatrix GramFock(const Basis<Mono>& basis);
 hp_class InnerProduct(const Mono& A, const Mono& B);
-DMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions);
-DMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions);
-DMatrix KineticMatrix(const Basis<Mono>& basis, const std::size_t partitions);
+HPMatrix GramMatrix(const Basis<Mono>& basis, const std::size_t partitions);
+HPMatrix MassMatrix(const Basis<Mono>& basis, const std::size_t partitions);
+HPMatrix KineticMatrix(const Basis<Mono>& basis, const std::size_t partitions);
 DMatrix InteractionMatrix(const Basis<Mono>& basis, const std::size_t partitions);
 DMatrix NPlus2Matrix(const Basis<Mono>& basisA, const Basis<Mono>& basisB,
                      const std::size_t partitions);
@@ -40,12 +40,15 @@ namespace MatrixInternal {
 // MatrixInternal, which I've done for YTerm and MatrixTerm_Intermediate
 using ::operator<<;
 
-// the main point of this header
-DMatrix Matrix(const Basis<Mono>& basis, const std::size_t partitions, 
-        const MATRIX_TYPE type);
-coeff_class MatrixTerm(const Mono& A, const Mono& B, const MATRIX_TYPE type);
-DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
-        const std::size_t partitions);
+// the main point of this header; computes the various kinds of matrices
+HPMatrix DirectMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
+                      const MATRIX_TYPE type);
+HPMatrix DirectMatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
+                           const std::size_t partitions);
+DMatrix InterMatrix(const Basis<Mono>& basis, const std::size_t partitions, 
+                    const MATRIX_TYPE type);
+DMatrix InterMatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
+                         const std::size_t partitions);
 
 // five structs used in the coordinate transformations for MatrixTerm
 
@@ -86,7 +89,7 @@ struct MatrixTerm_Final {
     MatrixTerm_Final() = default;
     explicit MatrixTerm_Final(const size_t n);
     // maybe should be rvalue references instead? hopefully it compiles the same
-    MatrixTerm_Final(const coeff_class coeff, 
+    MatrixTerm_Final(const hp_class coeff, 
                     const std::vector<char>& uPlus, const std::vector<char>& uMinus, 
                     const std::vector<char>& sinTheta, const std::vector<char>& cosTheta);
     void Resize(const size_t n);
@@ -147,7 +150,7 @@ struct NPlus2Term_Output {
 
 // the two functions for actually computing the two types of MatrixTerms:
 // direct for inner product and mass, inter for interactions
-hp_class MatrixTerm_Direct(
+hp_class DirectMatrixTerm(
         const Mono& A, const Mono& B, const MATRIX_TYPE type);
 NtoN_Final MatrixTerm_NtoN(
         const Mono& A, const Mono& B);
