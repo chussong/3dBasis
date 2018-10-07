@@ -1,5 +1,7 @@
 #include "poly.hpp"
 
+#include <fstream>
+
 // the reason this uses += rather than a copy is so that coefficients can be
 // added for monomials which appear more than once
 Poly::Poly(const std::vector<Mono>& terms){
@@ -115,4 +117,41 @@ std::string Poly::HumanReadable() const {
         os << terms[i].HumanReadable();
     }
     return os.str();
+}
+
+std::vector<Poly> Poly::ReadFromFile(const std::string& filename, 
+                                     const std::size_t particleCount) {
+    std::ifstream inStream(filename);
+    if (!inStream) {
+        throw std::runtime_error(__FILE__ ": could not open file \"" + filename
+                                 + "\" for reading");
+    }
+
+    std::vector<Poly> output;
+    while (true) {
+        Poly newPoly;
+        int termCount;
+        inStream >> termCount;
+        for (int i = 0; i < termCount; ++i) {
+            builtin_class coeff; // FIXME use full precision
+            inStream >> coeff;
+
+            std::vector<particle> particles;
+            for (std::size_t p = 0; p < particleCount; ++p) {
+                particle newParticle;
+                inStream >> newParticle.pm >> newParticle.pt;
+                // subtract character '0' because operator>> treats pm and pt as
+                // characters rather than 1-byte numbers
+                newParticle.pm -= '0';
+                newParticle.pt -= '0';
+                particles.push_back(std::move(newParticle));
+            }
+
+            newPoly += Mono(particles, coeff);
+        }
+        if (!inStream) break;
+        output.push_back(std::move(newPoly));
+    }
+
+    return output;
 }

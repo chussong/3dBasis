@@ -67,6 +67,8 @@ class Poly {
         Poly DerivPm(const int);
         Poly DerivPm();
 
+        static std::vector<Poly> ReadFromFile(const std::string& filename, 
+                                              const std::size_t particleCount);
 };
 
 template<typename T>
