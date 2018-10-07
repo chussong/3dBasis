@@ -138,13 +138,10 @@ std::vector<Poly> Poly::ReadFromFile(const std::string& filename,
 
             std::vector<particle> particles;
             for (std::size_t p = 0; p < particleCount; ++p) {
-                particle newParticle;
-                inStream >> newParticle.pm >> newParticle.pt;
-                // subtract character '0' because operator>> treats pm and pt as
-                // characters rather than 1-byte numbers
-                newParticle.pm -= '0';
-                newParticle.pt -= '0';
-                particles.push_back(std::move(newParticle));
+                int pm, pt;
+                inStream >> pm >> pt;
+                particles.push_back({static_cast<char>(pm), 
+                                     static_cast<char>(pt)});
             }
 
             newPoly += Mono(particles, coeff);
