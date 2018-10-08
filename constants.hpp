@@ -119,6 +119,7 @@ struct Arguments {
     coeff_class lambda = 1; // the coefficient of the interaction term
     coeff_class cutoff = 1; // the energy cutoff (capital lambda)
     int options = 0;
+    std::string basisDir = ""; // location of dir containing orthogonal vectors
     OStream* outStream = nullptr;
     OStream* console = nullptr;
 };

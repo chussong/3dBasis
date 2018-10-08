@@ -5,8 +5,10 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include <gsl/gsl_errno.h>  // handling for GSL errors
+#include <boost/filesystem.hpp> // for loading orthogonal polynomials from disk
 
 #include "constants.hpp"
 #include "construction.hpp"
@@ -37,7 +39,8 @@ std::vector<Poly> ComputeBasisStates_SameParity(
 DMatrix PolysOnMinBasis(const Basis<Mono>& minimalBasis,
         const std::vector<Poly> orthogonalized, OStream& outStream);
 DMatrix ComputeHamiltonian(const Arguments& args);
-Hamiltonian FullHamiltonian(Arguments args, const bool odd);
+Hamiltonian FullHamiltonian(const boost::filesystem::path& basisDir,
+                            Arguments args, const bool odd);
 DMatrix DiagonalBlock(const Basis<Mono>& minimalBasis, 
                       const SMatrix& discPolys, 
                       const Arguments& args, const bool odd);

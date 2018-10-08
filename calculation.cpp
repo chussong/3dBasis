@@ -98,12 +98,19 @@ DMatrix ComputeHamiltonian(const Arguments& args) {
     
     const bool full = (args.options & OPT_FULLOUTPUT) != 0;
 
+    if (args.basisDir.empty()) {
+        throw std::logic_error(__FILE__ ": ComputeHamiltonian called with empty"
+                               " basisDir");
+    }
+
+    boost::filesystem::path basisPath = args.basisDir;
+
     *args.outStream << "(*EVEN STATES*)" << endl;
-    Hamiltonian evenHam = FullHamiltonian(args, false);
+    Hamiltonian evenHam = FullHamiltonian(basisPath / "even", args, false);
     if (full) AnalyzeHamiltonian(evenHam, args, false);
 
     *args.outStream << "(*ODD STATES*)" << endl;
-    Hamiltonian oddHam  = FullHamiltonian(args, true);
+    Hamiltonian oddHam  = FullHamiltonian(basisPath / "odd", args, true);
     if (full) AnalyzeHamiltonian(oddHam, args, true);
 
     *args.console << "\nEntire computation took " 
@@ -114,7 +121,8 @@ DMatrix ComputeHamiltonian(const Arguments& args) {
 
 // compute the hamiltonian for all states with delta up to args.delta; if 
 // args.delta == 0, only compute one n-level (the DiagonalBlock at n=args.numP)
-Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
+Hamiltonian FullHamiltonian(const boost::filesystem::path& basisDir, 
+                            Arguments args, const bool odd) {
     int minN, maxN;
     if (args.delta != 0.0) {
         minN = 1;
@@ -129,34 +137,16 @@ Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
     const bool mathematica = (args.options & OPT_MATHEMATICA) != 0;
     OStream& outStream = *args.outStream;
 
-    std::vector<Basis<Mono>> minBases;
-    std::vector<SMatrix> discPolys;
-    for (int n = minN; n <= maxN; ++n) {
-        // TODO: remove adjustment so degree's consistently "L above dirichlet"
-        if (args.delta == 0.0) {
-            args.degree = args.degree + n;
-        } else {
-            args.numP = n;
-            args.degree = std::floor(args.delta - 0.5*n);
-        }
+    std::unordered_map<int,Basis<Mono>> minBases;
+    std::unordered_map<int,SMatrix> discPolys;
+    for (boost::filesystem::directory_entry& file 
+            : boost::filesystem::directory_iterator(basisDir)) {
+        int n = std::stoi(file.path().stem().string());
+        std::vector<Poly> orthogonalized = Poly::ReadFromFile(file.path().string(), n);
+        minBases.emplace(n, MinimalBasis(orthogonalized));
+        DMatrix polysOnMinBasis = PolysOnMinBasis(minBases.at(n), orthogonalized,
+                                                  outStream);
 
-        // TODO: directly generate only the monomials with the correct parity
-        std::vector<Basis<Mono>> allEvenBases;
-        std::vector<Basis<Mono>> allOddBases;
-        for(int deg = n; deg <= args.degree; ++deg){
-            splitBasis<Mono> degBasis(n, deg, args);
-            allEvenBases.push_back(degBasis.EvenBasis());
-            allOddBases.push_back(degBasis.OddBasis());
-        }
-        const std::vector<Basis<Mono>>& inputBases = 
-                                            (odd ? allOddBases : allEvenBases);
-
-        const std::string suffix = std::to_string(n) + parity;
-        std::vector<Poly> orthogonalized = 
-                        ComputeBasisStates_SameParity(inputBases, args, odd);
-        minBases.push_back(MinimalBasis(orthogonalized));
-        DMatrix polysOnMinBasis = PolysOnMinBasis(minBases[n-minN],
-                                               orthogonalized, outStream);
         if (n == 1) {
             SMatrix disc(polysOnMinBasis.rows(), polysOnMinBasis.cols());
             for (Eigen::Index row = 0; row < disc.rows(); ++row) {
@@ -164,32 +154,44 @@ Hamiltonian FullHamiltonian(Arguments args, const bool odd) {
                     disc.insert(row, col) = polysOnMinBasis(row, col);
                 }
             }
-            discPolys.push_back(std::move(disc));
+            discPolys.emplace(n, std::move(disc));
         } else {
-            discPolys.push_back(DiscretizePolys(polysOnMinBasis, args.partitions));
+            discPolys.emplace(n, DiscretizePolys(polysOnMinBasis, args.partitions));
         }
         if (mathematica) {
+            const std::string suffix = std::to_string(n) + parity;
             outStream << "minimalBasis[" << suffix << "] = "
-                << MathematicaOutput(minBases[n-minN]) << endl;
-            outStream << "(*Polynomials on this basis (as rows, not columns!):*)\n"
+                << MathematicaOutput(minBases.at(n)) << endl;
+            outStream 
+                << "(*Polynomials on this basis (as rows, not columns!):*)\n"
                 << "polysOnMinBasis[" << suffix << "] = " 
                 << MathematicaOutput(polysOnMinBasis.transpose()) << endl;
             outStream << "(*And discretized:*)\ndiscretePolys[" << suffix 
-                << "] = " << MathematicaOutput(DMatrix(discPolys[n-minN].transpose())) 
+                << "] = " 
+                << MathematicaOutput(DMatrix(discPolys.at(n).transpose())) 
                 << endl;
         } else {
-            outStream << "Minimal basis (" << n << "):" << minBases[n-minN] << endl;
+            outStream << "Minimal basis (" << n << "):" << minBases.at(n) 
+                << endl;
         }
 
-        output.diagonal.push_back(DiagonalBlock(minBases[n-minN], 
-                                                discPolys[n-minN], 
+        // FIXME: change output from vector to hash map
+        output.diagonal.push_back(DiagonalBlock(minBases.at(n), discPolys.at(n), 
                                                 args, odd));
-        if ((args.options & OPT_INTERACTING) != 0 && n >= minN+2) {
-            output.nPlus2.push_back(NPlus2Block(minBases[n-2-minN], 
-                                                discPolys[n-2-minN],
-                                                minBases[n-minN],
-                                                discPolys[n-minN], 
-                                                args, odd));
+        if ((args.options & OPT_INTERACTING) != 0) {
+            if (discPolys.count(n-2) == 1) {
+                output.nPlus2.push_back(NPlus2Block(minBases.at(n-2), 
+                                                    discPolys.at(n-2),
+                                                    minBases.at(n),
+                                                    discPolys.at(n), 
+                                                    args, odd));
+            } else if (discPolys.count(n+2) == 1) {
+                output.nPlus2.push_back(NPlus2Block(minBases.at(n), 
+                                                    discPolys.at(n),
+                                                    minBases.at(n+2),
+                                                    discPolys.at(n+2), 
+                                                    args, odd));
+            }
         }
     }
 

@@ -66,7 +66,7 @@ CXXFLAGS_GLOBAL := -IEigen -Wall -Wextra -pedantic -fPIC -c -I$(BASEDIR) \
 CXXFLAGS_CORE := $(CXXFLAGS_GLOBAL) $(CXXFLAGS_EXTRA)
 CXXFLAGS_QT := $(CXXFLAGS_GLOBAL) $(QTINC)
 
-LDFLAGS_GLOBAL := -lgsl -lblas -lpthread $(LDFLAGS)
+LDFLAGS_GLOBAL := -lgsl -lblas -lpthread -lboost_filesystem -lboost_system $(LDFLAGS)
 
 LDFLAGS_CORE := $(LDFLAGS_GLOBAL)
 LDFLAGS_QT := $(QTLIB) $(LDFLAGS_GLOBAL)
