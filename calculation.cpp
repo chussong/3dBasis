@@ -119,29 +119,45 @@ DMatrix ComputeHamiltonian(const Arguments& args) {
     return DMatrix();
 }
 
+namespace {
+std::vector<Poly> NEqualsOneState() {
+    std::vector<particle> basisParticle;
+    basisParticle.push_back({1,0});
+
+    Mono basisMono(basisParticle);
+    builtin_class norm = InnerFock(basisMono, basisMono);
+    basisMono /= std::sqrt(norm);
+
+    std::vector<Poly> output;
+    output.emplace_back(basisMono);
+
+    return output;
+}
+} // anonymous namespace
+
 // compute the hamiltonian for all states with delta up to args.delta; if 
 // args.delta == 0, only compute one n-level (the DiagonalBlock at n=args.numP)
 Hamiltonian FullHamiltonian(const boost::filesystem::path& basisDir, 
                             Arguments args, const bool odd) {
-    int minN, maxN;
-    if (args.delta != 0.0) {
-        minN = 1;
-        maxN = std::floor(args.delta / 1.5);
-    } else {
-        minN = args.numP;
-        maxN = args.numP;
-    }
     Hamiltonian output;
-    output.maxN = maxN;
     const std::string parity = odd ? ", odd" : ", even";
     const bool mathematica = (args.options & OPT_MATHEMATICA) != 0;
     OStream& outStream = *args.outStream;
 
+    int highestN = -1;
     std::unordered_map<int,Basis<Mono>> minBases;
     std::unordered_map<int,SMatrix> discPolys;
+
+    // do N=1 separately since it's trivial
+    std::vector<Poly> nEqualsOne = NEqualsOneState();
+    minBases.emplace(1, MinimalBasis(nEqualsOne));
+    DMatrix polysOnMinBasis = PolysOnMinBasis(minBases.at(1), nEqualsOne,
+                                              outStream);
+
     for (boost::filesystem::directory_entry& file 
             : boost::filesystem::directory_iterator(basisDir)) {
         int n = std::stoi(file.path().stem().string());
+        highestN = std::max(highestN, n);
         std::vector<Poly> orthogonalized = Poly::ReadFromFile(file.path().string(), n);
         minBases.emplace(n, MinimalBasis(orthogonalized));
         DMatrix polysOnMinBasis = PolysOnMinBasis(minBases.at(n), orthogonalized,
@@ -175,24 +191,49 @@ Hamiltonian FullHamiltonian(const boost::filesystem::path& basisDir,
                 << endl;
         }
 
-        // FIXME: change output from vector to hash map
-        output.diagonal.push_back(DiagonalBlock(minBases.at(n), discPolys.at(n), 
-                                                args, odd));
+        args.numP = n;
+        output.blocks.emplace(std::array<int,2>{n, n}, 
+                              DiagonalBlock(minBases.at(n), discPolys.at(n), 
+                                            args, odd));
         if ((args.options & OPT_INTERACTING) != 0) {
             if (discPolys.count(n-2) == 1) {
-                output.nPlus2.push_back(NPlus2Block(minBases.at(n-2), 
-                                                    discPolys.at(n-2),
-                                                    minBases.at(n),
-                                                    discPolys.at(n), 
-                                                    args, odd));
-            } else if (discPolys.count(n+2) == 1) {
-                output.nPlus2.push_back(NPlus2Block(minBases.at(n), 
-                                                    discPolys.at(n),
-                                                    minBases.at(n+2),
-                                                    discPolys.at(n+2), 
-                                                    args, odd));
+                args.numP = n;
+                output.blocks.emplace(std::array<int,2>{n-2, n},
+                                      NPlus2Block(minBases.at(n-2), discPolys.at(n-2),
+                                                  minBases.at(n), discPolys.at(n),
+                                                  args, odd));
+            }
+            if (discPolys.count(n+2) == 1) {
+                args.numP = n+2;
+                output.blocks.emplace(std::array<int,2>{n, n+2},
+                                      NPlus2Block(minBases.at(n), discPolys.at(n),
+                                                  minBases.at(n+2), discPolys.at(n+2),
+                                                  args, odd));
             }
         }
+    }
+
+    // make sure hamiltonian has one block for each particle number up to the
+    // highest, and assign startLocs to each block
+    Eigen::Index runningCount = 0;
+    for (int i = 1; i <= highestN; ++i) {
+        if (output.blocks.count({i,i}) == 0) {
+            throw std::runtime_error(__FILE__ ": Hamiltonian load incomplete: "
+                                     "missing " + std::to_string(i) + ".txt");
+        }
+
+        output.startLocs.emplace(std::array<int,2>{i,i}, 
+                                 std::array<Eigen::Index,2>{runningCount, runningCount});
+
+        if (i-2 >= 1) {
+            Eigen::Index trailingCount = runningCount - 
+                                         output.blocks.at({i-2,i}).rows() -
+                                         output.blocks.at({i-1,i}).rows();
+            output.startLocs.emplace(std::array<int,2>{i-2,i}, 
+                                     std::array<Eigen::Index,2>{trailingCount, runningCount});
+        }
+
+        runningCount += output.blocks.at({i,i}).rows();
     }
 
     return output;
@@ -316,44 +357,36 @@ void AnalyzeHamiltonian(const Hamiltonian& hamiltonian, const Arguments& args,
 
 void AnalyzeHamiltonian_Sparse(const Hamiltonian& hamiltonian, 
                                const Arguments& args, const bool odd) {
-    Eigen::Index offset = 0;
-    Eigen::Index trailingOffset = 0;
+    Eigen::Index maxIndex = -1;
     std::vector<Triplet> triplets;
-    for (std::size_t n = 1; n < hamiltonian.diagonal.size()+1; ++n) {
-        // translate the diagonal block into sparse triplets
-        const auto& block = hamiltonian.diagonal[n-1];
+    for (const auto& keyValuePair : hamiltonian.blocks) {
+        // get which block this is and the location of its top left corner
+        const DMatrix& block = keyValuePair.second;
+        const std::array<Eigen::Index,2>& startLoc = 
+            hamiltonian.startLocs.at(keyValuePair.first);
+
+        // make sure to get the maximum size of the matrix
+        Eigen::Index extentOfBlock = std::max(startLoc[0] + block.rows(),
+                                              startLoc[1] + block.cols());
+        maxIndex = std::max(maxIndex, extentOfBlock);
+
         for (Eigen::Index i = 0; i < block.rows(); ++i) {
             for (Eigen::Index j = 0; j < block.cols(); ++j) {
                 if (block(i,j) == 0) continue;
-                triplets.emplace_back(offset+i, offset+j, block(i,j));
-                // std::cout << "Diagonal triplet: " << triplets.back() << '\n';
-            }
-        }
 
-        // if there's an nPlus2 block ending on this n, tripletize it too
-        if (n >= 3) {
-            const auto& nPlus2Block = hamiltonian.nPlus2[n-3];
-            for (Eigen::Index i = 0; i < nPlus2Block.rows(); ++i) {
-                for (Eigen::Index j = 0; j < nPlus2Block.cols(); ++j) {
-                    if (nPlus2Block(i,j) == 0) continue;
-                    triplets.emplace_back(trailingOffset+i, offset+j, 
-                                          nPlus2Block(i,j));
-                    // std::cout << "n+2 triplet: " << triplets.back() << '\n';
-                    triplets.emplace_back(offset+j, trailingOffset+i, 
-                                          nPlus2Block(i,j));
-                    // std::cout << "n+2 triplet: " << triplets.back() << '\n';
+                triplets.emplace_back(startLoc[0]+i, startLoc[1]+j, block(i,j));
+                // std::cout << "Triplet: " << triplets.back() << '\n';
+                if (startLoc[0] != startLoc[1]) {
+                    triplets.emplace_back(startLoc[1]+j, startLoc[0]+i, 
+                                          block(i,j));
                 }
+                // std::cout << "Triplet: " << triplets.back() << '\n';
             }
-            trailingOffset += hamiltonian.diagonal[n-3].rows();
-            // std::cout << "trailingOffset += " 
-                // << hamiltonian.diagonal[n-3].rows() << '\n';
         }
-        offset += block.rows();
-        // std::cout << "offset += " << block.rows() << '\n';
     }
 
-    SMatrix matrixForm(offset, offset);
-    // std::cout << "Matrix size: " << offset << "x" << offset << std::endl;
+    SMatrix matrixForm(maxIndex, maxIndex);
+    // std::cout << "Matrix size: " << maxIndex << "x" << maxIndex << std::endl;
     // for (const auto& trip : triplets) std::cout << trip << std::endl;
     matrixForm.setFromTriplets(triplets.begin(), triplets.end());
 
@@ -367,7 +400,7 @@ void AnalyzeHamiltonian_Sparse(const Hamiltonian& hamiltonian,
                 << DMatrix(matrixForm) << '\n';
         }
         outStream << (odd ? "Odd" : "Even") << " Hamiltonian eigenvalues:\n";
-        // TODO: use sparse Lanczos instead of converting to dense
+        // TODO: use sparse Lanczos instead of converting to dense?
         DMatrix denseForm(matrixForm);
         DEigenSolver solver(denseForm.cast<builtin_class>());
         outStream << solver.eigenvalues() << '\n';

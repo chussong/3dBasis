@@ -26,9 +26,10 @@
 // actual computations --------------------------------------------------------
 
 struct Hamiltonian {
-    int maxN;
-    std::vector<DMatrix> diagonal;
-    std::vector<DMatrix> nPlus2;
+    std::unordered_map<std::array<int,2>, std::array<Eigen::Index,2>,
+                       boost::hash<std::array<int,2>> > startLocs;
+    std::unordered_map<std::array<int,2>, DMatrix,
+                       boost::hash<std::array<int,2>> > blocks;
 };
 
 int Calculate(const Arguments& args);

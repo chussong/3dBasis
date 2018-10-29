@@ -81,7 +81,14 @@ Arguments ParseArguments(int argc, char* argv[]) {
                     options.push_back(arg);
                 }
             } else {
-                parameters.push_back(ReadArg<double>(arg));
+                // parameters.push_back(ReadArg<double>(arg));
+                if (ret.basisDir.empty()) {
+                    ret.basisDir = arg;
+                    parameters.push_back(0);
+                } else {
+                    throw std::runtime_error(__FILE__ ": tried to set basisDir "
+                                             "more than once");
+                }
             }
         }
     }
@@ -94,6 +101,9 @@ Arguments ParseArguments(int argc, char* argv[]) {
     switch (parameters.size()) {
         case 0:
             ret.options |= OPT_GUI;
+            break;
+        case 1:
+            // read a basis from disk
             break;
         case 2:
             ret.delta = parameters[0];

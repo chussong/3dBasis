@@ -77,26 +77,24 @@ namespace {
 
     // integrals: map from (a,b)->#
     std::unordered_map<std::array<builtin_class,2>, builtin_class,
-            boost::hash<std::array<builtin_class,2>> > uCache; // FIXME: dep'd
-    std::unordered_map<std::array<builtin_class,2>, builtin_class,
             boost::hash<std::array<builtin_class,2>> > uPlusCache;
     std::unordered_map<std::array<builtin_class,2>, builtin_class,
             boost::hash<std::array<builtin_class,2>> > thetaCache;
 } // anonymous namespace
 
 YTerm::YTerm(const coeff_class coeff, const std::string& y, 
-		const std::string& nAndm): coeff(coeff), y(y.begin(), y.end()-1) {
-	for (std::size_t i = 0; i < size(); ++i) {
-		this->y[i] += nAndm[i+1];
-	}
+             const std::string& nAndm): coeff(coeff), y(y.begin(), y.end()-1) {
+    for (std::size_t i = 0; i < size(); ++i) {
+        this->y[i] += nAndm[i+1];
+    }
 }
 
 std::ostream& operator<<(std::ostream& os, const YTerm& out) {
-	return os << out.coeff << " * " << out.y;
+    return os << out.coeff << " * " << out.y;
 }
 
-MatrixTerm_Intermediate::MatrixTerm_Intermediate(const size_t n): coeff(1),
-	uPlus(n), uMinus(n), yTilde(n) {
+MatrixTerm_Intermediate::MatrixTerm_Intermediate(const size_t n): 
+        coeff(1), uPlus(n), uMinus(n), yTilde(n) {
 }
 
 void MatrixTerm_Intermediate::Resize(const size_t n) {
@@ -246,8 +244,8 @@ DMatrix MatrixBlock(const Mono& A, const Mono& B, const MATRIX_TYPE type,
 }
 
 coeff_class MatrixTerm_Direct(const Mono& A, const Mono& B, const MATRIX_TYPE type) {
-    //std::cout << "TERM: " << A.HumanReadable() << " x " << B.HumanReadable() 
-            //<< std::endl;
+    // std::cout << "TERM: " << A.HumanReadable() << " x " << B.HumanReadable() 
+            // << std::endl;
 
     // degeneracy factors result from turning the ordered monomials into 
     // symmetric polynomials

@@ -150,5 +150,7 @@ std::vector<Poly> Poly::ReadFromFile(const std::string& filename,
         output.push_back(std::move(newPoly));
     }
 
+    // std::cout << "From file \"" << filename << "\", read this: " << output << '\n';
+
     return output;
 }
