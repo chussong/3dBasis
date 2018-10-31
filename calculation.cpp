@@ -156,7 +156,12 @@ Hamiltonian FullHamiltonian(const boost::filesystem::path& basisDir,
 
     for (boost::filesystem::directory_entry& file 
             : boost::filesystem::directory_iterator(basisDir)) {
-        int n = std::stoi(file.path().stem().string());
+        try {
+            int n = std::stoi(file.path().stem().string());
+        } catch (const std::invalid_argument&) {
+            // this file is not a number, skip it
+            continue;
+        }
         highestN = std::max(highestN, n);
         std::vector<Poly> orthogonalized = Poly::ReadFromFile(file.path().string(), n);
         minBases.emplace(n, MinimalBasis(orthogonalized));
