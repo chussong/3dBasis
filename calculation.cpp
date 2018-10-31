@@ -232,8 +232,8 @@ Hamiltonian FullHamiltonian(const boost::filesystem::path& basisDir,
 
         if (i-2 >= 1) {
             Eigen::Index trailingCount = runningCount - 
-                                         output.blocks.at({i-2,i}).rows() -
-                                         output.blocks.at({i-1,i}).rows();
+                                         output.blocks.at({i-2,i-2}).rows() -
+                                         output.blocks.at({i-1,i-1}).rows();
             output.startLocs.emplace(std::array<int,2>{i-2,i}, 
                                      std::array<Eigen::Index,2>{trailingCount, runningCount});
         }
