@@ -156,8 +156,9 @@ Hamiltonian FullHamiltonian(const boost::filesystem::path& basisDir,
 
     for (boost::filesystem::directory_entry& file 
             : boost::filesystem::directory_iterator(basisDir)) {
+        int n;
         try {
-            int n = std::stoi(file.path().stem().string());
+            n = std::stoi(file.path().stem().string());
         } catch (const std::invalid_argument&) {
             // this file is not a number, skip it
             continue;
